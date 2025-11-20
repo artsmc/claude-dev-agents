@@ -1,0 +1,13 @@
+# Ignore everything
+*
+*/
+
+# But include these directories
+!agents/
+!agents/*
+!commands/
+!commands/*
+
+# Include these files
+!.gitignore
+!README.md
