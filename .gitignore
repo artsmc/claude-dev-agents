@@ -1,0 +1,23 @@
+# Sensitive and private files
+history.jsonl
+settings.json
+settings.local.json
+mcp_servers.json
+.env
+*.env.local
+
+# System and cache directories
+debug/
+file-history/
+logs/
+plans/
+session-env/
+shell-snapshots/
+statsig/
+todos/
+ide/
+projects/
+plugins/
+
+# Keep only agents and commands folders
+# along with documentation
