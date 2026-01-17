@@ -1,0 +1,14 @@
+# Python dependencies for memory-bank skill scripts
+# These scripts use only Python standard library to minimize dependencies
+
+# No external dependencies required!
+# All scripts use only built-in Python modules:
+# - json (JSON parsing)
+# - sys (command-line args)
+# - re (regular expressions)
+# - pathlib (file path handling)
+# - datetime (timestamps)
+# - os (file operations)
+
+# To run scripts:
+# python3 script_name.py /path/to/project

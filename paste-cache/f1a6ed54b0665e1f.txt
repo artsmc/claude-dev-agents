@@ -1,0 +1,134 @@
+Cool — add a **Quality Gate** that runs *between* tasks (and optionally mid-task) so you always have: (1) review notes, (2) clean checkpoints, (3) guaranteed green lint/build.
+
+Here’s a drop-in spec section you can add to **Mode 2 (Act Mode)**.
+
+---
+
+## Add: “Between-Task Quality Gate” (Code Review + Check-ins + Lint/Build Required)
+
+### Where it fits
+
+Place this as a new section in **Mode 2**, either:
+
+* **Part 3.5: Quality Gate (Between Tasks)**, or
+* fold it into **Part 4** as a required step before any task is marked complete.
+
+I recommend **Part 3.5** so it’s explicitly “between task execution and task completion.”
+
+---
+
+## Part 3.5 — Quality Gate (Mandatory Between Tasks)
+
+### Purpose
+
+Before moving from one task to the next, enforce:
+
+* **code quality review**
+* **clean history checkpoints**
+* **lint + build must pass**
+
+### Directory addition (optional but clean)
+
+Add one more folder:
+
+```bash
+mkdir -p "{{input_folder}}/planning/code-reviews"
+```
+
+---
+
+## Required sequence after *each task* (and optionally mid-task)
+
+### Step A — Mid-task “Code Check-ins” (for long tasks)
+
+If a task is large (multiple files / >30–60 min effort), create at least **1 checkpoint commit** *before the task is done*.
+
+**Checkpoint rules**
+
+* Must compile / typecheck (if applicable)
+* Should not break lint/build (best), but if unavoidable, label it clearly
+
+**Commit message format**
+
+* `checkpoint: <task-name> - <short note>`
+* Example: `checkpoint: auth-endpoint - wire routes + types`
+
+This gives you rollback points *within* a task, not just after it.
+
+---
+
+### Step B — Run Quality Commands (must be green)
+
+Before a task can be considered “complete,” run:
+
+* **Lint:** `npm run lint` (or equivalent)
+* **Build:** `npm run build` (or equivalent)
+* (Optional but strong) **Tests:** `npm test` or `npm run test`
+
+**Hard rule:** task cannot be closed until **lint + build pass**.
+
+---
+
+### Step C — Between-task Code Review (quality pass)
+
+Switch persona to **code_reviewer** and perform a targeted review of the task’s diff.
+
+**Review must cover**
+
+* correctness (logic + edge cases)
+* type safety
+* consistency with conventions (naming, structure)
+* SRP/DRY, obvious duplication
+* security pitfalls (auth, input validation) where relevant
+
+**Output file**
+Create a review note per task:
+
+* `{{input_folder}}/planning/code-reviews/<task-name>.md`
+
+Include:
+
+* Summary (2–5 bullets)
+* Issues found (if any)
+* Fixes made
+* “Approved ✅ / Needs follow-up ⚠️”
+
+---
+
+### Step D — Task Update + Final Commit (only after review + green checks)
+
+Update:
+
+* `{{input_folder}}/planning/task-updates/<task-name>.md`
+
+Add a required checklist at the bottom:
+
+* [ ] Lint passed
+* [ ] Build passed
+* [ ] Review completed (`planning/code-reviews/<task-name>.md`)
+* [ ] Commit created
+
+Then do your final commit (you already have this, just enforce the gate):
+
+```bash
+git add .
+git commit -m "Completed task: <task-name> during phase {{phase}}"
+```
+
+---
+
+## Optional: “No next task until gate passes”
+
+Add this single enforcement line to your spec:
+
+> **The system may not start the next task until:** lint + build are green, a code review note exists, and the completed-task commit is created.
+
+---
+
+## What this gives you
+
+* A **granular commit history** (checkpoint commits + completion commits)
+* A **paper trail of reviews** per task (easy to audit later)
+* No “surprise broken main” because **lint/build are always green between tasks**
+
+If you want, I can also rewrite your existing Part 3/4 sections to *embed* this gate so it reads like one continuous operating procedure (and not an add-on).
