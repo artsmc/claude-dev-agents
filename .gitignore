@@ -7,13 +7,17 @@ mcp_servers.json
 *.env.local
 
 # System and cache directories
+cache/
 debug/
 file-history/
 logs/
 plans/
+planning/
+paste-cache/
 session-env/
 shell-snapshots/
 statsig/
+stats-cache.json
 todos/
 ide/
 projects/
