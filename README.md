@@ -33,32 +33,27 @@ This repository implements a **modular, skill-based architecture** with:
 │   └── ui-developer.md
 │
 ├── skills/                    # Modular skill-based workflows
-│   ├── document-hub/          # Documentation management system
-│   │   ├── init.md           # Initialize documentation hub
-│   │   ├── sync.md           # Sync documentation
-│   │   ├── query.md          # Query documentation
-│   │   ├── update.md         # Update documentation
-│   │   ├── analyze.md        # Analyze documentation
-│   │   ├── validate.md       # Validate documentation
-│   │   ├── export.md         # Export documentation
-│   │   ├── template.md       # Apply documentation templates
-│   │   └── README.md         # Complete system guide
+│   ├── hub/                   # Document Hub system
+│   │   ├── document-hub-analyze.md
+│   │   ├── document-hub-initialize.md
+│   │   ├── document-hub-read.md
+│   │   ├── document-hub-update.md
+│   │   ├── scripts/          # Hub validation tools
+│   │   └── README.md
 │   │
 │   ├── memory-bank/           # Knowledge storage system
-│   │   ├── remember.md       # Store knowledge
-│   │   ├── recall.md         # Retrieve knowledge
-│   │   ├── update.md         # Update knowledge
-│   │   ├── search.md         # Search knowledge
-│   │   ├── forget.md         # Remove knowledge
-│   │   ├── summarize.md      # Summarize knowledge
-│   │   ├── export.md         # Export knowledge
-│   │   ├── rebuild.md        # Rebuild knowledge index
-│   │   └── README.md         # Complete system guide
+│   │   ├── initialize.md
+│   │   ├── read.md
+│   │   ├── sync.md
+│   │   ├── update.md
+│   │   ├── scripts/          # Memory bank tools
+│   │   └── README.md
 │   │
 │   ├── spec/                  # Specification system
-│   │   ├── plan.md           # Plan feature specifications
-│   │   ├── write.md          # Write specifications
-│   │   └── README.md         # Complete system guide
+│   │   ├── plan.md
+│   │   ├── review.md
+│   │   ├── scripts/          # Spec validation tools
+│   │   └── README.md
 │   │
 │   └── start-phase/           # Phase management system ⭐
 │       ├── plan.md           # Mode 1: Strategic planning
@@ -72,31 +67,13 @@ This repository implements a **modular, skill-based architecture** with:
 │           ├── requirements.txt
 │           └── README.md
 │
-├── hooks/                     # Automated workflow enforcement
-│   ├── document-hub/
-│   │   ├── sync-on-save.md
-│   │   ├── validate-on-commit.md
-│   │   └── README.md
-│   │
-│   ├── memory-bank/
-│   │   ├── auto-remember.md
-│   │   ├── periodic-sync.md
-│   │   └── README.md
-│   │
-│   └── start-phase/           # Phase workflow automation ⭐
-│       ├── phase-start.md    # Pre-flight validation
-│       ├── task-complete.md  # Task completion bridge
-│       ├── quality-gate.md   # Quality enforcement (Part 3.5)
-│       ├── phase-complete.md # Phase closeout (Part 5)
-│       └── README.md
-│
-├── commands/                  # Legacy commands (deprecated)
-│   ├── document-hub.md       # → Use /document-hub skills
-│   ├── memory-bank.md        # → Use /memory-bank skills
-│   ├── spec.md               # → Use /spec skills
-│   └── start-phase.md        # → Use /start-phase skills
-│
-└── README.md                  # This file
+└── hooks/                     # Automated workflow enforcement
+    └── start-phase/           # Phase workflow automation ⭐
+        ├── phase-start.md    # Pre-flight validation
+        ├── task-complete.md  # Task completion bridge
+        ├── quality-gate.md   # Quality enforcement (Part 3.5)
+        ├── phase-complete.md # Phase closeout (Part 5)
+        └── README.md
 ```
 
 ---
@@ -127,19 +104,15 @@ Specialized development personas for different aspects of development.
 
 Modular, reusable workflows for common development tasks.
 
-### 📚 Document Hub (8 skills)
+### 📚 Document Hub (4 skills)
 
-Comprehensive documentation management system.
+Documentation management system for codebases.
 
 ```bash
-/document-hub init          # Initialize documentation structure
-/document-hub sync          # Sync documentation with codebase
-/document-hub query         # Query documentation
-/document-hub update        # Update documentation
-/document-hub analyze       # Analyze documentation coverage
-/document-hub validate      # Validate documentation integrity
-/document-hub export        # Export documentation
-/document-hub template      # Apply documentation templates
+/document-hub-initialize    # Initialize documentation structure
+/document-hub-read          # Read and summarize documentation
+/document-hub-analyze       # Analyze documentation coverage
+/document-hub-update        # Update documentation
 ```
 
 **Features:**
@@ -148,31 +121,29 @@ Comprehensive documentation management system.
 - Documentation validation
 - Template management
 
-**Documentation:** `/home/artsmc/.claude/skills/document-hub/README.md`
+**Location:** `/home/artsmc/.claude/skills/hub/`
+**Documentation:** `/home/artsmc/.claude/skills/hub/README.md`
 
 ---
 
-### 🧠 Memory Bank (8 skills)
+### 🧠 Memory Bank (4 skills)
 
 Knowledge storage and retrieval system with automatic context management.
 
 ```bash
-/memory-bank remember       # Store knowledge (facts, patterns, decisions)
-/memory-bank recall         # Retrieve relevant knowledge
-/memory-bank update         # Update existing knowledge
-/memory-bank search         # Search knowledge base
-/memory-bank forget         # Remove outdated knowledge
-/memory-bank summarize      # Summarize knowledge
-/memory-bank export         # Export knowledge base
-/memory-bank rebuild        # Rebuild knowledge index
+/memory-bank-initialize     # Initialize knowledge base
+/memory-bank-read           # Read and retrieve knowledge
+/memory-bank-sync           # Sync knowledge with codebase
+/memory-bank-update         # Update knowledge entries
 ```
 
 **Features:**
 - Context-aware knowledge storage
-- Semantic search
+- Semantic search capabilities
 - Automatic categorization
 - Knowledge graph maintenance
 
+**Location:** `/home/artsmc/.claude/skills/memory-bank/`
 **Documentation:** `/home/artsmc/.claude/skills/memory-bank/README.md`
 
 ---
@@ -182,17 +153,17 @@ Knowledge storage and retrieval system with automatic context management.
 Feature specification and documentation system.
 
 ```bash
-/spec plan [feature]        # Plan feature specifications (with optional arg)
-/spec write                 # Write detailed specifications
+/spec-plan                  # Plan feature specifications
+/spec-review                # Review specifications
 ```
 
 **Features:**
 - Structured feature planning
 - FRD (Functional Requirements Document) generation
 - FRS (Functional Requirements Specification)
-- GS (Game Script) for implementation steps
-- TR (Technical Requirements) documentation
+- Technical requirements documentation
 
+**Location:** `/home/artsmc/.claude/skills/spec/`
 **Documentation:** `/home/artsmc/.claude/skills/spec/README.md`
 
 ---
@@ -245,6 +216,7 @@ Comprehensive phase management system with quality gates, hooks, and tools.
 **Recommended:** 5-7 tasks per phase
 **Maximum:** 10 tasks (with optimizations)
 
+**Location:** `/home/artsmc/.claude/skills/start-phase/`
 **Documentation:** `/home/artsmc/.claude/skills/start-phase/README.md` (68KB comprehensive guide)
 
 ---
@@ -253,21 +225,17 @@ Comprehensive phase management system with quality gates, hooks, and tools.
 
 Automated workflow enforcement triggered by specific events.
 
-### Document Hub Hooks
-- **sync-on-save.md** - Auto-sync documentation on file save
-- **validate-on-commit.md** - Validate documentation before git commit
-
-### Memory Bank Hooks
-- **auto-remember.md** - Automatically capture important information
-- **periodic-sync.md** - Periodic knowledge base synchronization
-
 ### Start-Phase Hooks ⭐
+
+The start-phase system includes 4 comprehensive hooks for automated quality enforcement:
+
 - **phase-start.md** - Pre-flight validation before phase starts
 - **task-complete.md** - Bridge between task execution and quality gate
 - **quality-gate.md** - Quality enforcement between every task (Part 3.5)
 - **phase-complete.md** - Comprehensive phase closeout (Part 5)
 
-**Location:** `/home/artsmc/.claude/hooks/`
+**Location:** `/home/artsmc/.claude/hooks/start-phase/`
+**Documentation:** `/home/artsmc/.claude/hooks/start-phase/README.md`
 
 ---
 
@@ -325,21 +293,27 @@ python sloc_tracker.py /path/to/project --final
 
 | System | Status | Skills | Hooks | Tools | Documentation |
 |--------|--------|--------|-------|-------|---------------|
-| **start-phase** | ✅ v2.0 | 2 | 4 | 4 | 68KB |
-| **document-hub** | ✅ v1.0 | 8 | 2 | 0 | Complete |
-| **memory-bank** | ✅ v1.0 | 8 | 2 | 0 | Complete |
-| **spec** | ✅ v1.0 | 2 | 0 | 0 | Complete |
+| **start-phase** | ✅ v2.0 | 2 | 4 | 4 | 68KB comprehensive |
+| **hub** (document-hub) | ✅ v1.0 | 4 | 0 | 4 | Complete |
+| **memory-bank** | ✅ v1.0 | 4 | 0 | 4 | Complete |
+| **spec** | ✅ v1.0 | 2 | 0 | 2 | Complete |
 
-### Total System Size
+### Total Implementation
 
-```
-Skills:        ~135 KB (28 skill files)
-Hooks:         ~85 KB (8 hook systems)
-Tools:         ~50 KB (4 Python tools)
-Documentation: ~125 KB (comprehensive guides)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TOTAL:         ~395 KB (production-ready)
-```
+- **12 skills** across 4 systems
+- **4 hooks** for automated workflow (start-phase only)
+- **14 Python tools** (890+ lines of code)
+- **8 specialized agents** for development
+- **~250 KB** of production code
+- **Zero external dependencies** (Python stdlib only)
+
+### Skill Naming Convention
+
+Skills follow the pattern `/{system-name}-{action}`:
+- `/document-hub-initialize`, `/document-hub-read`, etc.
+- `/memory-bank-initialize`, `/memory-bank-read`, etc.
+- `/spec-plan`, `/spec-review`
+- `/start-phase plan`, `/start-phase execute` (space-separated for arguments)
 
 ---
 
@@ -349,7 +323,7 @@ TOTAL:         ~395 KB (production-ready)
 
 **1. Initialize documentation:**
 ```bash
-/document-hub init
+/document-hub-initialize
 ```
 
 **2. Plan your first phase:**
@@ -371,24 +345,24 @@ EOF
 
 **3. Store important knowledge:**
 ```bash
-/memory-bank remember "API uses JWT tokens with 24h expiration"
+/memory-bank-initialize
 ```
 
 ### For Existing Projects
 
 **1. Analyze current documentation:**
 ```bash
-/document-hub analyze
+/document-hub-analyze
 ```
 
-**2. Recall project context:**
+**2. Read project context:**
 ```bash
-/memory-bank recall "authentication patterns"
+/memory-bank-read
 ```
 
 **3. Plan next feature:**
 ```bash
-/spec plan "add user profile page"
+/spec-plan "add user profile page"
 ```
 
 ---
@@ -398,7 +372,7 @@ EOF
 Each system has comprehensive documentation:
 
 - **start-phase:** `/home/artsmc/.claude/skills/start-phase/README.md` (68KB)
-- **document-hub:** `/home/artsmc/.claude/skills/document-hub/README.md`
+- **hub:** `/home/artsmc/.claude/skills/hub/README.md`
 - **memory-bank:** `/home/artsmc/.claude/skills/memory-bank/README.md`
 - **spec:** `/home/artsmc/.claude/skills/spec/README.md`
 
@@ -419,34 +393,18 @@ Each system has comprehensive documentation:
 - ✅ **Trust quality gates:** They prevent shipping broken code
 
 ### Documentation
-- ✅ **Keep docs in sync:** Use `/document-hub sync` regularly
-- ✅ **Validate before commits:** Hooks do this automatically
-- ✅ **Use templates:** Consistent documentation structure
+- ✅ **Initialize first:** Use `/document-hub-initialize` for new projects
+- ✅ **Keep docs current:** Use `/document-hub-update` after changes
+- ✅ **Analyze regularly:** Use `/document-hub-analyze` to check coverage
 
 ### Knowledge Management
-- ✅ **Remember key decisions:** Use `/memory-bank remember`
-- ✅ **Context before coding:** Use `/memory-bank recall`
-- ✅ **Clean up outdated knowledge:** Use `/memory-bank forget`
+- ✅ **Initialize knowledge base:** Use `/memory-bank-initialize` once
+- ✅ **Sync with codebase:** Use `/memory-bank-sync` regularly
+- ✅ **Read before coding:** Use `/memory-bank-read` for context
 
 ### Specifications
-- ✅ **Plan before implementing:** Use `/spec plan` first
-- ✅ **Detailed requirements:** Use `/spec write` for FRD/FRS
-- ✅ **Include in documentation:** Export to documentation hub
-
----
-
-## 🔄 Migration from Legacy Commands
-
-Legacy command files in `/commands/` have been **deprecated** and replaced with modular skills.
-
-| Old Command | New Skills | Migration |
-|-------------|------------|-----------|
-| `/document-hub` | `/document-hub {init,sync,query,etc.}` | Use specific skill |
-| `/memory-bank` | `/memory-bank {remember,recall,etc.}` | Use specific skill |
-| `/spec` | `/spec {plan,write}` | Use specific skill |
-| `/start-phase` | `/start-phase {plan,execute}` | Use Mode 1 then Mode 2 |
-
-**Note:** Legacy command files contain migration guides and deprecation notices.
+- ✅ **Plan before implementing:** Use `/spec-plan` first
+- ✅ **Review specifications:** Use `/spec-review` for validation
 
 ---
 
@@ -473,22 +431,13 @@ The **start-phase** system is the most comprehensive and production-ready system
 
 ## 📊 Statistics
 
-### Total Implementation
-
-- **28 skills** across 4 systems
-- **8 hooks** for automated workflow
-- **4 Python tools** (890 lines of code)
-- **8 specialized agents** for development
-- **~395 KB** of production code
-- **Zero external dependencies** (Python stdlib only)
-
 ### Token Efficiency
 
 | System | Token Cost | Use Case |
 |--------|-----------|----------|
-| document-hub | ~30k | Documentation management |
-| memory-bank | ~25k | Knowledge storage |
-| spec | ~45k | Feature specifications |
+| document-hub | ~15k | Documentation management |
+| memory-bank | ~12k | Knowledge storage |
+| spec | ~8k | Feature specifications |
 | start-phase | ~160k (7 tasks) | Phase management with quality gates |
 
 ---
@@ -497,10 +446,11 @@ The **start-phase** system is the most comprehensive and production-ready system
 
 ### Common Issues
 
-**Q: Skills not showing up**
+**Q: Skills not showing up in slash command list**
 - Ensure files are in correct directories (`skills/`, `hooks/`, `agents/`)
 - Check file permissions (should be readable)
 - Restart Claude Code if needed
+- Skills appear with their full names (e.g., `/document-hub-initialize`)
 
 **Q: Quality gates failing**
 - Check that lint/build commands exist in package.json
@@ -511,6 +461,7 @@ The **start-phase** system is the most comprehensive and production-ready system
 - Verify hook files are in `/home/artsmc/.claude/hooks/`
 - Check hook trigger conditions match your workflow
 - Ensure hook frontmatter is correctly formatted
+- Currently only start-phase has hooks implemented
 
 ### Getting Help
 
@@ -531,9 +482,9 @@ Private repository for personal use.
 - [start-phase Complete Guide](skills/start-phase/README.md) - 68KB comprehensive documentation
 - [start-phase Tools Guide](skills/start-phase/scripts/README.md) - Python tools documentation
 - [start-phase Hooks Guide](hooks/start-phase/README.md) - Hook system documentation
-- [document-hub Guide](skills/document-hub/README.md) - Documentation management
-- [memory-bank Guide](skills/memory-bank/README.md) - Knowledge storage
-- [spec Guide](skills/spec/README.md) - Specification system
+- [Document Hub Guide](skills/hub/README.md) - Documentation management
+- [Memory Bank Guide](skills/memory-bank/README.md) - Knowledge storage
+- [Spec Guide](skills/spec/README.md) - Specification system
 
 ---
 
