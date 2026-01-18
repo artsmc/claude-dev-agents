@@ -121,7 +121,102 @@ Edit {task_list_file}
 
 ---
 
-### Step 1.4: Create Directory Structure
+### Step 1.4: Check for Existing Planning Folder
+
+**CRITICAL: Check if planning/ already exists (resume support):**
+
+```bash
+ls -la "{planning_folder}" 2>/dev/null
+```
+
+**If planning folder EXISTS:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  Existing Planning Folder Detected
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Found: {planning_folder}/
+
+Analyzing existing state...
+```
+
+**Count task update files:**
+```bash
+ls {planning_folder}/task-updates/*.md 2>/dev/null | wc -l
+```
+
+**Read task list to get total tasks:**
+```bash
+grep -c "^### Task\|^##.*Task" {task_list_file}
+```
+
+**Present resume options:**
+```
+Detected state:
+• task-updates/: 8/40 files present (20% complete)
+• Last completed: Task 8 (Mock Data Management System)
+• Last modified: 2 hours ago
+
+Options:
+1. ✅ Resume from Task 9 (recommended)
+   → Skip completed tasks, continue from where you left off
+   → Existing quality gates preserved
+   → Faster execution (skip 8 tasks)
+
+2. 🔄 Start over (delete existing planning/)
+   → WARNING: Will lose all progress tracking
+   → Use if previous execution had errors
+   → Full re-execution of all tasks
+
+3. ❌ Cancel
+   → Exit without changes
+
+Which option? (1/2/3)
+```
+
+**Handle user response:**
+
+**Option 1 (Resume):**
+```
+✅ Resuming from Task 9
+
+Skipping completed tasks:
+✓ Task 1: Create API Route File Structure
+✓ Task 2: Implement Email Validation Function
+...
+✓ Task 8: Mock Data Management System
+
+Starting: Task 9: Implement Already Verified Check
+```
+
+**Option 2 (Start over):**
+```
+🔄 Starting over
+
+Backing up existing planning folder...
+```
+```bash
+mv {planning_folder} {planning_folder}.backup.$(date +%Y%m%d-%H%M%S)
+```
+```
+✅ Backup created: {planning_folder}.backup.20260117-143022
+
+Creating fresh planning structure...
+```
+
+**Option 3 (Cancel):**
+```
+❌ Execution cancelled
+
+Planning folder preserved at: {planning_folder}
+```
+
+---
+
+### Step 1.5: Create Directory Structure (if needed)
+
+**If no existing planning folder OR user chose "start over":**
 
 **Create all required planning directories:**
 
@@ -145,9 +240,22 @@ mkdir -p "{planning_folder}/code-reviews"
 All phase artifacts will be stored here.
 ```
 
+**If resuming:**
+```
+✅ Using existing directory structure
+
+{planning_folder}/
+├── task-updates/ (8 existing files preserved)
+├── agent-delegation/ (existing files preserved)
+├── phase-structure/ (existing files preserved)
+└── code-reviews/ (existing files preserved)
+
+Resuming execution from Task 9...
+```
+
 ---
 
-### Step 1.5: Validate Structure
+### Step 1.6: Validate Structure
 
 ```bash
 python skills/start-phase/scripts/validate_phase.py {input_folder}
@@ -476,6 +584,39 @@ Executing tasks according to delegation plan...
 
 #### Sequential Tasks
 
+**Before starting task - show progress:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Phase Progress
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Overall: [████████████░░░░░░░░] 12/40 tasks (30%)
+
+Recently completed:
+✅ Task 10: Implement Token Generation and Database Update (25m)
+✅ Task 11: Implement Email Sending (18m)
+✅ Task 12: Implement Success Response (8m)
+
+Current wave: Wave 3 (Sequential - Error Handling)
+▶ Starting Task 13: Add Comprehensive Error Logging
+  Agent: nextjs-backend-developer
+  Priority: P1 (High)
+  Estimated time: 15 minutes
+
+Next up:
+⏳ Task 14: Test API Route Manually (P0, 30m)
+⏳ Task 15: Read Existing Verify Email Page Component (P0, 15m)
+
+Time tracking:
+• Elapsed: 4h 12m
+• Estimated remaining: ~10h 30m
+• Expected completion: Today at 18:45
+
+Quality gates: 12/12 passed ✅
+Last commit: 8 minutes ago
+```
+
+**Start task execution:**
 ```
 Starting Task {n}: {task_name}
 Agent: {agent_persona}
@@ -489,6 +630,7 @@ Execute task following agent persona.
 ```
 ✅ Task {n} execution complete
 
+Duration: {actual_time}
 → task-complete hook will trigger automatically
 → quality-gate hook will run
 → Waiting for quality gate...
@@ -496,20 +638,40 @@ Execute task following agent persona.
 
 (Quality gate runs automatically via hook - see Part 3.5)
 
+**After quality gate passes - update progress:**
+```
+✅ Quality Gate PASSED
+
+Task {n} complete and verified.
+
+Updated progress: [█████████████░░░░░░░] 13/40 tasks (32.5%)
+Proceeding to next task...
+```
+
 ---
 
 #### Parallel Tasks
 
+**Show wave progress:**
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Phase Progress
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Overall: [████████████░░░░░░░░] 12/40 tasks (30%)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔀 Wave {n}: Parallel Execution
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Spawning SUBAGENT WORKERS IN PARALLEL:
 
-1. Task {n}: {task_name} ({agent})
-2. Task {n+1}: {task_name} ({agent})
-3. Task {n+2}: {task_name} ({agent})
+1. Task {n}: {task_name} ({agent}) - Est: {time}
+2. Task {n+1}: {task_name} ({agent}) - Est: {time}
+3. Task {n+2}: {task_name} ({agent}) - Est: {time}
+
+Expected wave duration: ~{max_time} (parallel execution)
+vs. ~{total_time} (sequential - 3x slower)
 
 Launching agents...
 ```
@@ -539,14 +701,34 @@ Task tool:
 
 **Launch all parallel agents simultaneously.**
 
+**Monitor parallel execution:**
+```
+⏳ Parallel execution in progress...
+
+Task {n}: ▶ In progress (nextjs-backend-developer, 12m elapsed)
+Task {n+1}: ▶ In progress (ui-developer, 12m elapsed)
+Task {n+2}: ⏳ Queued (qa-engineer, waiting for agent)
+
+Wave estimated remaining: ~8 minutes
+```
+
 **Wait for all to complete:**
 ```
-Wave {n} complete:
-✅ Task {n}: Complete
-✅ Task {n+1}: Complete
-✅ Task {n+2}: Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Wave {n} Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-All tasks passed quality gates.
+Wave results:
+✅ Task {n}: Complete (15m actual vs 20m estimated)
+✅ Task {n+1}: Complete (18m actual vs 15m estimated)
+✅ Task {n+2}: Complete (12m actual vs 10m estimated)
+
+Wave duration: 18m (parallel) vs 45m (sequential)
+Time saved: 27 minutes (60% faster)
+
+All tasks passed quality gates ✅
+
+Updated progress: [██████████████░░░░░░] 15/40 tasks (37.5%)
 ```
 
 ---

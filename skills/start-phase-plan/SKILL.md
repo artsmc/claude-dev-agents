@@ -173,6 +173,62 @@ Wave 4 (sequential): Task 7
 
 ---
 
+**Identify Sub-Agent Delegation Opportunities:**
+
+Analyze if feature requires specialized agents:
+
+```
+🤖 Sub-Agent Delegation Analysis
+
+Feature characteristics:
+• Total files impacted: 6 (3 new, 3 modified)
+• Skill sets required: Backend API, Frontend UI, Testing
+• Components: API endpoint, UI form, database schema, tests
+
+Sub-agent opportunity assessment:
+✅ RECOMMEND sub-agent delegation
+
+Rationale:
+• Multiple specializations: Backend (API + DB) + Frontend (UI) + QA (tests)
+• Parallel execution benefit: ~30-40% time savings
+• Agent expertise: Each agent has specialized knowledge base
+• Progress tracking: Granular task updates per agent
+
+Proposed delegation:
+• nextjs-backend-developer: Tasks 1, 2, 4, 5, 6 (API, DB, JWT, middleware)
+• ui-developer: Task 3 (Login form UI)
+• qa-engineer: Task 7 (Integration tests)
+
+Parallel waves with agents:
+Wave 1 (parallel):
+  • Task 1: Setup auth API (nextjs-backend-developer)
+  • Task 3: Build login UI (ui-developer)
+
+Wave 2 (parallel):
+  • Tasks 2, 4, 5: DB + JWT + hashing (nextjs-backend-developer)
+
+Wave 3 (sequential):
+  • Task 6: Middleware (nextjs-backend-developer)
+  • Task 7: Tests (qa-engineer)
+
+Expected time savings: ~2h sequential → ~1.5h parallel (25% faster)
+```
+
+**When NOT to use sub-agents:**
+```
+❌ Skip sub-agent delegation if:
+
+• Single file change (documentation update, config tweak)
+• <3 tasks total
+• Single skill set (only backend OR only frontend, not both)
+• Bug fix or hotfix (speed over tracking)
+• Proof of concept / throwaway code
+
+Use manual execution or lightweight mode instead.
+```
+
+---
+
 **Force Incremental Builds:**
 
 Reorder for early integration:
