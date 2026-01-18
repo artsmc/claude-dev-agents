@@ -10,6 +10,7 @@ mcp_servers.json
 cache/
 debug/
 file-history/
+job-queue/
 logs/
 plans/
 planning/
