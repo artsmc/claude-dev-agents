@@ -11,6 +11,7 @@ The pm-db skill provides a SQLite-based tracking system for managing:
 - **Agent assignments** with duration tracking
 - **Execution logs** of all commands
 - **Dashboards** and reporting
+- **Backup and restore** with online backups and integrity verification
 
 ## Quick Start
 
