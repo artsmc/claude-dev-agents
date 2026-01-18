@@ -573,6 +573,23 @@ class ProjectDatabase:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a single task by ID.
+
+        Args:
+            task_id: Task ID
+
+        Returns:
+            Task dict or None if not found
+        """
+        cursor = self.conn.execute(
+            "SELECT * FROM tasks WHERE id = ?",
+            (task_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
     # ==================== CODE REVIEW MANAGEMENT ====================
 
     def add_code_review(
