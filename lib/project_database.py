@@ -1075,3 +1075,164 @@ class ProjectDatabase:
 
         cursor = self.conn.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
+
+    def get_code_review_metrics(
+        self,
+        job_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated code review metrics and statistics.
+
+        Args:
+            job_id: Optional job ID to filter by
+            start_date: Optional start date (ISO format: YYYY-MM-DD HH:MM:SS)
+            end_date: Optional end date (ISO format: YYYY-MM-DD HH:MM:SS)
+
+        Returns:
+            Dict with review metrics including:
+            - total_reviews: Total number of reviews
+            - verdict_distribution: Count by verdict (approved/changes-requested/rejected)
+            - avg_issues_per_review: Average number of issues found
+            - reviewer_activity: Reviews per reviewer
+            - common_issues: Top issue types (if available in issues_found JSON)
+            - recent_reviews: Last 10 reviews
+
+        Examples:
+            # Get metrics for all reviews
+            metrics = db.get_code_review_metrics()
+
+            # Get metrics for specific job
+            metrics = db.get_code_review_metrics(job_id=123)
+
+            # Get metrics for last week
+            metrics = db.get_code_review_metrics(
+                start_date='2026-01-10 00:00:00'
+            )
+        """
+        # Build base query filters
+        where_clause = "WHERE 1=1"
+        params = []
+
+        if job_id is not None:
+            where_clause += " AND job_id = ?"
+            params.append(job_id)
+
+        if start_date:
+            where_clause += " AND created_at >= ?"
+            params.append(start_date)
+
+        if end_date:
+            where_clause += " AND created_at <= ?"
+            params.append(end_date)
+
+        # Total reviews
+        cursor = self.conn.execute(
+            f"SELECT COUNT(*) as count FROM code_reviews {where_clause}",
+            params
+        )
+        total_reviews = cursor.fetchone()['count']
+
+        # Verdict distribution
+        cursor = self.conn.execute(
+            f"""
+            SELECT verdict, COUNT(*) as count
+            FROM code_reviews
+            {where_clause}
+            GROUP BY verdict
+            ORDER BY count DESC
+            """,
+            params
+        )
+        verdict_distribution = {row['verdict']: row['count'] for row in cursor.fetchall()}
+
+        # Average issues per review
+        cursor = self.conn.execute(
+            f"""
+            SELECT AVG(
+                CASE
+                    WHEN issues_found IS NULL OR issues_found = '[]' THEN 0
+                    ELSE json_array_length(issues_found)
+                END
+            ) as avg_issues
+            FROM code_reviews
+            {where_clause}
+            """,
+            params
+        )
+        avg_issues = cursor.fetchone()['avg_issues'] or 0
+
+        # Reviewer activity
+        cursor = self.conn.execute(
+            f"""
+            SELECT reviewer, COUNT(*) as count
+            FROM code_reviews
+            {where_clause}
+            GROUP BY reviewer
+            ORDER BY count DESC
+            LIMIT 10
+            """,
+            params
+        )
+        reviewer_activity = [
+            {'reviewer': row['reviewer'], 'review_count': row['count']}
+            for row in cursor.fetchall()
+        ]
+
+        # Recent reviews (last 10)
+        cursor = self.conn.execute(
+            f"""
+            SELECT *
+            FROM code_reviews
+            {where_clause}
+            ORDER BY created_at DESC
+            LIMIT 10
+            """,
+            params
+        )
+        recent_reviews = [dict(row) for row in cursor.fetchall()]
+
+        # Common issues (extract from issues_found JSON)
+        cursor = self.conn.execute(
+            f"""
+            SELECT issues_found
+            FROM code_reviews
+            {where_clause}
+            AND issues_found IS NOT NULL
+            AND issues_found != '[]'
+            """,
+            params
+        )
+
+        issue_types = {}
+        for row in cursor.fetchall():
+            try:
+                issues = json.loads(row['issues_found'])
+                for issue in issues:
+                    # Issues might be strings or dicts
+                    if isinstance(issue, dict):
+                        issue_type = issue.get('type', 'unknown')
+                    else:
+                        # Extract first word as issue type
+                        issue_type = str(issue).split(':')[0].strip()
+
+                    issue_types[issue_type] = issue_types.get(issue_type, 0) + 1
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+        # Sort common issues by frequency
+        common_issues = sorted(
+            [{'issue_type': k, 'count': v} for k, v in issue_types.items()],
+            key=lambda x: x['count'],
+            reverse=True
+        )[:10]
+
+        return {
+            'total_reviews': total_reviews,
+            'verdict_distribution': verdict_distribution,
+            'avg_issues_per_review': round(avg_issues, 2),
+            'reviewer_activity': reviewer_activity,
+            'common_issues': common_issues,
+            'recent_reviews': recent_reviews
+        }
