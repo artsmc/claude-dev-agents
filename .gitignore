@@ -3,6 +3,7 @@ history.jsonl
 settings.json
 settings.local.json
 mcp_servers.json
+.credentials.json
 .env
 *.env.local
 
@@ -23,6 +24,13 @@ todos/
 ide/
 projects/
 plugins/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
 
 # Keep only agents and commands folders
 # along with documentation
