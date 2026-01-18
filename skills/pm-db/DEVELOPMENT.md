@@ -856,12 +856,85 @@ print(f"Average: {avg_ms:.2f}ms")
 
 ### Database Backup
 
+**Use automated backup scripts (recommended):**
+
 ```bash
-# Backup before migrations
+# Create backup
+python3 scripts/backup_db.py
+
+# Create backup before migrations
+python3 scripts/backup_db.py --keep 30
+
+# List all backups
+python3 scripts/backup_db.py --list
+```
+
+**Features:**
+- Online backups using SQLite backup API
+- Integrity verification
+- Automatic cleanup of old backups
+- Timestamped filenames with microseconds
+- No downtime required
+
+**Backup location:** `~/.claude/backups/`
+
+**Manual backup (legacy):**
+
+```bash
+# Simple file copy (database must be idle)
 cp ~/.claude/projects.db ~/.claude/projects.db.backup.$(date +%Y%m%d)
 
-# Or use sqlite3 backup
+# Or use sqlite3 backup command
 sqlite3 ~/.claude/projects.db ".backup ~/.claude/projects.db.backup"
+```
+
+**Note:** Automated scripts are preferred as they handle online backups safely.
+
+### Database Restore
+
+**Restore from backup:**
+
+```bash
+# Interactive restore (with confirmation)
+python3 scripts/restore_db.py ~/.claude/backups/projects-backup-20260117-143022-456789.db
+
+# Force restore (no confirmation)
+python3 scripts/restore_db.py backup.db --force
+
+# Restore without safety backup
+python3 scripts/restore_db.py backup.db --no-backup
+```
+
+**Restore process:**
+1. Verifies backup integrity
+2. Creates safety backup of current database
+3. Prompts for confirmation
+4. Restores backup
+5. Verifies restored database
+
+**Safety backup location:** `~/.claude/lib/projects-pre-restore-YYYYMMDD-HHMMSS.db`
+
+### Backup Testing
+
+**Test backup/restore cycle:**
+
+```bash
+# Run backup/restore tests
+python3 skills/pm-db/tests/test_backup_restore.py
+
+# Manual verification
+python3 scripts/backup_db.py
+python3 scripts/restore_db.py --list
+```
+
+**Verify backup integrity:**
+
+```bash
+# Check backup file
+sqlite3 backup.db "PRAGMA integrity_check;"
+
+# Verify schema version
+sqlite3 backup.db "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1;"
 ```
 
 ### Vacuum Database

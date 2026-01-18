@@ -8,7 +8,8 @@ Complete guide to using the Project Management Database system.
 2. [Commands](#commands)
 3. [Workflow](#workflow)
 4. [Python API](#python-api)
-5. [Troubleshooting](#troubleshooting)
+5. [Backup and Restore](#backup-and-restore)
+6. [Troubleshooting](#troubleshooting)
 
 ## Quick Start
 
@@ -438,6 +439,120 @@ with ProjectDatabase() as db:
 # Add to crontab for daily exports
 0 0 * * * python3 ~/.claude/skills/pm-db/scripts/export_to_memory_bank.py
 ```
+
+## Backup and Restore
+
+### Creating Backups
+
+Backup the database before major changes or on a schedule:
+
+```bash
+# Create backup with default settings
+python3 scripts/backup_db.py
+
+# Create backup with custom locations
+python3 scripts/backup_db.py --db-path /path/to/projects.db --backup-dir /path/to/backups
+
+# List existing backups
+python3 scripts/backup_db.py --list
+
+# Keep only 5 most recent backups (default: 10)
+python3 scripts/backup_db.py --keep 5
+```
+
+**Default Locations:**
+- Database: `~/.claude/lib/projects.db`
+- Backups: `~/.claude/backups/`
+
+**Features:**
+- Online backups (no downtime)
+- Integrity verification
+- Automatic cleanup of old backups
+- Timestamped filenames
+
+**Backup Filename Format:**
+```
+projects-backup-YYYYMMDD-HHMMSS-microseconds.db
+Example: projects-backup-20260117-143022-456789.db
+```
+
+### Restoring from Backup
+
+Restore the database from a backup file:
+
+```bash
+# Restore from backup (interactive confirmation)
+python3 scripts/restore_db.py ~/.claude/backups/projects-backup-20260117-143022-456789.db
+
+# Restore with force (no confirmation)
+python3 scripts/restore_db.py backup.db --force
+
+# Restore to custom location
+python3 scripts/restore_db.py backup.db --db-path /path/to/projects.db
+
+# Skip safety backup of current database
+python3 scripts/restore_db.py backup.db --no-backup
+```
+
+**Safety Features:**
+- Backup integrity verification
+- Current database backed up before restore
+- Confirmation prompt (unless --force)
+- Schema version compatibility check
+
+**Restore Process:**
+1. Verifies backup file integrity
+2. Creates safety backup of current database (unless --no-backup)
+3. Prompts for confirmation (unless --force)
+4. Restores backup to target location
+5. Verifies restored database integrity
+
+**Safety Backup Location:**
+```
+projects-pre-restore-YYYYMMDD-HHMMSS.db
+```
+
+### Automated Backup Schedule
+
+Add to crontab for automatic daily backups:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add daily backup at 2 AM (keeps 30 backups)
+0 2 * * * python3 ~/.claude/scripts/backup_db.py --keep 30
+
+# Add weekly backup (Sunday at 3 AM)
+0 3 * * 0 python3 ~/.claude/scripts/backup_db.py --backup-dir ~/.claude/weekly-backups --keep 4
+```
+
+### Backup Best Practices
+
+1. **Regular Backups:**
+   - Daily backups for active development
+   - Weekly backups for stable systems
+   - Before major schema changes or migrations
+
+2. **Retention Policy:**
+   - Keep 10 daily backups (default)
+   - Keep 4 weekly backups
+   - Keep 1 monthly backup for archival
+
+3. **Backup Verification:**
+   - Test restores periodically
+   - Verify backup integrity
+   - Check backup file sizes
+
+4. **Storage Locations:**
+   - Store backups on different drive
+   - Consider offsite backups for critical data
+   - Compress old backups to save space
+
+5. **Before Major Changes:**
+   - Always backup before migrations
+   - Backup before bulk operations
+   - Backup before schema changes
 
 ## Support
 
