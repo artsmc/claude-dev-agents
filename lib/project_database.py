@@ -116,6 +116,8 @@ class ProjectDatabase:
             description: Optional project description
             filesystem_path: Absolute path to project folder for Memory Bank exports
                            (e.g., "/home/mark/applications/message-well/")
+                           SECURITY: On multi-user systems, ensure this path is
+                           within your home directory to prevent unauthorized access.
 
         Returns:
             Project ID (integer)
