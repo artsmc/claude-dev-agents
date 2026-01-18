@@ -991,3 +991,87 @@ class ProjectDatabase:
             'nodes': nodes,
             'edges': edges
         }
+
+    def search_execution_logs(
+        self,
+        job_id: Optional[int] = None,
+        task_id: Optional[int] = None,
+        command_pattern: Optional[str] = None,
+        output_pattern: Optional[str] = None,
+        exit_code: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Search execution logs with multiple filter criteria.
+
+        Args:
+            job_id: Optional job ID filter
+            task_id: Optional task ID filter
+            command_pattern: Optional SQL LIKE pattern for command text
+            output_pattern: Optional SQL LIKE pattern for output text
+            exit_code: Optional exit code filter (exact match)
+            start_date: Optional start date (ISO format: YYYY-MM-DD HH:MM:SS)
+            end_date: Optional end date (ISO format: YYYY-MM-DD HH:MM:SS)
+            limit: Maximum number of results (default: 100)
+
+        Returns:
+            List of execution log dicts matching criteria
+
+        Examples:
+            # Search for failed commands
+            db.search_execution_logs(exit_code=1)
+
+            # Search for pytest commands in last week
+            db.search_execution_logs(
+                command_pattern='%pytest%',
+                start_date='2026-01-10 00:00:00'
+            )
+
+            # Search for output containing "error"
+            db.search_execution_logs(output_pattern='%error%')
+        """
+        query = "SELECT * FROM execution_logs WHERE 1=1"
+        params = []
+
+        # Job ID filter
+        if job_id is not None:
+            query += " AND job_id = ?"
+            params.append(job_id)
+
+        # Task ID filter
+        if task_id is not None:
+            query += " AND task_id = ?"
+            params.append(task_id)
+
+        # Command pattern (case-insensitive LIKE)
+        if command_pattern:
+            query += " AND command LIKE ?"
+            params.append(command_pattern)
+
+        # Output pattern (case-insensitive LIKE)
+        if output_pattern:
+            query += " AND output LIKE ?"
+            params.append(output_pattern)
+
+        # Exit code filter (exact match)
+        if exit_code is not None:
+            query += " AND exit_code = ?"
+            params.append(exit_code)
+
+        # Date range filters
+        if start_date:
+            query += " AND executed_at >= ?"
+            params.append(start_date)
+
+        if end_date:
+            query += " AND executed_at <= ?"
+            params.append(end_date)
+
+        # Order by most recent first
+        query += " ORDER BY executed_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor = self.conn.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
