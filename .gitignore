@@ -24,6 +24,8 @@ todos/
 ide/
 projects/
 plugins/
+memory-bank/
+cline-docs/
 
 # Database files
 *.db
