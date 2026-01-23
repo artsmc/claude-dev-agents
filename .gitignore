@@ -27,6 +27,11 @@ plugins/
 memory-bank/
 cline-docs/
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # Database files
 *.db
 *.sqlite
