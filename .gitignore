@@ -20,6 +20,8 @@ session-env/
 shell-snapshots/
 statsig/
 stats-cache.json
+tasks/
+telemetry/
 todos/
 ide/
 projects/

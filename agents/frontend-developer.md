@@ -1,12 +1,6 @@
 ---
 name: frontend-developer
-description: Handles the **application logic and data management** for the frontend. This agent is responsible for state management (e.g., Redux, Zustand), data fetching from APIs, routing, and implementing the business logic that powers the UI components. Use this agent for tasks that are not directly about the visual presentation but about making the interface functional and efficient.
-
-**Responsibilities:**
-- Implementing and managing client-side state.
-- Integrating with backend APIs for data fetching and submission.
-- Writing business logic and event handlers within components.
-- Optimizing application performance related to data flow and state updates.
+description: "Handles the application logic and data management for the frontend. This agent is responsible for state management (e.g., Redux, Zustand), data fetching from APIs, routing, and implementing the business logic that powers the UI components. Use this agent for tasks that are not directly about the visual presentation but about making the interface functional and efficient."
 model: sonnet
 color: blue
 ---
