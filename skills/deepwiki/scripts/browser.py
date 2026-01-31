@@ -383,18 +383,18 @@ def simulate_query_execution(github_url: str, query: str, timeout: int = 60) -> 
     }
 
 
-# Convenience function for skill execution
-def execute_deepwiki_query(
+# Main query execution function
+def execute_query(
     github_url: str,
     query: str,
     timeout: int = 60,
     verbose: bool = False
 ) -> Dict[str, Any]:
     """
-    Execute a DeepWiki query (main entry point for skill execution).
+    Execute a DeepWiki query using browser automation.
 
-    This function is called by Claude Code during skill execution.
-    Claude Code will follow the workflow steps and use MCP tools.
+    This is the main entry point that Claude Code uses to execute queries.
+    The function defines the complete workflow and returns execution instructions.
 
     Args:
         github_url: GitHub repository URL (validated)
@@ -403,35 +403,118 @@ def execute_deepwiki_query(
         verbose: Enable verbose logging
 
     Returns:
-        Query result dictionary
+        Query result dictionary with the following structure:
+        {
+            "github_url": str,
+            "deepwiki_url": str,
+            "query": str,
+            "answer": str,
+            "sources": List[str],
+            "timestamp": str (ISO 8601),
+            "cached": bool,
+            "elapsed_seconds": float
+        }
 
     Raises:
-        NavigationError: If navigation fails
-        ElementNotFoundError: If query input cannot be found
-        TimeoutError: If query times out
-        ResponseExtractionError: If response extraction fails
+        NavigationError: If navigation to DeepWiki fails
+        ElementNotFoundError: If query input field cannot be located
+        TimeoutError: If query execution exceeds timeout
+        ResponseExtractionError: If response cannot be extracted
+
+    Execution Flow:
+        1. Convert GitHub URL to DeepWiki URL
+        2. Navigate to DeepWiki page (using mcp_navigate)
+        3. Wait for page load (2 seconds)
+        4. Locate query input field (try multiple selectors)
+        5. Fill query text (using mcp_fill)
+        6. Submit query (press Enter key)
+        7. Wait for response (poll with timeout)
+        8. Extract answer and sources (using mcp_evaluate)
+        9. Validate and return structured result
 
     Note:
-        The actual browser automation is performed by Claude Code using
-        MCP tools. This function defines the workflow to follow.
+        This function is executed by Claude Code using MCP browser automation
+        tools. The actual MCP tool calls (puppeteer_navigate, puppeteer_fill,
+        puppeteer_evaluate) are made by Claude during skill invocation.
     """
+    import time as time_module
+    from datetime import datetime, timezone
+
+    start_time = time_module.time()
+
     if verbose:
-        print(f"Executing DeepWiki query...")
-        print(f"  GitHub URL: {github_url}")
-        print(f"  Query: {query}")
-        print(f"  Timeout: {timeout}s")
+        print(f"\n{'='*60}")
+        print(f"DeepWiki Query Execution")
+        print(f"{'='*60}")
+        print(f"GitHub URL: {github_url}")
+        print(f"Query: {query}")
+        print(f"Timeout: {timeout}s")
+        print(f"{'='*60}\n")
+
+    # Step 1: Convert URL
+    deepwiki_url = github_to_deepwiki_url(github_url)
+    if verbose:
+        print(f"[Step 1] URL Conversion")
+        print(f"  DeepWiki URL: {deepwiki_url}\n")
 
     # Create workflow
     workflow = DeepWikiQueryWorkflow(github_url, query, timeout)
+    steps = workflow.get_workflow_steps()
 
     if verbose:
-        print(f"  DeepWiki URL: {workflow.deepwiki_url}")
-        print(f"  Workflow steps: {len(workflow.get_workflow_steps())}")
+        print(f"[Workflow] Created {len(steps)}-step execution plan\n")
 
-    # Return workflow for Claude Code to execute
-    # Claude Code will use MCP tools to follow these steps
-    return {
-        "workflow": workflow,
-        "steps": workflow.get_workflow_steps(),
-        "expected_schema": workflow.get_expected_result_schema()
+    # Return execution plan for Claude Code
+    # Claude Code will follow these steps using MCP tools
+    result = {
+        "execution_plan": {
+            "github_url": github_url,
+            "deepwiki_url": deepwiki_url,
+            "query": query,
+            "timeout": timeout,
+            "workflow_steps": steps,
+            "start_time": datetime.now(timezone.utc).isoformat()
+        },
+        "instructions": [
+            "Claude Code: Execute the following steps using MCP browser automation:",
+            "1. Call mcp__puppeteer__puppeteer_navigate with deepwiki_url",
+            "2. Wait 2 seconds for page load",
+            "3. Try each selector in get_query_input_selectors() until one works",
+            "4. Call mcp__puppeteer__puppeteer_fill with found selector and query",
+            "5. Press Enter key to submit (or click submit button)",
+            "6. Call mcp__puppeteer__puppeteer_evaluate with response extraction script",
+            "7. Parse result and validate required fields (answer, sources)",
+            "8. Return structured result with timestamp and elapsed time"
+        ],
+        "response_extraction_script": create_response_extraction_script(
+            response_selectors=get_response_container_selectors(),
+            loading_selectors=get_loading_spinner_selectors(),
+            max_wait_ms=timeout * 1000,
+            poll_interval_ms=1000
+        ),
+        "expected_result_schema": workflow.get_expected_result_schema()
     }
+
+    if verbose:
+        print(f"[Execution Plan] Ready for Claude Code execution")
+        print(f"  Steps: {len(steps)}")
+        print(f"  Response polling timeout: {timeout}s")
+        print(f"  Fallback selectors: {len(get_query_input_selectors())} input, "
+              f"{len(get_response_container_selectors())} response\n")
+
+    return result
+
+
+# Convenience alias for backward compatibility
+def execute_deepwiki_query(
+    github_url: str,
+    query: str,
+    timeout: int = 60,
+    verbose: bool = False
+) -> Dict[str, Any]:
+    """
+    Alias for execute_query() for backward compatibility.
+
+    See execute_query() for full documentation.
+    """
+    return execute_query(github_url, query, timeout, verbose)
