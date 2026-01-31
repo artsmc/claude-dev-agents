@@ -1,0 +1,7 @@
+#!/bin/bash
+# Wrapper to run bash commands without locale warnings
+# Redirects stderr, filters out locale warnings, then restores stderr
+
+exec 3>&2
+exec 2> >(grep -v "setlocale: LC_ALL: cannot change locale" >&3)
+exec "$@"

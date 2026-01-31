@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""
+Wrapper script that runs commands and filters out locale warnings from stderr
+Usage: run-quiet <command> [args...]
+"""
+import sys
+import subprocess
+
+if len(sys.argv) < 2:
+    print("Usage: run-quiet <command> [args...]", file=sys.stderr)
+    sys.exit(1)
+
+# Run command and capture output
+result = subprocess.run(
+    sys.argv[1:],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True
+)
+
+# Print stdout as-is
+if result.stdout:
+    print(result.stdout, end='')
+
+# Filter stderr to remove locale warnings
+if result.stderr:
+    filtered_stderr = '\n'.join(
+        line for line in result.stderr.split('\n')
+        if 'setlocale: LC_ALL: cannot change locale' not in line
+    )
+    if filtered_stderr.strip():
+        print(filtered_stderr, file=sys.stderr)
+
+sys.exit(result.returncode)

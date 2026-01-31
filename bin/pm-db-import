@@ -1,0 +1,8 @@
+#!/bin/bash
+# Wrapper script for pm-db import with locale fix
+
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+export LANGUAGE=C.UTF-8
+
+exec python3 ~/.claude/skills/pm-db/scripts/import_phases.py "$@"

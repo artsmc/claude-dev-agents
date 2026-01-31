@@ -23,6 +23,7 @@ This repository implements a **modular, skill-based architecture** with:
 ```
 .claude/
 ├── agents/                    # Specialized development agents
+│   ├── api-designer.md
 │   ├── code-reviewer.md
 │   ├── frontend-developer.md
 │   ├── nextjs-backend-developer.md
@@ -91,6 +92,9 @@ Specialized development personas for different aspects of development.
 - **ui-developer.md** - Visual implementation and styling
 - **nextjs-backend-developer.md** - Next.js backend API development
 - **python-fastapi-expert.md** - FastAPI backend development
+
+### API Design
+- **api-designer.md** - Contract-first API design with OpenAPI specs and three-tier architecture
 
 ### Testing & QA
 - **nextjs-qa-engineer.md** - Quality assurance for Next.js applications
@@ -327,7 +331,7 @@ python sloc_tracker.py /path/to/project --final
 - **16 skills** across 6 systems
 - **10 hooks** for automated workflow (start-phase + pm-db)
 - **15 Python tools** (890+ lines of code)
-- **8 specialized agents** for development
+- **9 specialized agents** for development
 - **~300 KB** of production code
 - **Zero external dependencies** (Python stdlib only)
 
