@@ -9,6 +9,13 @@ through DeepWiki's AI-powered code understanding service.
 import argparse
 import sys
 import json
+from formatter import (
+    output_result,
+    create_success_result,
+    create_error_result,
+    init_progress,
+    get_progress
+)
 
 
 def parse_arguments():
@@ -207,6 +214,9 @@ def main():
     try:
         args = parse_arguments()
 
+        # Initialize progress indicator (6 steps total)
+        progress = init_progress(total_steps=6, verbose=args.verbose or args.debug)
+
         if args.verbose or args.debug:
             print(f"\nDeepWiki Skill - Starting execution", file=sys.stderr)
             print(f"Arguments: {args}\n", file=sys.stderr)
@@ -221,51 +231,53 @@ def main():
         # Validate inputs (import here to avoid circular dependency)
         from validator import validate_github_url, sanitize_query
 
-        if args.verbose:
-            print("[1/6] Validating inputs...", file=sys.stderr)
-
+        progress.step("Validating inputs")
         validated_url = validate_github_url(args.github_url)
         validated_query = sanitize_query(args.query or args.queries or "")
-
-        if args.verbose:
-            print(f"  ✓ GitHub URL: {validated_url}", file=sys.stderr)
-            print(f"  ✓ Query: {validated_query[:50]}...\n", file=sys.stderr)
+        progress.complete(f"Validated URL and query")
+        progress.blank_line()
 
         # Initialize cache
         from cache import init_cache, cache_lookup, cache_store
 
-        if args.verbose:
-            print("[2/6] Initializing cache...", file=sys.stderr)
-
+        progress.step("Initializing cache")
         conn = init_cache()
-
-        if args.verbose:
-            print(f"  ✓ Cache ready\n", file=sys.stderr)
+        progress.complete("Cache ready")
+        progress.blank_line()
 
         # Check cache (unless force refresh)
         if not args.force_refresh:
-            if args.verbose:
-                print("[3/6] Checking cache...", file=sys.stderr)
-
+            progress.step("Checking cache")
             cached_result = cache_lookup(conn, validated_url, validated_query)
 
             if cached_result:
-                if args.verbose:
-                    print(f"  ✓ Cache HIT! (saved query execution)\n", file=sys.stderr)
+                progress.complete("Cache HIT! (saved query execution)")
+                progress.blank_line()
 
-                # Format and return cached result
-                return format_cached_result(cached_result, args)
+                # Create formatted result from cache
+                result = create_success_result(
+                    repo_url=cached_result["repo_url"],
+                    query=cached_result["query_text"],
+                    answer=cached_result["answer"],
+                    sources=cached_result["sources"],
+                    cached=True,
+                    timestamp=cached_result["created_at"],
+                    cache_id=cached_result["id"]
+                )
 
-            if args.verbose:
-                print(f"  ✗ Cache MISS (will execute query)\n", file=sys.stderr)
+                # Output in requested format
+                output_result(result, output_format=args.format, verbose=args.verbose)
+                conn.close()
+                return 0
+
+            progress.error("Cache MISS (will execute query)")
+            progress.blank_line()
         else:
-            if args.verbose:
-                print("[3/6] Skipping cache (--force-refresh)\n", file=sys.stderr)
+            progress.step("Skipping cache (--force-refresh)")
+            progress.blank_line()
 
         # Execute query (cache miss or force refresh)
-        if args.verbose:
-            print("[4/6] Executing DeepWiki query...", file=sys.stderr)
-
+        progress.step("Executing DeepWiki query")
         from browser import execute_query
 
         query_result = execute_query(
@@ -279,21 +291,31 @@ def main():
         # returned by execute_query() to perform browser automation using
         # MCP tools. For now, we document this as the workflow.
 
-        if args.verbose:
-            print(f"\n[5/6] Storing result in cache...", file=sys.stderr)
+        progress.complete("Query executed successfully")
+        progress.blank_line()
+
+        progress.step("Storing result in cache")
 
         # Store in cache (would happen after actual execution)
         # cache_store(conn, validated_url, validated_query, answer, sources, timestamp)
 
-        if args.verbose:
-            print(f"  ✓ Result cached\n", file=sys.stderr)
+        progress.complete("Result cached")
+        progress.blank_line()
 
         # Format output
-        if args.verbose:
-            print("[6/6] Formatting output...", file=sys.stderr)
+        progress.step("Formatting output")
 
-        # This would format the actual result
-        print(json.dumps(query_result, indent=2))
+        # Create formatted result (would use actual data from query_result)
+        result = create_success_result(
+            repo_url=validated_url,
+            query=validated_query,
+            answer="[Would be actual answer from DeepWiki]",
+            sources="[Would be actual sources]",
+            cached=False
+        )
+
+        # Output in requested format
+        output_result(result, output_format=args.format, verbose=args.verbose)
 
         conn.close()
         return 0
@@ -350,29 +372,6 @@ def handle_cache_clear(args):
     except Exception as e:
         print(f"Error clearing cache: {e}", file=sys.stderr)
         return 1
-
-
-def format_cached_result(cached_result, args):
-    """Format cached result for output."""
-    import json
-    from datetime import datetime, timezone
-
-    result = {
-        "status": "success",
-        "cached": True,
-        "repo": {
-            "url": cached_result["repo_url"],
-            "deepwiki_url": f"https://deepwiki.com/github.com/{cached_result['repo_url'].split('github.com/')[1]}"
-        },
-        "query": cached_result["query_text"],
-        "answer": cached_result["answer"],
-        "sources": cached_result["sources"],
-        "timestamp": cached_result["created_at"],
-        "cache_id": cached_result["id"]
-    }
-
-    print(json.dumps(result, indent=2))
-    return 0
 
 
 if __name__ == "__main__":
