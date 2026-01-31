@@ -228,12 +228,23 @@ def main():
         if args.cache_clear is not None:
             return handle_cache_clear(args)
 
+        # Detect batch mode
+        from batch import parse_queries, execute_batch_queries, format_batch_results
+
+        is_batch_mode = (args.queries is not None) or (args.queries_file is not None)
+
+        if is_batch_mode:
+            # Batch mode execution
+            return handle_batch_queries(args)
+
+        # Single query mode continues below...
+
         # Validate inputs (import here to avoid circular dependency)
         from validator import validate_github_url, sanitize_query
 
         progress.step("Validating inputs")
         validated_url = validate_github_url(args.github_url)
-        validated_query = sanitize_query(args.query or args.queries or "")
+        validated_query = sanitize_query(args.query)
         progress.complete(f"Validated URL and query")
         progress.blank_line()
 
@@ -371,6 +382,62 @@ def handle_cache_clear(args):
 
     except Exception as e:
         print(f"Error clearing cache: {e}", file=sys.stderr)
+        return 1
+
+
+def handle_batch_queries(args):
+    """Handle batch query execution."""
+    try:
+        from validator import validate_github_url
+        from cache import init_cache
+        from browser import execute_query
+        from batch import parse_queries, execute_batch_queries, format_batch_results
+
+        # Parse queries
+        queries = parse_queries(args)
+
+        if args.verbose:
+            print(f"\n[Batch] Parsed {len(queries)} queries", file=sys.stderr)
+            for i, q in enumerate(queries, 1):
+                print(f"  {i}. {q[:60]}...", file=sys.stderr)
+            print("", file=sys.stderr)
+
+        # Validate repository URL
+        validated_url = validate_github_url(args.github_url)
+
+        # Initialize cache
+        conn = init_cache()
+
+        # Execute batch queries
+        batch_summary = execute_batch_queries(
+            repo_url=validated_url,
+            queries=queries,
+            conn=conn,
+            execute_query_func=execute_query,
+            timeout=args.timeout,
+            inter_query_delay=2.0,  # 2 seconds between queries
+            verbose=args.verbose
+        )
+
+        conn.close()
+
+        # Format and output results
+        formatted_output = format_batch_results(batch_summary, output_format=args.format)
+        print(formatted_output)
+
+        # Return appropriate exit code
+        if batch_summary["status"] == "success":
+            return 0
+        elif batch_summary["status"] == "partial":
+            return 2  # Some queries failed
+        else:
+            return 1  # All queries failed
+
+    except Exception as e:
+        print(f"Error executing batch queries: {e}", file=sys.stderr)
+        if args.debug if 'args' in locals() else False:
+            import traceback
+            traceback.print_exc()
         return 1
 
 
