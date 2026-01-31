@@ -9,6 +9,7 @@ through DeepWiki's AI-powered code understanding service.
 import argparse
 import sys
 import json
+import time
 from formatter import (
     output_result,
     create_success_result,
@@ -194,6 +195,61 @@ For more information, see: ~/.claude/skills/deepwiki/SKILL.md
     return args
 
 
+def execute_browser_automation_plan(plan, verbose=False):
+    """
+    Execute browser automation plan using MCP tools.
+
+    This function is called by Claude Code to execute the browser automation
+    workflow defined in browser.py using MCP browser automation tools.
+
+    Args:
+        plan: Execution plan from browser.execute_query()
+        verbose: Enable verbose logging
+
+    Returns:
+        Dict with answer and sources
+
+    Raises:
+        Exception: If browser automation fails
+    """
+    if verbose:
+        print("\n[Browser] Executing browser automation plan...", file=sys.stderr)
+
+    # This is a placeholder - Claude Code will execute the actual browser automation
+    # using MCP tools when this function is called.
+    #
+    # The plan contains:
+    # - deepwiki_url: URL to navigate to
+    # - query: Query text to enter
+    # - timeout: Maximum wait time
+    # - steps: List of automation steps
+    #
+    # Claude Code should:
+    # 1. Start browser (mcp__next-devtools__browser_eval with action="start")
+    # 2. Navigate to plan["deepwiki_url"]
+    # 3. Find query input field (try multiple selectors)
+    # 4. Enter plan["query"]
+    # 5. Submit query (Enter key or button click)
+    # 6. Wait for response (poll for answer container)
+    # 7. Extract answer and sources
+    # 8. Close browser
+    # 9. Return {"answer": str, "sources": list}
+
+    raise NotImplementedError(
+        "Browser automation execution must be performed by Claude Code using MCP tools. "
+        "The Python script cannot directly call MCP tools - only Claude Code can. "
+        "\n\n"
+        "To complete this query, Claude Code should:\n"
+        f"1. Navigate to: {plan.get('deepwiki_url', 'N/A')}\n"
+        f"2. Enter query: {plan.get('query', 'N/A')}\n"
+        "3. Wait for response\n"
+        "4. Extract answer and sources\n"
+        "5. Return result\n"
+        "\n"
+        "See browser.py for the complete 8-step workflow."
+    )
+
+
 def main():
     """
     Main entry point for the DeepWiki skill.
@@ -298,17 +354,28 @@ def main():
             verbose=args.verbose
         )
 
-        # NOTE: At this point, Claude Code would use the execution plan
-        # returned by execute_query() to perform browser automation using
-        # MCP tools. For now, we document this as the workflow.
+        # Execute the browser automation plan using MCP tools
+        try:
+            actual_result = execute_browser_automation_plan(query_result, args.verbose)
+        except Exception as e:
+            progress.error(f"Browser automation failed: {e}")
+            conn.close()
+            raise
 
         progress.complete("Query executed successfully")
         progress.blank_line()
 
         progress.step("Storing result in cache")
 
-        # Store in cache (would happen after actual execution)
-        # cache_store(conn, validated_url, validated_query, answer, sources, timestamp)
+        # Store in cache
+        cache_store(
+            conn,
+            validated_url,
+            validated_query,
+            actual_result["answer"],
+            actual_result["sources"],
+            int(time.time())
+        )
 
         progress.complete("Result cached")
         progress.blank_line()
@@ -316,12 +383,12 @@ def main():
         # Format output
         progress.step("Formatting output")
 
-        # Create formatted result (would use actual data from query_result)
+        # Create formatted result with actual data
         result = create_success_result(
             repo_url=validated_url,
             query=validated_query,
-            answer="[Would be actual answer from DeepWiki]",
-            sources="[Would be actual sources]",
+            answer=actual_result["answer"],
+            sources=actual_result["sources"],
             cached=False
         )
 
