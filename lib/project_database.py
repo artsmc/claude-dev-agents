@@ -1,8 +1,15 @@
 """
-ProjectDatabase - SQLite abstraction layer for project management tracking.
+ProjectDatabase - SQLite abstraction layer for PM-DB v2 phase-based execution tracking.
 
-Provides a complete Python API for managing projects, specifications, jobs,
-tasks, code reviews, agent assignments, and execution logs.
+Provides a complete Python API for managing projects, phases, phase plans, tasks,
+phase runs, quality gates, and execution tracking.
+
+PM-DB v2 separates planning (phase_plans) from execution (phase_runs), enabling:
+- Multiple execution runs per phase with distinct tracking
+- Versioned plans with revision history
+- Task-level execution tracking across runs
+- Quality gate validation and artifact storage
+- Agent workload balancing and delegation
 
 Zero external dependencies - uses only Python standard library.
 
@@ -14,12 +21,22 @@ Usage:
     # Create a project
     project_id = db.create_project("my-app", "My application project", "/path/to/app")
 
-    # Use as context manager
-    with ProjectDatabase() as db:
-        job_id = db.create_job(spec_id=1, name="Build feature", assigned_agent="python-backend")
-        db.start_job(job_id)
-        # ... work happens ...
-        db.complete_job(job_id, exit_code=0)
+    # Create a phase
+    phase_id = db.create_phase(project_id, "feature-auth", "feature",
+                                "job-queue/feature-auth", "planning")
+
+    # Create a phase plan
+    plan_id = db.create_phase_plan(phase_id, "Implement authentication system")
+    db.add_plan_document(plan_id, "frd", "FRD", "# Functional Requirements...")
+    db.create_task(plan_id, "1.0", "Setup auth middleware", "...", 1, 1, "high", "medium")
+    db.approve_phase_plan(plan_id, "tech-lead")
+
+    # Execute the phase
+    run_id = db.create_phase_run(phase_id, plan_id, "backend-agent")
+    db.start_phase_run(run_id)
+    task_run_id = db.create_task_run(run_id, task_id, "backend-agent")
+    db.complete_task_run(task_run_id, 0)
+    db.complete_phase_run(run_id, 0, "All tasks completed successfully")
 """
 
 import sqlite3
@@ -32,15 +49,17 @@ from contextlib import contextmanager
 
 class ProjectDatabase:
     """
-    SQLite database abstraction for project management tracking.
+    SQLite database abstraction for PM-DB v2 phase-based execution tracking.
 
     Provides methods for:
-    - Project and specification management
-    - Job and task tracking
-    - Code review recording
-    - Agent assignment tracking
-    - Execution logging
-    - Dashboard and reporting
+    - Project management
+    - Phase and phase plan management (versioned planning)
+    - Plan document management (FRD/FRS/GS/TR)
+    - Task and task dependency management
+    - Phase run and task run execution tracking
+    - Quality gate validation
+    - Artifact storage
+    - Metrics and reporting
 
     All methods use parameterized queries for security.
     Supports transactions via context manager.
@@ -90,7 +109,7 @@ class ProjectDatabase:
         Usage:
             with db.transaction():
                 db.create_project(...)
-                db.create_spec(...)
+                db.create_phase(...)
                 # Commits on success, rolls back on exception
         """
         try:
@@ -114,10 +133,7 @@ class ProjectDatabase:
         Args:
             name: Unique project name (e.g., "message-well")
             description: Optional project description
-            filesystem_path: Absolute path to project folder for Memory Bank exports
-                           (e.g., "/home/mark/applications/message-well/")
-                           SECURITY: On multi-user systems, ensure this path is
-                           within your home directory to prevent unauthorized access.
+            filesystem_path: Absolute path to project folder
 
         Returns:
             Project ID (integer)
@@ -143,15 +159,7 @@ class ProjectDatabase:
         return cursor.lastrowid
 
     def get_project(self, project_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get project by ID.
-
-        Args:
-            project_id: Project ID
-
-        Returns:
-            Project dict or None if not found
-        """
+        """Get project by ID."""
         cursor = self.conn.execute(
             "SELECT * FROM projects WHERE id = ?",
             (project_id,)
@@ -160,15 +168,7 @@ class ProjectDatabase:
         return dict(row) if row else None
 
     def get_project_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get project by name.
-
-        Args:
-            name: Project name
-
-        Returns:
-            Project dict or None if not found
-        """
+        """Get project by name."""
         cursor = self.conn.execute(
             "SELECT * FROM projects WHERE name = ?",
             (name,)
@@ -177,414 +177,311 @@ class ProjectDatabase:
         return dict(row) if row else None
 
     def list_projects(self) -> List[Dict[str, Any]]:
-        """
-        List all projects.
-
-        Returns:
-            List of project dicts
-        """
+        """List all projects."""
         cursor = self.conn.execute(
             "SELECT * FROM projects ORDER BY created_at DESC"
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    # ==================== SPEC MANAGEMENT ====================
+    # ==================== PHASE MANAGEMENT ====================
 
-    def create_spec(
+    def create_phase(
         self,
         project_id: int,
         name: str,
-        frd_content: Optional[str] = None,
-        frs_content: Optional[str] = None,
-        gs_content: Optional[str] = None,
-        tr_content: Optional[str] = None,
-        task_list_content: Optional[str] = None,
-        status: str = "draft"
+        phase_type: str = 'feature',
+        job_queue_rel_path: Optional[str] = None,
+        planning_rel_path: Optional[str] = None,
+        description: Optional[str] = None,
+        status: str = 'draft'
     ) -> int:
         """
-        Create a new specification.
+        Create a new phase.
 
         Args:
             project_id: Foreign key to projects table
-            name: Spec name (e.g., "feature-auth")
-            frd_content: Full text of FRD.md
-            frs_content: Full text of FRS.md
-            gs_content: Full text of GS.md
-            tr_content: Full text of TR.md
-            task_list_content: Full text of task-list.md
-            status: Spec status (draft, approved, in-progress, completed)
+            name: Phase name (e.g., "feature-auth")
+            phase_type: Type (feature, bugfix, refactor, etc.)
+            job_queue_rel_path: Relative path to job-queue folder
+            planning_rel_path: Relative path to planning folder
+            description: Optional description
+            status: Initial status (draft, planning, approved, in-progress, completed, archived)
 
         Returns:
-            Spec ID (integer)
-
-        Raises:
-            ValueError: If project_id or name is invalid
-            sqlite3.IntegrityError: If spec already exists for this project
+            Phase ID (integer)
         """
         if not name or not name.strip():
-            raise ValueError("Spec name cannot be empty")
-
-        valid_statuses = ['draft', 'approved', 'in-progress', 'completed']
-        if status not in valid_statuses:
-            raise ValueError(f"Status must be one of: {valid_statuses}")
+            raise ValueError("Phase name cannot be empty")
 
         cursor = self.conn.execute(
             """
-            INSERT INTO specs (
-                project_id, name, status,
-                frd_content, frs_content, gs_content, tr_content, task_list_content
+            INSERT INTO phases (
+                project_id, name, description, phase_type, status,
+                job_queue_rel_path, planning_rel_path
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (project_id, name.strip(), status,
-             frd_content, frs_content, gs_content, tr_content, task_list_content)
+            (project_id, name.strip(), description, phase_type, status,
+             job_queue_rel_path, planning_rel_path)
         )
         self.conn.commit()
         return cursor.lastrowid
 
-    def get_spec(self, spec_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get specification by ID.
-
-        Args:
-            spec_id: Spec ID
-
-        Returns:
-            Spec dict or None if not found
-        """
-        cursor = self.conn.execute(
-            "SELECT * FROM specs WHERE id = ?",
-            (spec_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
-
-    def list_specs(self, project_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """
-        List specifications, optionally filtered by project.
-
-        Args:
-            project_id: Optional project ID to filter by
-
-        Returns:
-            List of spec dicts
-        """
-        if project_id is not None:
-            cursor = self.conn.execute(
-                "SELECT * FROM specs WHERE project_id = ? ORDER BY created_at DESC",
-                (project_id,)
-            )
-        else:
-            cursor = self.conn.execute(
-                "SELECT * FROM specs ORDER BY created_at DESC"
-            )
-        return [dict(row) for row in cursor.fetchall()]
-
-    # ==================== JOB MANAGEMENT ====================
-
-    def create_job(
-        self,
-        spec_id: Optional[int],
-        name: str,
-        priority: str = "normal",
-        assigned_agent: Optional[str] = None,
-        session_id: Optional[str] = None
-    ) -> int:
-        """
-        Create a new job.
-
-        Args:
-            spec_id: Foreign key to specs table (nullable)
-            name: Job name (e.g., "Build auth feature")
-            priority: Job priority (low, normal, high, critical)
-            assigned_agent: Agent type assigned to job
-            session_id: Unique session identifier
-
-        Returns:
-            Job ID (integer)
-
-        Raises:
-            ValueError: If name is empty or priority invalid
-        """
-        if not name or not name.strip():
-            raise ValueError("Job name cannot be empty")
-
-        valid_priorities = ['low', 'normal', 'high', 'critical']
-        if priority not in valid_priorities:
-            raise ValueError(f"Priority must be one of: {valid_priorities}")
-
-        cursor = self.conn.execute(
-            """
-            INSERT INTO jobs (spec_id, name, priority, assigned_agent, session_id)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (spec_id, name.strip(), priority, assigned_agent, session_id)
-        )
-        self.conn.commit()
-        return cursor.lastrowid
-
-    def update_job_status(
-        self,
-        job_id: int,
-        status: str,
-        exit_code: Optional[int] = None,
-        summary: Optional[str] = None
-    ):
-        """
-        Update job status.
-
-        Args:
-            job_id: Job ID
-            status: New status (pending, in-progress, completed, failed, blocked)
-            exit_code: Optional exit code
-            summary: Optional summary text
-
-        Raises:
-            ValueError: If status is invalid
-        """
-        valid_statuses = ['pending', 'in-progress', 'completed', 'failed', 'blocked']
+    def update_phase_status(self, phase_id: int, status: str):
+        """Update phase status."""
+        valid_statuses = ['draft', 'planning', 'approved', 'in-progress', 'completed', 'archived']
         if status not in valid_statuses:
             raise ValueError(f"Status must be one of: {valid_statuses}")
 
         self.conn.execute(
-            """
-            UPDATE jobs
-            SET status = ?, exit_code = ?, summary = ?, last_activity_at = datetime('now')
-            WHERE id = ?
-            """,
-            (status, exit_code, summary, job_id)
+            "UPDATE phases SET status = ?, updated_at = datetime('now') WHERE id = ?",
+            (status, phase_id)
         )
         self.conn.commit()
 
-    def start_job(self, job_id: int):
-        """
-        Mark job as started.
-
-        Args:
-            job_id: Job ID
-        """
-        self.conn.execute(
-            """
-            UPDATE jobs
-            SET status = 'in-progress',
-                started_at = datetime('now'),
-                last_activity_at = datetime('now')
-            WHERE id = ?
-            """,
-            (job_id,)
-        )
-        self.conn.commit()
-
-    def complete_job(self, job_id: int, exit_code: int = 0, summary: Optional[str] = None):
-        """
-        Mark job as completed.
-
-        Args:
-            job_id: Job ID
-            exit_code: Exit code (0 = success, non-zero = failure)
-            summary: Optional completion summary
-        """
-        status = 'completed' if exit_code == 0 else 'failed'
-
-        self.conn.execute(
-            """
-            UPDATE jobs
-            SET status = ?,
-                exit_code = ?,
-                summary = ?,
-                completed_at = datetime('now'),
-                last_activity_at = datetime('now')
-            WHERE id = ?
-            """,
-            (status, exit_code, summary, job_id)
-        )
-        self.conn.commit()
-
-    def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get job by ID.
-
-        Args:
-            job_id: Job ID
-
-        Returns:
-            Job dict or None if not found
-        """
+    def get_phase(self, phase_id: int) -> Optional[Dict[str, Any]]:
+        """Get phase by ID."""
         cursor = self.conn.execute(
-            "SELECT * FROM jobs WHERE id = ?",
-            (job_id,)
+            "SELECT * FROM phases WHERE id = ?",
+            (phase_id,)
         )
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def list_jobs(
+    def list_phases(
         self,
-        spec_id: Optional[int] = None,
-        status: Optional[str] = None,
-        limit: int = 100
+        project_id: Optional[int] = None,
+        status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        List jobs with optional filters.
-
-        Args:
-            spec_id: Optional spec ID to filter by
-            status: Optional status to filter by
-            limit: Maximum number of jobs to return
-
-        Returns:
-            List of job dicts
-        """
-        query = "SELECT * FROM jobs WHERE 1=1"
+        """List phases with optional filters."""
+        query = "SELECT * FROM phases WHERE 1=1"
         params = []
 
-        if spec_id is not None:
-            query += " AND spec_id = ?"
-            params.append(spec_id)
+        if project_id is not None:
+            query += " AND project_id = ?"
+            params.append(project_id)
 
         if status is not None:
             query += " AND status = ?"
             params.append(status)
 
-        query += " ORDER BY created_at DESC LIMIT ?"
-        params.append(limit)
+        query += " ORDER BY created_at DESC"
 
         cursor = self.conn.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== PHASE PLAN MANAGEMENT ====================
+
+    def create_phase_plan(
+        self,
+        phase_id: int,
+        planning_approach: str,
+        revision: Optional[int] = None
+    ) -> int:
+        """
+        Create a new phase plan (versioned).
+
+        Args:
+            phase_id: Foreign key to phases table
+            planning_approach: Description of planning approach
+            revision: Optional revision number (auto-increments if None)
+
+        Returns:
+            Plan ID (integer)
+        """
+        if revision is None:
+            # Auto-increment revision
+            cursor = self.conn.execute(
+                "SELECT COALESCE(MAX(revision), 0) + 1 FROM phase_plans WHERE phase_id = ?",
+                (phase_id,)
+            )
+            revision = cursor.fetchone()[0]
+
+        cursor = self.conn.execute(
+            """
+            INSERT INTO phase_plans (phase_id, revision, planning_approach, status)
+            VALUES (?, ?, ?, 'draft')
+            """,
+            (phase_id, revision, planning_approach)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def approve_phase_plan(self, plan_id: int, approved_by: str) -> None:
+        """
+        Approve a phase plan and set it as the active plan for the phase.
+
+        Args:
+            plan_id: Plan ID to approve
+            approved_by: Name of approver
+        """
+        # Get phase_id
+        cursor = self.conn.execute(
+            "SELECT phase_id FROM phase_plans WHERE id = ?",
+            (plan_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError(f"Plan {plan_id} not found")
+
+        phase_id = row[0]
+
+        # Update plan status
+        self.conn.execute(
+            """
+            UPDATE phase_plans
+            SET status = 'approved', approved_by = ?, approved_at = datetime('now')
+            WHERE id = ?
+            """,
+            (approved_by, plan_id)
+        )
+
+        # Update phase to point to this plan
+        self.conn.execute(
+            "UPDATE phases SET approved_plan_id = ? WHERE id = ?",
+            (plan_id, phase_id)
+        )
+
+        self.conn.commit()
+
+    def get_phase_plan(self, plan_id: int) -> Optional[Dict[str, Any]]:
+        """Get phase plan by ID."""
+        cursor = self.conn.execute(
+            "SELECT * FROM phase_plans WHERE id = ?",
+            (plan_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def list_phase_plans(self, phase_id: int) -> List[Dict[str, Any]]:
+        """List all plans for a phase."""
+        cursor = self.conn.execute(
+            "SELECT * FROM phase_plans WHERE phase_id = ? ORDER BY revision DESC",
+            (phase_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== PLAN DOCUMENT MANAGEMENT ====================
+
+    def add_plan_document(
+        self,
+        plan_id: int,
+        doc_type: str,
+        doc_name: str,
+        content: str,
+        file_path: Optional[str] = None
+    ) -> int:
+        """
+        Add a plan document (FRD, FRS, GS, TR, etc.).
+
+        Args:
+            plan_id: Foreign key to phase_plans table
+            doc_type: Document type (frd, frs, gs, tr, task-list, etc.)
+            doc_name: Document name
+            content: Full document content
+            file_path: Optional relative file path
+
+        Returns:
+            Document ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO plan_documents (phase_plan_id, doc_type, doc_name, content, file_path)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (plan_id, doc_type, doc_name, content, file_path)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def update_plan_document(self, doc_id: int, content: str):
+        """Update plan document content."""
+        self.conn.execute(
+            """
+            UPDATE plan_documents
+            SET content = ?, updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (content, doc_id)
+        )
+        self.conn.commit()
+
+    def get_plan_documents(self, plan_id: int) -> List[Dict[str, Any]]:
+        """Get all documents for a plan."""
+        cursor = self.conn.execute(
+            "SELECT * FROM plan_documents WHERE phase_plan_id = ? ORDER BY doc_type",
+            (plan_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_plan_document(self, plan_id: int, doc_type: str) -> Optional[Dict[str, Any]]:
+        """Get a specific document by type."""
+        cursor = self.conn.execute(
+            "SELECT * FROM plan_documents WHERE phase_plan_id = ? AND doc_type = ?",
+            (plan_id, doc_type)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
     # ==================== TASK MANAGEMENT ====================
 
     def create_task(
         self,
-        job_id: int,
+        plan_id: int,
+        task_key: str,
         name: str,
-        order: int = 0,
-        dependencies: Optional[str] = None
+        description: str,
+        execution_order: int,
+        wave: int = 1,
+        priority: str = 'medium',
+        difficulty: str = 'medium',
+        sub_phase: Optional[str] = None
     ) -> int:
         """
         Create a new task.
 
         Args:
-            job_id: Foreign key to jobs table
+            plan_id: Foreign key to phase_plans table
+            task_key: Hierarchical key (e.g., "2.1a", "3.0b")
             name: Task name
-            order: Task execution order
-            dependencies: Optional JSON array of task IDs this depends on
+            description: Task description
+            execution_order: Order of execution
+            wave: Parallel execution wave (default 1)
+            priority: Priority (low, medium, high, critical)
+            difficulty: Difficulty (small, medium, large, xlarge)
+            sub_phase: Optional sub-phase identifier (e.g., "2", "3")
 
         Returns:
             Task ID (integer)
-
-        Raises:
-            ValueError: If name is empty
         """
-        if not name or not name.strip():
-            raise ValueError("Task name cannot be empty")
-
         cursor = self.conn.execute(
             """
-            INSERT INTO tasks (job_id, name, `order`, dependencies)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO tasks (
+                phase_plan_id, task_key, name, description,
+                execution_order, wave, priority, difficulty, sub_phase
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (job_id, name.strip(), order, dependencies)
+            (plan_id, task_key, name, description, execution_order,
+             wave, priority, difficulty, sub_phase)
         )
         self.conn.commit()
         return cursor.lastrowid
 
-    def update_task_status(
-        self,
-        task_id: int,
-        status: str,
-        exit_code: Optional[int] = None
-    ):
-        """
-        Update task status.
-
-        Args:
-            task_id: Task ID
-            status: New status (pending, in-progress, completed, failed, blocked)
-            exit_code: Optional exit code
-
-        Raises:
-            ValueError: If status is invalid
-        """
-        valid_statuses = ['pending', 'in-progress', 'completed', 'failed', 'blocked']
+    def update_task_status(self, task_id: int, status: str):
+        """Update task status."""
+        valid_statuses = ['pending', 'in-progress', 'completed', 'blocked', 'skipped']
         if status not in valid_statuses:
             raise ValueError(f"Status must be one of: {valid_statuses}")
 
         self.conn.execute(
-            """
-            UPDATE tasks
-            SET status = ?, exit_code = ?
-            WHERE id = ?
-            """,
-            (status, exit_code, task_id)
+            "UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE id = ?",
+            (status, task_id)
         )
         self.conn.commit()
-
-    def start_task(self, task_id: int):
-        """
-        Mark task as started.
-
-        Args:
-            task_id: Task ID
-        """
-        self.conn.execute(
-            """
-            UPDATE tasks
-            SET status = 'in-progress',
-                started_at = datetime('now')
-            WHERE id = ?
-            """,
-            (task_id,)
-        )
-        self.conn.commit()
-
-    def complete_task(self, task_id: int, exit_code: int = 0):
-        """
-        Mark task as completed.
-
-        Args:
-            task_id: Task ID
-            exit_code: Exit code (0 = success, non-zero = failure)
-        """
-        status = 'completed' if exit_code == 0 else 'failed'
-
-        self.conn.execute(
-            """
-            UPDATE tasks
-            SET status = ?,
-                exit_code = ?,
-                completed_at = datetime('now')
-            WHERE id = ?
-            """,
-            (status, exit_code, task_id)
-        )
-        self.conn.commit()
-
-    def get_tasks(self, job_id: int) -> List[Dict[str, Any]]:
-        """
-        Get all tasks for a job.
-
-        Args:
-            job_id: Job ID
-
-        Returns:
-            List of task dicts ordered by execution order
-        """
-        cursor = self.conn.execute(
-            "SELECT * FROM tasks WHERE job_id = ? ORDER BY `order`",
-            (job_id,)
-        )
-        return [dict(row) for row in cursor.fetchall()]
 
     def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get a single task by ID.
-
-        Args:
-            task_id: Task ID
-
-        Returns:
-            Task dict or None if not found
-        """
+        """Get task by ID."""
         cursor = self.conn.execute(
             "SELECT * FROM tasks WHERE id = ?",
             (task_id,)
@@ -592,666 +489,813 @@ class ProjectDatabase:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    # ==================== CODE REVIEW MANAGEMENT ====================
-
-    def add_code_review(
+    def list_tasks(
         self,
-        job_id: Optional[int],
-        task_id: Optional[int],
-        reviewer: str,
-        summary: str,
-        verdict: str,
-        issues_found: Optional[str] = None,
-        files_reviewed: Optional[str] = None
-    ) -> int:
-        """
-        Add a code review record.
+        plan_id: int,
+        sub_phase: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List all tasks for a plan, optionally filtered by sub-phase."""
+        query = "SELECT * FROM tasks WHERE phase_plan_id = ?"
+        params = [plan_id]
 
-        Args:
-            job_id: Optional foreign key to jobs table
-            task_id: Optional foreign key to tasks table
-            reviewer: Reviewer name or agent type
-            summary: Review summary text
-            verdict: Review verdict (approved, changes-requested, rejected)
-            issues_found: Optional JSON array of issues
-            files_reviewed: Optional JSON array of files
+        if sub_phase is not None:
+            query += " AND sub_phase = ?"
+            params.append(sub_phase)
 
-        Returns:
-            Review ID (integer)
+        query += " ORDER BY execution_order"
 
-        Raises:
-            ValueError: If reviewer/summary empty or verdict invalid
-        """
-        if not reviewer or not reviewer.strip():
-            raise ValueError("Reviewer cannot be empty")
+        cursor = self.conn.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
 
-        if not summary or not summary.strip():
-            raise ValueError("Summary cannot be empty")
-
-        valid_verdicts = ['approved', 'changes-requested', 'rejected']
-        if verdict not in valid_verdicts:
-            raise ValueError(f"Verdict must be one of: {valid_verdicts}")
-
+    def get_tasks_by_wave(self, plan_id: int, wave: int) -> List[Dict[str, Any]]:
+        """Get all tasks in a specific wave."""
         cursor = self.conn.execute(
             """
-            INSERT INTO code_reviews (
-                job_id, task_id, reviewer, summary, verdict,
-                issues_found, files_reviewed
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            SELECT * FROM tasks
+            WHERE phase_plan_id = ? AND wave = ?
+            ORDER BY execution_order
             """,
-            (job_id, task_id, reviewer.strip(), summary.strip(), verdict,
-             issues_found, files_reviewed)
+            (plan_id, wave)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_tasks_by_sub_phase(self, plan_id: int, sub_phase: str) -> List[Dict[str, Any]]:
+        """Get all tasks in a specific sub-phase."""
+        cursor = self.conn.execute(
+            """
+            SELECT * FROM tasks
+            WHERE phase_plan_id = ? AND sub_phase = ?
+            ORDER BY execution_order
+            """,
+            (plan_id, sub_phase)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== TASK DEPENDENCY MANAGEMENT ====================
+
+    def add_task_dependency(
+        self,
+        task_id: int,
+        depends_on_task_id: int,
+        dependency_type: str = 'blocks'
+    ) -> int:
+        """
+        Add a task dependency.
+
+        Args:
+            task_id: Task that has the dependency
+            depends_on_task_id: Task that must complete first
+            dependency_type: Type (blocks, related, suggests)
+
+        Returns:
+            Dependency ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO task_dependencies (task_id, depends_on_task_id, dependency_type)
+            VALUES (?, ?, ?)
+            """,
+            (task_id, depends_on_task_id, dependency_type)
         )
         self.conn.commit()
         return cursor.lastrowid
 
-    def get_code_reviews(
-        self,
-        job_id: Optional[int] = None,
-        task_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Get code reviews, optionally filtered by job or task.
+    def get_task_dependencies(self, task_id: int) -> List[Dict[str, Any]]:
+        """Get all dependencies for a task."""
+        cursor = self.conn.execute(
+            """
+            SELECT td.*, t.task_key, t.name
+            FROM task_dependencies td
+            JOIN tasks t ON td.depends_on_task_id = t.id
+            WHERE td.task_id = ?
+            """,
+            (task_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
-        Args:
-            job_id: Optional job ID to filter by
-            task_id: Optional task ID to filter by
+    def get_dependency_graph(self, plan_id: int) -> Dict[str, Any]:
+        """
+        Get complete dependency graph for a plan.
 
         Returns:
-            List of code review dicts
+            Dict with 'nodes' (tasks) and 'edges' (dependencies)
         """
-        query = "SELECT * FROM code_reviews WHERE 1=1"
+        # Get all tasks
+        tasks = self.list_tasks(plan_id)
+        nodes = [
+            {
+                'id': t['id'],
+                'task_key': t['task_key'],
+                'name': t['name'],
+                'status': t['status'],
+                'wave': t['wave']
+            }
+            for t in tasks
+        ]
+
+        # Get all dependencies
+        cursor = self.conn.execute(
+            """
+            SELECT td.*
+            FROM task_dependencies td
+            JOIN tasks t ON td.task_id = t.id
+            WHERE t.phase_plan_id = ?
+            """,
+            (plan_id,)
+        )
+        edges = [
+            {
+                'from': row['depends_on_task_id'],
+                'to': row['task_id'],
+                'type': row['dependency_type']
+            }
+            for row in cursor.fetchall()
+        ]
+
+        return {'nodes': nodes, 'edges': edges}
+
+    # ==================== PHASE RUN MANAGEMENT ====================
+
+    def create_phase_run(
+        self,
+        phase_id: int,
+        plan_id: int,
+        assigned_agent: Optional[str] = None
+    ) -> int:
+        """
+        Create a new phase run (execution instance).
+
+        Args:
+            phase_id: Foreign key to phases table
+            plan_id: Foreign key to phase_plans table (which plan to execute)
+            assigned_agent: Optional agent assigned to this run
+
+        Returns:
+            Run ID (integer)
+        """
+        # Auto-increment run_number
+        cursor = self.conn.execute(
+            "SELECT COALESCE(MAX(run_number), 0) + 1 FROM phase_runs WHERE phase_id = ?",
+            (phase_id,)
+        )
+        run_number = cursor.fetchone()[0]
+
+        cursor = self.conn.execute(
+            """
+            INSERT INTO phase_runs (phase_id, plan_id, run_number, assigned_agent, status)
+            VALUES (?, ?, ?, ?, 'pending')
+            """,
+            (phase_id, plan_id, run_number, assigned_agent)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def start_phase_run(self, run_id: int):
+        """Mark phase run as started."""
+        self.conn.execute(
+            """
+            UPDATE phase_runs
+            SET status = 'in-progress', started_at = datetime('now')
+            WHERE id = ?
+            """,
+            (run_id,)
+        )
+        self.conn.commit()
+
+    def complete_phase_run(
+        self,
+        run_id: int,
+        exit_code: int,
+        summary: Optional[str] = None
+    ):
+        """Mark phase run as completed."""
+        status = 'completed' if exit_code == 0 else 'failed'
+
+        self.conn.execute(
+            """
+            UPDATE phase_runs
+            SET status = ?, exit_code = ?, summary = ?, completed_at = datetime('now')
+            WHERE id = ?
+            """,
+            (status, exit_code, summary, run_id)
+        )
+        self.conn.commit()
+
+    def update_phase_run_status(self, run_id: int, status: str):
+        """Update phase run status."""
+        valid_statuses = ['pending', 'in-progress', 'completed', 'failed', 'cancelled']
+        if status not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+
+        self.conn.execute(
+            "UPDATE phase_runs SET status = ? WHERE id = ?",
+            (status, run_id)
+        )
+        self.conn.commit()
+
+    def get_phase_run(self, run_id: int) -> Optional[Dict[str, Any]]:
+        """Get phase run by ID."""
+        cursor = self.conn.execute(
+            "SELECT * FROM phase_runs WHERE id = ?",
+            (run_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def list_phase_runs(
+        self,
+        phase_id: Optional[int] = None,
+        status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List phase runs with optional filters."""
+        query = "SELECT * FROM phase_runs WHERE 1=1"
         params = []
 
-        if job_id is not None:
-            query += " AND job_id = ?"
-            params.append(job_id)
+        if phase_id is not None:
+            query += " AND phase_id = ?"
+            params.append(phase_id)
 
-        if task_id is not None:
-            query += " AND task_id = ?"
-            params.append(task_id)
+        if status is not None:
+            query += " AND status = ?"
+            params.append(status)
 
         query += " ORDER BY created_at DESC"
 
         cursor = self.conn.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
 
-    # ==================== AGENT ASSIGNMENT MANAGEMENT ====================
+    # ==================== TASK RUN MANAGEMENT ====================
 
-    def assign_agent(
+    def create_task_run(
         self,
-        agent_type: str,
-        job_id: Optional[int] = None,
-        task_id: Optional[int] = None
+        phase_run_id: int,
+        task_id: int,
+        assigned_agent: Optional[str] = None
     ) -> int:
         """
-        Record an agent assignment.
+        Create a new task run (links phase run to task execution).
 
         Args:
-            agent_type: Type of agent (e.g., "python-backend-developer")
-            job_id: Optional job ID
-            task_id: Optional task ID
+            phase_run_id: Foreign key to phase_runs table
+            task_id: Foreign key to tasks table
+            assigned_agent: Optional agent assigned to this task
 
         Returns:
-            Assignment ID (integer)
-
-        Raises:
-            ValueError: If agent_type is empty or both job_id and task_id are None
+            Task run ID (integer)
         """
-        if not agent_type or not agent_type.strip():
-            raise ValueError("Agent type cannot be empty")
-
-        if job_id is None and task_id is None:
-            raise ValueError("At least one of job_id or task_id must be provided")
-
         cursor = self.conn.execute(
             """
-            INSERT INTO agent_assignments (agent_type, job_id, task_id)
-            VALUES (?, ?, ?)
+            INSERT INTO task_runs (phase_run_id, task_id, assigned_agent, status)
+            VALUES (?, ?, ?, 'pending')
             """,
-            (agent_type.strip(), job_id, task_id)
+            (phase_run_id, task_id, assigned_agent)
         )
         self.conn.commit()
         return cursor.lastrowid
 
-    def complete_agent_work(self, assignment_id: int, exit_code: int = 0):
-        """
-        Mark agent assignment as completed.
+    def start_task_run(self, task_run_id: int):
+        """Mark task run as started."""
+        self.conn.execute(
+            """
+            UPDATE task_runs
+            SET status = 'in-progress', started_at = datetime('now')
+            WHERE id = ?
+            """,
+            (task_run_id,)
+        )
+        self.conn.commit()
 
-        Args:
-            assignment_id: Assignment ID
-            exit_code: Exit code (0 = success, non-zero = failure)
-        """
+    def complete_task_run(self, task_run_id: int, exit_code: int):
+        """Mark task run as completed."""
         status = 'completed' if exit_code == 0 else 'failed'
 
         self.conn.execute(
             """
-            UPDATE agent_assignments
-            SET status = ?,
-                completed_at = datetime('now')
+            UPDATE task_runs
+            SET status = ?, exit_code = ?, completed_at = datetime('now')
             WHERE id = ?
             """,
-            (status, assignment_id)
+            (status, exit_code, task_run_id)
         )
         self.conn.commit()
 
-    def get_agent_assignments(
+    def update_task_run_status(
         self,
-        job_id: Optional[int] = None,
-        task_id: Optional[int] = None
+        task_run_id: int,
+        status: str,
+        assigned_agent: Optional[str] = None
+    ):
+        """Update task run status and optionally reassign agent."""
+        valid_statuses = ['pending', 'in-progress', 'completed', 'failed', 'skipped']
+        if status not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+
+        if assigned_agent is not None:
+            self.conn.execute(
+                "UPDATE task_runs SET status = ?, assigned_agent = ? WHERE id = ?",
+                (status, assigned_agent, task_run_id)
+            )
+        else:
+            self.conn.execute(
+                "UPDATE task_runs SET status = ? WHERE id = ?",
+                (status, task_run_id)
+            )
+        self.conn.commit()
+
+    def get_task_run(self, task_run_id: int) -> Optional[Dict[str, Any]]:
+        """Get task run by ID."""
+        cursor = self.conn.execute(
+            "SELECT * FROM task_runs WHERE id = ?",
+            (task_run_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def list_task_runs(
+        self,
+        phase_run_id: Optional[int] = None,
+        task_id: Optional[int] = None,
+        assigned_agent: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Get agent assignments, optionally filtered by job or task.
-
-        Args:
-            job_id: Optional job ID to filter by
-            task_id: Optional task ID to filter by
-
-        Returns:
-            List of agent assignment dicts
-        """
-        query = "SELECT * FROM agent_assignments WHERE 1=1"
+        """List task runs with optional filters."""
+        query = "SELECT * FROM task_runs WHERE 1=1"
         params = []
 
-        if job_id is not None:
-            query += " AND job_id = ?"
-            params.append(job_id)
+        if phase_run_id is not None:
+            query += " AND phase_run_id = ?"
+            params.append(phase_run_id)
 
         if task_id is not None:
             query += " AND task_id = ?"
             params.append(task_id)
 
-        query += " ORDER BY assigned_at DESC"
+        if assigned_agent is not None:
+            query += " AND assigned_agent = ?"
+            params.append(assigned_agent)
+
+        query += " ORDER BY created_at DESC"
 
         cursor = self.conn.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
 
-    # ==================== EXECUTION LOGGING ====================
-
-    def log_execution(
-        self,
-        job_id: int,
-        task_id: Optional[int],
-        command: str,
-        output: Optional[str] = None,
-        exit_code: Optional[int] = None,
-        duration_ms: Optional[int] = None
-    ) -> int:
-        """
-        Log a command execution.
-
-        Args:
-            job_id: Job ID
-            task_id: Optional task ID
-            command: Command that was executed
-            output: Optional command output (stdout + stderr)
-            exit_code: Optional exit code
-            duration_ms: Optional duration in milliseconds
-
-        Returns:
-            Log ID (integer)
-
-        Raises:
-            ValueError: If command is empty
-        """
-        if not command or not command.strip():
-            raise ValueError("Command cannot be empty")
-
-        # Truncate output if too large (> 50KB)
-        if output and len(output) > 50000:
-            output = output[:50000] + "\n... (truncated)"
-
+    def get_task_run_history(self, task_id: int) -> List[Dict[str, Any]]:
+        """Get all execution runs for a specific task across all phase runs."""
         cursor = self.conn.execute(
             """
-            INSERT INTO execution_logs (
-                job_id, task_id, command, output, exit_code, duration_ms
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
+            SELECT tr.*, pr.run_number, pr.started_at as run_started_at
+            FROM task_runs tr
+            JOIN phase_runs pr ON tr.phase_run_id = pr.id
+            WHERE tr.task_id = ?
+            ORDER BY pr.run_number DESC
             """,
-            (job_id, task_id, command.strip(), output, exit_code, duration_ms)
+            (task_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_agent_workload(self, assigned_agent: str) -> Dict[str, Any]:
+        """Get workload summary for a specific agent."""
+        cursor = self.conn.execute(
+            """
+            SELECT
+                COUNT(*) as total_tasks,
+                SUM(CASE WHEN status = 'in-progress' THEN 1 ELSE 0 END) as active_tasks,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_tasks,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_tasks
+            FROM task_runs
+            WHERE assigned_agent = ?
+            """,
+            (assigned_agent,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else {}
+
+    # ==================== TASK UPDATE MANAGEMENT ====================
+
+    def add_task_update(
+        self,
+        task_run_id: int,
+        update_type: str,
+        content: str,
+        file_path: Optional[str] = None
+    ) -> int:
+        """
+        Add a task update (progress note).
+
+        Args:
+            task_run_id: Foreign key to task_runs table
+            update_type: Type (progress, blocker, question, solution, note)
+            content: Update content
+            file_path: Optional relative file path
+
+        Returns:
+            Update ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO task_updates (task_run_id, update_type, content, file_path)
+            VALUES (?, ?, ?, ?)
+            """,
+            (task_run_id, update_type, content, file_path)
         )
         self.conn.commit()
         return cursor.lastrowid
 
-    def get_execution_logs(
-        self,
-        job_id: Optional[int] = None,
-        task_id: Optional[int] = None,
-        limit: int = 100
-    ) -> List[Dict[str, Any]]:
-        """
-        Get execution logs, optionally filtered by job or task.
-
-        Args:
-            job_id: Optional job ID to filter by
-            task_id: Optional task ID to filter by
-            limit: Maximum number of logs to return
-
-        Returns:
-            List of execution log dicts
-        """
-        query = "SELECT * FROM execution_logs WHERE 1=1"
-        params = []
-
-        if job_id is not None:
-            query += " AND job_id = ?"
-            params.append(job_id)
-
-        if task_id is not None:
-            query += " AND task_id = ?"
-            params.append(task_id)
-
-        query += " ORDER BY executed_at DESC LIMIT ?"
-        params.append(limit)
-
-        cursor = self.conn.execute(query, params)
+    def get_task_updates(self, task_run_id: int) -> List[Dict[str, Any]]:
+        """Get all updates for a task run."""
+        cursor = self.conn.execute(
+            "SELECT * FROM task_updates WHERE task_run_id = ? ORDER BY created_at",
+            (task_run_id,)
+        )
         return [dict(row) for row in cursor.fetchall()]
 
-    # ==================== REPORTING AND QUERIES ====================
+    # ==================== QUALITY GATE MANAGEMENT ====================
 
-    def generate_dashboard(self) -> Dict[str, Any]:
+    def add_quality_gate(
+        self,
+        phase_run_id: int,
+        gate_type: str,
+        status: str = 'pending',
+        result_summary: Optional[str] = None,
+        checked_by: Optional[str] = None
+    ) -> int:
         """
-        Generate status dashboard with job metrics.
+        Add a quality gate.
+
+        Args:
+            phase_run_id: Foreign key to phase_runs table
+            gate_type: Type (code_review, testing, security, linting, build)
+            status: Status (pending, passed, failed, skipped)
+            result_summary: Optional summary of results
+            checked_by: Optional checker name
 
         Returns:
-            Dashboard dict with active jobs, recent completions, and velocity
+            Gate ID (integer)
         """
-        # Active jobs
-        active_jobs = self.list_jobs(status='in-progress')
-        pending_jobs = self.list_jobs(status='pending')
-
-        # Recent completions (last 7 days)
         cursor = self.conn.execute(
             """
-            SELECT * FROM jobs
-            WHERE status IN ('completed', 'failed')
-            AND completed_at >= datetime('now', '-7 days')
-            ORDER BY completed_at DESC
-            """
+            INSERT INTO quality_gates (
+                phase_run_id, gate_type, status, result_summary, checked_by
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (phase_run_id, gate_type, status, result_summary, checked_by)
         )
-        recent_completions = [dict(row) for row in cursor.fetchall()]
+        self.conn.commit()
+        return cursor.lastrowid
 
-        # Velocity metrics (this week vs last week)
+    def update_quality_gate(
+        self,
+        gate_id: int,
+        status: str,
+        result_summary: Optional[str] = None
+    ):
+        """Update quality gate status and results."""
+        valid_statuses = ['pending', 'passed', 'failed', 'skipped']
+        if status not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+
+        self.conn.execute(
+            """
+            UPDATE quality_gates
+            SET status = ?, result_summary = ?, checked_at = datetime('now')
+            WHERE id = ?
+            """,
+            (status, result_summary, gate_id)
+        )
+        self.conn.commit()
+
+    def get_quality_gates(self, phase_run_id: int) -> List[Dict[str, Any]]:
+        """Get all quality gates for a phase run."""
+        cursor = self.conn.execute(
+            "SELECT * FROM quality_gates WHERE phase_run_id = ? ORDER BY created_at",
+            (phase_run_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== CODE REVIEW MANAGEMENT ====================
+
+    def add_code_review(
+        self,
+        phase_run_id: int,
+        reviewer: str,
+        summary: str,
+        verdict: str,
+        issues_found: Optional[List[str]] = None,
+        files_reviewed: Optional[List[str]] = None
+    ) -> int:
+        """
+        Add a code review record linked to phase run.
+
+        Args:
+            phase_run_id: Foreign key to phase_runs table
+            reviewer: Name of the reviewer agent
+            summary: Review summary/comments
+            verdict: Review status (pending, passed, failed, needs_changes)
+            issues_found: Optional list of issues (for backwards compatibility)
+            files_reviewed: Optional list of files (for backwards compatibility)
+
+        Returns:
+            Review ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO code_reviews (phase_run_id, reviewer, status, comments, reviewed_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+            """,
+            (phase_run_id, reviewer, verdict, summary)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_code_reviews(self, phase_run_id: int) -> List[Dict[str, Any]]:
+        """Get all code reviews for a phase run."""
+        cursor = self.conn.execute(
+            "SELECT * FROM code_reviews WHERE phase_run_id = ? ORDER BY created_at",
+            (phase_run_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== ARTIFACT MANAGEMENT ====================
+
+    def add_run_artifact(
+        self,
+        phase_run_id: int,
+        artifact_type: str,
+        artifact_name: str,
+        file_path: Optional[str] = None,
+        file_size_bytes: Optional[int] = None
+    ) -> int:
+        """
+        Add a run artifact.
+
+        Args:
+            phase_run_id: Foreign key to phase_runs table
+            artifact_type: Type (log, report, screenshot, diagram, etc.)
+            artifact_name: Artifact name
+            file_path: Optional relative file path
+            file_size_bytes: Optional file size
+
+        Returns:
+            Artifact ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO run_artifacts (
+                phase_run_id, artifact_type, artifact_name, file_path, file_size_bytes
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (phase_run_id, artifact_type, artifact_name, file_path, file_size_bytes)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_run_artifacts(self, phase_run_id: int) -> List[Dict[str, Any]]:
+        """Get all artifacts for a phase run."""
+        cursor = self.conn.execute(
+            "SELECT * FROM run_artifacts WHERE phase_run_id = ? ORDER BY created_at",
+            (phase_run_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== METRICS & REPORTING ====================
+
+    def get_phase_metrics(self, phase_id: int) -> Dict[str, Any]:
+        """
+        Get aggregated metrics for a phase.
+
+        Returns:
+            Dict with total_runs, successful_runs, avg_duration, etc.
+        """
+        # Get or create metrics row
+        cursor = self.conn.execute(
+            "SELECT * FROM phase_metrics WHERE phase_id = ?",
+            (phase_id,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            # Create initial metrics
+            self.conn.execute(
+                "INSERT INTO phase_metrics (phase_id) VALUES (?)",
+                (phase_id,)
+            )
+            self.conn.commit()
+            return self.get_phase_metrics(phase_id)
+
+        # Recalculate metrics
         cursor = self.conn.execute(
             """
             SELECT
-                SUM(CASE WHEN completed_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) as this_week,
-                SUM(CASE WHEN completed_at >= datetime('now', '-14 days')
-                     AND completed_at < datetime('now', '-7 days') THEN 1 ELSE 0 END) as last_week
-            FROM jobs
-            WHERE status = 'completed'
-            """
+                COUNT(*) as total_runs,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful_runs,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_runs,
+                AVG(CASE WHEN duration_seconds IS NOT NULL THEN duration_seconds ELSE NULL END) as avg_duration
+            FROM phase_runs
+            WHERE phase_id = ?
+            """,
+            (phase_id,)
         )
-        row = cursor.fetchone()
-        this_week = row['this_week'] or 0
-        last_week = row['last_week'] or 0
+        run_metrics = dict(cursor.fetchone())
 
-        velocity_trend = 0
-        if last_week > 0:
-            velocity_trend = ((this_week - last_week) / last_week) * 100
+        # Get task metrics
+        cursor = self.conn.execute(
+            """
+            SELECT
+                COUNT(DISTINCT t.id) as total_tasks,
+                SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks,
+                SUM(CASE WHEN t.status = 'blocked' THEN 1 ELSE 0 END) as blocked_tasks
+            FROM tasks t
+            JOIN phase_plans pp ON t.phase_plan_id = pp.id
+            WHERE pp.phase_id = ?
+            """,
+            (phase_id,)
+        )
+        task_metrics = dict(cursor.fetchone())
 
-        return {
-            'active_jobs': active_jobs,
-            'pending_jobs': pending_jobs,
-            'recent_completions': recent_completions,
-            'velocity': {
-                'this_week': this_week,
-                'last_week': last_week,
-                'trend_percent': round(velocity_trend, 1)
-            }
-        }
+        # Get quality gate metrics
+        cursor = self.conn.execute(
+            """
+            SELECT
+                COUNT(*) as total_gates,
+                SUM(CASE WHEN qg.status = 'passed' THEN 1 ELSE 0 END) as passed_gates
+            FROM quality_gates qg
+            JOIN phase_runs pr ON qg.phase_run_id = pr.id
+            WHERE pr.phase_id = ?
+            """,
+            (phase_id,)
+        )
+        gate_metrics = dict(cursor.fetchone())
 
-    def get_job_timeline(self, job_id: int) -> List[Dict[str, Any]]:
+        # Update metrics table
+        self.conn.execute(
+            """
+            UPDATE phase_metrics
+            SET total_runs = ?, successful_runs = ?, failed_runs = ?,
+                avg_duration_seconds = ?, total_tasks = ?, completed_tasks = ?,
+                blocked_tasks = ?, total_quality_gates = ?, passed_quality_gates = ?,
+                last_calculated_at = datetime('now')
+            WHERE phase_id = ?
+            """,
+            (
+                run_metrics['total_runs'], run_metrics['successful_runs'],
+                run_metrics['failed_runs'], run_metrics['avg_duration'],
+                task_metrics['total_tasks'], task_metrics['completed_tasks'],
+                task_metrics['blocked_tasks'], gate_metrics['total_gates'],
+                gate_metrics['passed_gates'], phase_id
+            )
+        )
+        self.conn.commit()
+
+        return {**run_metrics, **task_metrics, **gate_metrics}
+
+    def generate_phase_dashboard(self, phase_id: int) -> Dict[str, Any]:
         """
-        Get complete timeline of events for a job.
-
-        Args:
-            job_id: Job ID
+        Generate a comprehensive dashboard for a phase.
 
         Returns:
-            List of timeline events (job, tasks, reviews) sorted chronologically
+            Dict with current status, recent runs, task progress, etc.
         """
+        phase = self.get_phase(phase_id)
+        metrics = self.get_phase_metrics(phase_id)
+        recent_runs = self.list_phase_runs(phase_id)[:5]
+
+        # Get current approved plan
+        approved_plan = None
+        if phase and phase['approved_plan_id']:
+            approved_plan = self.get_phase_plan(phase['approved_plan_id'])
+
+        # Get task progress
+        task_progress = {}
+        if approved_plan:
+            tasks = self.list_tasks(approved_plan['id'])
+            task_progress = {
+                'total': len(tasks),
+                'pending': sum(1 for t in tasks if t['status'] == 'pending'),
+                'in_progress': sum(1 for t in tasks if t['status'] == 'in-progress'),
+                'completed': sum(1 for t in tasks if t['status'] == 'completed'),
+                'blocked': sum(1 for t in tasks if t['status'] == 'blocked')
+            }
+
+        return {
+            'phase': phase,
+            'metrics': metrics,
+            'recent_runs': recent_runs,
+            'task_progress': task_progress,
+            'approved_plan': approved_plan
+        }
+
+    def get_phase_timeline(self, phase_id: int) -> List[Dict[str, Any]]:
+        """Get timeline of all events for a phase."""
         timeline = []
 
-        # Job events
-        job = self.get_job(job_id)
-        if job:
-            if job['created_at']:
-                timeline.append({
-                    'type': 'job_created',
-                    'timestamp': job['created_at'],
-                    'data': job
-                })
-            if job['started_at']:
-                timeline.append({
-                    'type': 'job_started',
-                    'timestamp': job['started_at'],
-                    'data': job
-                })
-            if job['completed_at']:
-                timeline.append({
-                    'type': 'job_completed',
-                    'timestamp': job['completed_at'],
-                    'data': job
-                })
-
-        # Task events
-        tasks = self.get_tasks(job_id)
-        for task in tasks:
-            if task['created_at']:
-                timeline.append({
-                    'type': 'task_created',
-                    'timestamp': task['created_at'],
-                    'data': task
-                })
-            if task['started_at']:
-                timeline.append({
-                    'type': 'task_started',
-                    'timestamp': task['started_at'],
-                    'data': task
-                })
-            if task['completed_at']:
-                timeline.append({
-                    'type': 'task_completed',
-                    'timestamp': task['completed_at'],
-                    'data': task
-                })
-
-        # Code review events
-        reviews = self.get_code_reviews(job_id=job_id)
-        for review in reviews:
+        # Phase creation
+        phase = self.get_phase(phase_id)
+        if phase:
             timeline.append({
-                'type': 'code_review',
-                'timestamp': review['created_at'],
-                'data': review
+                'type': 'phase_created',
+                'timestamp': phase['created_at'],
+                'data': phase
             })
+
+        # Phase plans
+        plans = self.list_phase_plans(phase_id)
+        for plan in plans:
+            timeline.append({
+                'type': 'plan_created',
+                'timestamp': plan['created_at'],
+                'data': plan
+            })
+            if plan['approved_at']:
+                timeline.append({
+                    'type': 'plan_approved',
+                    'timestamp': plan['approved_at'],
+                    'data': plan
+                })
+
+        # Phase runs
+        runs = self.list_phase_runs(phase_id)
+        for run in runs:
+            timeline.append({
+                'type': 'run_created',
+                'timestamp': run['created_at'],
+                'data': run
+            })
+            if run['started_at']:
+                timeline.append({
+                    'type': 'run_started',
+                    'timestamp': run['started_at'],
+                    'data': run
+                })
+            if run['completed_at']:
+                timeline.append({
+                    'type': 'run_completed',
+                    'timestamp': run['completed_at'],
+                    'data': run
+                })
 
         # Sort by timestamp
         timeline.sort(key=lambda x: x['timestamp'])
 
         return timeline
 
-    def get_dependency_graph(self, job_id: int) -> Dict[str, Any]:
+    # ==================== MIGRATION HELPERS ====================
+
+    def migrate_spec_to_phase(self, spec_id: int) -> int:
         """
-        Get task dependency graph for a job.
+        Manually migrate a legacy spec to a phase.
 
         Args:
-            job_id: Job ID
+            spec_id: Legacy spec ID from specs_legacy table
 
         Returns:
-            Dict with nodes (tasks) and edges (dependencies)
+            New phase ID
         """
-        tasks = self.get_tasks(job_id)
+        # Get legacy spec
+        cursor = self.conn.execute(
+            "SELECT * FROM specs_legacy WHERE id = ?",
+            (spec_id,)
+        )
+        spec = cursor.fetchone()
+        if not spec:
+            raise ValueError(f"Legacy spec {spec_id} not found")
 
-        nodes = []
-        edges = []
+        # Create phase
+        phase_id = self.create_phase(
+            project_id=spec['project_id'],
+            name=spec['name'],
+            description=spec['description'],
+            phase_type='feature',
+            status=spec['status']
+        )
 
-        for task in tasks:
-            nodes.append({
-                'id': task['id'],
-                'name': task['name'],
-                'status': task['status'],
-                'order': task['order']
-            })
+        # Create phase plan
+        plan_id = self.create_phase_plan(
+            phase_id=phase_id,
+            planning_approach="Migrated from legacy spec"
+        )
 
-            if task['dependencies']:
-                try:
-                    deps = json.loads(task['dependencies'])
-                    for dep_id in deps:
-                        edges.append({
-                            'from': dep_id,
-                            'to': task['id']
-                        })
-                except json.JSONDecodeError:
-                    pass
+        # Migrate documents
+        if spec['frd_content']:
+            self.add_plan_document(plan_id, 'frd', 'FRD', spec['frd_content'])
+        if spec['frs_content']:
+            self.add_plan_document(plan_id, 'frs', 'FRS', spec['frs_content'])
+        if spec['gs_content']:
+            self.add_plan_document(plan_id, 'gs', 'GS', spec['gs_content'])
+        if spec['tr_content']:
+            self.add_plan_document(plan_id, 'tr', 'TR', spec['tr_content'])
+        if spec['task_list_content']:
+            self.add_plan_document(plan_id, 'task-list', 'Task List', spec['task_list_content'])
 
-        return {
-            'nodes': nodes,
-            'edges': edges
-        }
+        # Approve plan
+        self.approve_phase_plan(plan_id, 'migration')
 
-    def search_execution_logs(
-        self,
-        job_id: Optional[int] = None,
-        task_id: Optional[int] = None,
-        command_pattern: Optional[str] = None,
-        output_pattern: Optional[str] = None,
-        exit_code: Optional[int] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        limit: int = 100
-    ) -> List[Dict[str, Any]]:
-        """
-        Search execution logs with multiple filter criteria.
+        self.conn.commit()
+        return phase_id
 
-        Args:
-            job_id: Optional job ID filter
-            task_id: Optional task ID filter
-            command_pattern: Optional SQL LIKE pattern for command text
-            output_pattern: Optional SQL LIKE pattern for output text
-            exit_code: Optional exit code filter (exact match)
-            start_date: Optional start date (ISO format: YYYY-MM-DD HH:MM:SS)
-            end_date: Optional end date (ISO format: YYYY-MM-DD HH:MM:SS)
-            limit: Maximum number of results (default: 100)
-
-        Returns:
-            List of execution log dicts matching criteria
-
-        Examples:
-            # Search for failed commands
-            db.search_execution_logs(exit_code=1)
-
-            # Search for pytest commands in last week
-            db.search_execution_logs(
-                command_pattern='%pytest%',
-                start_date='2026-01-10 00:00:00'
-            )
-
-            # Search for output containing "error"
-            db.search_execution_logs(output_pattern='%error%')
-        """
-        query = "SELECT * FROM execution_logs WHERE 1=1"
-        params = []
-
-        # Job ID filter
-        if job_id is not None:
-            query += " AND job_id = ?"
-            params.append(job_id)
-
-        # Task ID filter
-        if task_id is not None:
-            query += " AND task_id = ?"
-            params.append(task_id)
-
-        # Command pattern (case-insensitive LIKE)
-        if command_pattern:
-            query += " AND command LIKE ?"
-            params.append(command_pattern)
-
-        # Output pattern (case-insensitive LIKE)
-        if output_pattern:
-            query += " AND output LIKE ?"
-            params.append(output_pattern)
-
-        # Exit code filter (exact match)
-        if exit_code is not None:
-            query += " AND exit_code = ?"
-            params.append(exit_code)
-
-        # Date range filters
-        if start_date:
-            query += " AND executed_at >= ?"
-            params.append(start_date)
-
-        if end_date:
-            query += " AND executed_at <= ?"
-            params.append(end_date)
-
-        # Order by most recent first
-        query += " ORDER BY executed_at DESC LIMIT ?"
-        params.append(limit)
-
-        cursor = self.conn.execute(query, params)
+    def list_legacy_specs(self) -> List[Dict[str, Any]]:
+        """List all unmigrated legacy specs."""
+        cursor = self.conn.execute(
+            "SELECT * FROM specs_legacy ORDER BY created_at DESC"
+        )
         return [dict(row) for row in cursor.fetchall()]
-
-    def get_code_review_metrics(
-        self,
-        job_id: Optional[int] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Get aggregated code review metrics and statistics.
-
-        Args:
-            job_id: Optional job ID to filter by
-            start_date: Optional start date (ISO format: YYYY-MM-DD HH:MM:SS)
-            end_date: Optional end date (ISO format: YYYY-MM-DD HH:MM:SS)
-
-        Returns:
-            Dict with review metrics including:
-            - total_reviews: Total number of reviews
-            - verdict_distribution: Count by verdict (approved/changes-requested/rejected)
-            - avg_issues_per_review: Average number of issues found
-            - reviewer_activity: Reviews per reviewer
-            - common_issues: Top issue types (if available in issues_found JSON)
-            - recent_reviews: Last 10 reviews
-
-        Examples:
-            # Get metrics for all reviews
-            metrics = db.get_code_review_metrics()
-
-            # Get metrics for specific job
-            metrics = db.get_code_review_metrics(job_id=123)
-
-            # Get metrics for last week
-            metrics = db.get_code_review_metrics(
-                start_date='2026-01-10 00:00:00'
-            )
-        """
-        # Build base query filters
-        where_clause = "WHERE 1=1"
-        params = []
-
-        if job_id is not None:
-            where_clause += " AND job_id = ?"
-            params.append(job_id)
-
-        if start_date:
-            where_clause += " AND created_at >= ?"
-            params.append(start_date)
-
-        if end_date:
-            where_clause += " AND created_at <= ?"
-            params.append(end_date)
-
-        # Total reviews
-        cursor = self.conn.execute(
-            f"SELECT COUNT(*) as count FROM code_reviews {where_clause}",
-            params
-        )
-        total_reviews = cursor.fetchone()['count']
-
-        # Verdict distribution
-        cursor = self.conn.execute(
-            f"""
-            SELECT verdict, COUNT(*) as count
-            FROM code_reviews
-            {where_clause}
-            GROUP BY verdict
-            ORDER BY count DESC
-            """,
-            params
-        )
-        verdict_distribution = {row['verdict']: row['count'] for row in cursor.fetchall()}
-
-        # Average issues per review
-        cursor = self.conn.execute(
-            f"""
-            SELECT AVG(
-                CASE
-                    WHEN issues_found IS NULL OR issues_found = '[]' THEN 0
-                    ELSE json_array_length(issues_found)
-                END
-            ) as avg_issues
-            FROM code_reviews
-            {where_clause}
-            """,
-            params
-        )
-        avg_issues = cursor.fetchone()['avg_issues'] or 0
-
-        # Reviewer activity
-        cursor = self.conn.execute(
-            f"""
-            SELECT reviewer, COUNT(*) as count
-            FROM code_reviews
-            {where_clause}
-            GROUP BY reviewer
-            ORDER BY count DESC
-            LIMIT 10
-            """,
-            params
-        )
-        reviewer_activity = [
-            {'reviewer': row['reviewer'], 'review_count': row['count']}
-            for row in cursor.fetchall()
-        ]
-
-        # Recent reviews (last 10)
-        cursor = self.conn.execute(
-            f"""
-            SELECT *
-            FROM code_reviews
-            {where_clause}
-            ORDER BY created_at DESC
-            LIMIT 10
-            """,
-            params
-        )
-        recent_reviews = [dict(row) for row in cursor.fetchall()]
-
-        # Common issues (extract from issues_found JSON)
-        cursor = self.conn.execute(
-            f"""
-            SELECT issues_found
-            FROM code_reviews
-            {where_clause}
-            AND issues_found IS NOT NULL
-            AND issues_found != '[]'
-            """,
-            params
-        )
-
-        issue_types = {}
-        for row in cursor.fetchall():
-            try:
-                issues = json.loads(row['issues_found'])
-                for issue in issues:
-                    # Issues might be strings or dicts
-                    if isinstance(issue, dict):
-                        issue_type = issue.get('type', 'unknown')
-                    else:
-                        # Extract first word as issue type
-                        issue_type = str(issue).split(':')[0].strip()
-
-                    issue_types[issue_type] = issue_types.get(issue_type, 0) + 1
-            except (json.JSONDecodeError, AttributeError):
-                pass
-
-        # Sort common issues by frequency
-        common_issues = sorted(
-            [{'issue_type': k, 'count': v} for k, v in issue_types.items()],
-            key=lambda x: x['count'],
-            reverse=True
-        )[:10]
-
-        return {
-            'total_reviews': total_reviews,
-            'verdict_distribution': verdict_distribution,
-            'avg_issues_per_review': round(avg_issues, 2),
-            'reviewer_activity': reviewer_activity,
-            'common_issues': common_issues,
-            'recent_reviews': recent_reviews
-        }

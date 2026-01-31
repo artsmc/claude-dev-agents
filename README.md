@@ -104,6 +104,28 @@ Specialized development personas for different aspects of development.
 
 Modular, reusable workflows for common development tasks.
 
+### 🎯 Workflow Orchestration (3 skills) ⭐ NEW
+
+End-to-end feature development automation.
+
+```bash
+/documentation-start                      # Initialize Memory Bank + Document Hub
+/feature-new "feature description"        # Complete workflow: spec → plan → execute
+/feature-continue ./path/to/tasks.md      # Resume interrupted work with PM-DB tracking
+```
+
+**Features:**
+- One-command feature development
+- Automatic documentation initialization
+- PM-DB tracking integration
+- Session resilience (resume after interruptions)
+- Two human approval checkpoints
+- Complete workflow automation
+
+**Location:** `/home/artsmc/.claude/skills/documentation-start/`, `/home/artsmc/.claude/skills/feature-new/`, `/home/artsmc/.claude/skills/feature-continue/`
+
+---
+
 ### 📚 Document Hub (4 skills)
 
 Documentation management system for codebases.
@@ -293,77 +315,194 @@ python sloc_tracker.py /path/to/project --final
 
 | System | Status | Skills | Hooks | Tools | Documentation |
 |--------|--------|--------|-------|-------|---------------|
+| **orchestration** | ✅ v1.0 | 3 | 0 | 0 | Complete |
 | **start-phase** | ✅ v2.0 | 2 | 4 | 4 | 68KB comprehensive |
 | **hub** (document-hub) | ✅ v1.0 | 4 | 0 | 4 | Complete |
 | **memory-bank** | ✅ v1.0 | 4 | 0 | 4 | Complete |
 | **spec** | ✅ v1.0 | 2 | 0 | 2 | Complete |
+| **pm-db** | ✅ v2.0 | 1 | 6 | 1 | Complete |
 
 ### Total Implementation
 
-- **12 skills** across 4 systems
-- **4 hooks** for automated workflow (start-phase only)
-- **14 Python tools** (890+ lines of code)
+- **16 skills** across 6 systems
+- **10 hooks** for automated workflow (start-phase + pm-db)
+- **15 Python tools** (890+ lines of code)
 - **8 specialized agents** for development
-- **~250 KB** of production code
+- **~300 KB** of production code
 - **Zero external dependencies** (Python stdlib only)
 
 ### Skill Naming Convention
 
 Skills follow the pattern `/{system-name}-{action}`:
+- `/documentation-start`, `/feature-new`, `/feature-continue` (orchestration)
 - `/document-hub-initialize`, `/document-hub-read`, etc.
 - `/memory-bank-initialize`, `/memory-bank-read`, etc.
 - `/spec-plan`, `/spec-review`
 - `/start-phase plan`, `/start-phase execute` (space-separated for arguments)
+- `/pm-db init`, `/pm-db import`, `/pm-db dashboard`, etc.
 
 ---
 
 ## 🚀 Quick Start
 
-### For New Projects
+### Beginner (Orchestrated Workflow)
 
-**1. Initialize documentation:**
+**Complete feature development in one command:**
+
 ```bash
+# One-time setup
+/documentation-start
+/pm-db init
+
+# Develop features
+/feature-new "add user login"
+/feature-new "integrate payments"
+/feature-new "build admin panel"
+
+# Resume if interrupted
+/feature-continue ./job-queue/feature-name/tasks.md
+```
+
+**That's it!** The orchestration skills handle everything automatically.
+
+---
+
+### Advanced (Manual Control)
+
+**Fine-grained control over each step:**
+
+```bash
+# 1. Initialize
 /document-hub-initialize
-```
-
-**2. Plan your first phase:**
-```bash
-# Create task list
-cat > ./my-feature/tasks.md <<EOF
-# My Feature
-1. Task 1
-2. Task 2
-3. Task 3
-EOF
-
-# Strategic planning
-/start-phase plan ./my-feature/tasks.md
-
-# Execute with quality gates
-/start-phase execute ./my-feature/tasks.md
-```
-
-**3. Store important knowledge:**
-```bash
 /memory-bank-initialize
+
+# 2. Plan feature
+/spec-plan "advanced feature"
+/spec-review
+
+# 3. Execute
+/start-phase plan ./job-queue/feature-name/tasks.md
+/pm-db import
+/start-phase execute ./job-queue/feature-name/tasks.md
+
+# 4. Update docs
+/memory-bank-update
+/document-hub-update
 ```
 
-### For Existing Projects
+See "Beginner Quickstart" and "Advanced Workflows" sections below for more patterns.
 
-**1. Analyze current documentation:**
+---
+
+## 🎓 Beginner Quickstart
+
+New to this system? Start here!
+
+### First-Time Setup (5 minutes)
+
+**Step 1: Initialize Documentation**
+
 ```bash
-/document-hub-analyze
+/documentation-start
 ```
 
-**2. Read project context:**
+This creates:
+- Memory Bank (6 files tracking project knowledge)
+- Document Hub (4 files documenting codebase)
+
+**Step 2: Initialize PM-DB**
+
 ```bash
-/memory-bank-read
+/pm-db init
 ```
 
-**3. Plan next feature:**
+This creates the project database at `~/.claude/projects.db`.
+
+**Done!** Your project is now ready for feature development.
+
+---
+
+### Develop Your First Feature
+
+**The Easy Way (Recommended):**
+
 ```bash
-/spec-plan "add user profile page"
+/feature-new "add user login page"
 ```
+
+This runs the complete workflow automatically:
+1. ✅ Checks documentation is initialized
+2. ✅ Creates feature specification
+3. ⏸️ Waits for your approval
+4. ✅ Creates strategic execution plan
+5. ⏸️ Waits for your approval
+6. ✅ Imports to PM-DB
+7. ✅ Executes with quality gates
+
+**Two human approval checkpoints ensure quality before execution.**
+
+---
+
+### Resume Interrupted Work
+
+If your session drops or you need to pause:
+
+```bash
+/feature-continue ./job-queue/feature-login/tasks.md
+```
+
+This:
+- ✅ Detects where you left off
+- ✅ Resumes from last incomplete task
+- ✅ Maintains PM-DB tracking
+- ✅ Preserves git history
+
+---
+
+### View Progress
+
+```bash
+/pm-db dashboard
+```
+
+Shows:
+- All features in progress
+- Completed tasks
+- Phase metrics
+- Success rates
+
+---
+
+### Update Documentation
+
+After completing features:
+
+```bash
+/memory-bank-sync        # Quick update (2 files)
+/document-hub-update     # Full documentation sync
+```
+
+---
+
+### Complete Beginner Workflow
+
+```bash
+# One-time setup
+/documentation-start
+/pm-db init
+
+# For each feature
+/feature-new "feature description"
+
+# If interrupted
+/feature-continue ./job-queue/feature-name/tasks.md
+
+# After feature complete
+/memory-bank-sync
+/pm-db dashboard
+```
+
+**That's it!** Three orchestration skills handle everything.
 
 ---
 
@@ -405,6 +544,266 @@ Each system has comprehensive documentation:
 ### Specifications
 - ✅ **Plan before implementing:** Use `/spec-plan` first
 - ✅ **Review specifications:** Use `/spec-review` for validation
+
+---
+
+## 🎯 Advanced Workflows
+
+For experienced users who want fine-grained control.
+
+### Custom Feature Workflow
+
+Skip orchestration and use individual skills:
+
+```bash
+# 1. Plan specification
+/spec-plan "advanced feature with custom requirements"
+
+# 2. Review and iterate
+/spec-review
+# [Make changes to specs manually if needed]
+/spec-review  # Validate again
+
+# 3. Strategic planning
+/start-phase plan ./job-queue/feature-advanced/tasks.md
+# [Review plan, request changes if needed]
+
+# 4. Import to PM-DB
+/pm-db import --project advanced
+
+# 5. Execute phase
+/start-phase execute ./job-queue/feature-advanced/tasks.md
+
+# 6. Update documentation
+/memory-bank-update       # Full update (all 6 files)
+/document-hub-analyze     # Deep analysis
+/document-hub-update      # Apply recommendations
+```
+
+---
+
+### Parallel Feature Development
+
+Work on multiple features simultaneously:
+
+```bash
+# Feature A: Auth
+/feature-new "add user authentication"
+# [Let run in background]
+
+# Feature B: Payments (different folder)
+/feature-new "integrate stripe payments"
+
+# Feature C: Admin (resume later)
+/spec-plan "build admin dashboard"
+# [Stop here, resume tomorrow]
+/spec-review
+/start-phase plan ./job-queue/feature-admin/tasks.md
+```
+
+**PM-DB tracks all features independently.**
+
+---
+
+### Documentation-First Approach
+
+For large refactors or architecture changes:
+
+```bash
+# 1. Analyze current state
+/document-hub-analyze
+# Review health score and recommendations
+
+# 2. Update documentation first
+# [Edit systemArchitecture.md manually]
+# [Edit keyPairResponsibility.md manually]
+/document-hub-update      # Validate changes
+
+# 3. Plan implementation
+/spec-plan "refactor auth to match new architecture"
+
+# 4. Execute with new patterns
+/feature-new "refactor auth layer"
+```
+
+---
+
+### Quality-First Iteration
+
+For complex features requiring multiple passes:
+
+```bash
+# Pass 1: MVP
+/spec-plan "user profiles - MVP only"
+/spec-review
+# [User approves MVP scope]
+/feature-new "user profiles MVP"
+
+# Pass 2: Enhancements
+/spec-plan "user profiles - add avatar upload"
+/spec-review
+/feature-new "user profiles enhancements"
+
+# Pass 3: Polish
+/spec-plan "user profiles - add editing"
+/spec-review
+/feature-new "user profiles polish"
+```
+
+**Each pass tracked separately in PM-DB.**
+
+---
+
+### Resume Strategies
+
+Different resume scenarios:
+
+**A) Clean Resume (recommended):**
+```bash
+/feature-continue ./path/to/tasks.md
+# Automatically detects last completed task
+```
+
+**B) Force Re-run Specific Task:**
+```bash
+# Delete task-run record from PM-DB
+sqlite3 ~/.claude/projects.db "DELETE FROM task_runs WHERE task_key='4';"
+
+# Resume (will re-run task 4)
+/feature-continue ./path/to/tasks.md
+```
+
+**C) Skip Failed Task:**
+```bash
+# Mark task as complete (exit_code=0) even if failed
+sqlite3 ~/.claude/projects.db "UPDATE task_runs SET exit_code=0, completed_at=datetime('now') WHERE task_key='4';"
+
+# Resume (will skip task 4)
+/feature-continue ./path/to/tasks.md
+```
+
+**D) Manual Execution:**
+```bash
+# Skip orchestration entirely
+/start-phase execute ./path/to/tasks.md --resume-from=4
+```
+
+---
+
+### PM-DB Advanced Queries
+
+Get insights from the database:
+
+```bash
+# View all active phase runs
+sqlite3 ~/.claude/projects.db "SELECT * FROM phase_runs WHERE exit_code IS NULL;"
+
+# Calculate average task duration
+sqlite3 ~/.claude/projects.db "
+  SELECT
+    AVG(CAST((julianday(completed_at) - julianday(started_at)) * 1440 AS INTEGER)) as avg_minutes
+  FROM task_runs
+  WHERE completed_at IS NOT NULL;
+"
+
+# Find features with failed tasks
+sqlite3 ~/.claude/projects.db "
+  SELECT DISTINCT p.name, ph.name
+  FROM projects p
+  JOIN phases ph ON p.id = ph.project_id
+  JOIN phase_runs pr ON ph.id = pr.phase_id
+  JOIN task_runs tr ON pr.id = tr.phase_run_id
+  WHERE tr.exit_code != 0;
+"
+
+# Export complete history
+sqlite3 ~/.claude/projects.db "
+  .mode csv
+  .output history.csv
+  SELECT * FROM phase_runs;
+  .output stdout
+"
+```
+
+---
+
+### Memory Bank Strategies
+
+**Quick sync after tasks:**
+```bash
+/memory-bank-sync   # Updates activeContext.md + progress.md only
+```
+
+**Deep update after phases:**
+```bash
+/memory-bank-update # Updates all 6 files + runs analysis
+```
+
+**Stale detection:**
+```bash
+/memory-bank-read   # Shows staleness warnings
+# If activeContext.md > 7 days old → triggers alert
+```
+
+**Manual refresh:**
+```bash
+/documentation-start --force
+# Rebuilds both Memory Bank and Document Hub
+```
+
+---
+
+### Document Hub Strategies
+
+**Health monitoring:**
+```bash
+/document-hub-analyze
+# Returns health score (0-100)
+# Lists drift detection findings
+# Prioritizes recommendations
+```
+
+**Selective updates:**
+```bash
+# Only update specific files
+/document-hub-update --files systemArchitecture.md,glossary.md
+```
+
+**Extract glossary terms:**
+```bash
+# Use helper script directly
+python ~/.claude/skills/document-hub-initialize/scripts/extract_glossary.py .
+```
+
+---
+
+### Integration with CI/CD
+
+**Pre-commit hook:**
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+# Update Memory Bank before commit
+claude /memory-bank-sync
+
+# Validate documentation
+claude /document-hub-analyze
+
+# If health score < 70, warn
+```
+
+**Post-deployment:**
+```bash
+#!/bin/bash
+# After deployment
+
+# Update documentation
+claude /document-hub-update
+
+# Export PM-DB metrics
+claude /pm-db dashboard --format json > metrics.json
+```
 
 ---
 

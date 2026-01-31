@@ -19,7 +19,6 @@ Features:
 import sqlite3
 import sys
 import os
-import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -31,25 +30,6 @@ sys.path.insert(0, str(lib_path))
 scripts_path = Path(__file__).parent
 sys.path.insert(0, str(scripts_path))
 import migrate
-
-
-def backup_database(db_path: Path) -> Path:
-    """
-    Create backup of existing database.
-
-    Args:
-        db_path: Path to database file
-
-    Returns:
-        Path to backup file
-    """
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_path = db_path.with_suffix(f".backup-{timestamp}.db")
-
-    print(f"  Creating backup: {backup_path}")
-    shutil.copy2(db_path, backup_path)
-
-    return backup_path
 
 
 def set_file_permissions(db_path: Path):
@@ -101,7 +81,9 @@ def verify_schema(db_path: str) -> bool:
         tables = [row[0] for row in cursor.fetchall()]
 
         required_tables = [
-            'projects', 'specs', 'jobs', 'tasks',
+            'projects', 'phases', 'phase_plans', 'plan_documents',
+            'tasks', 'task_dependencies', 'phase_runs', 'task_runs',
+            'task_updates', 'quality_gates', 'run_artifacts', 'phase_metrics',
             'code_reviews', 'execution_logs', 'agent_assignments',
             'schema_version'
         ]
@@ -162,13 +144,16 @@ def get_database_stats(db_path: str):
         cursor = conn.execute("SELECT COUNT(*) FROM projects")
         projects = cursor.fetchone()[0]
 
-        cursor = conn.execute("SELECT COUNT(*) FROM jobs")
-        jobs = cursor.fetchone()[0]
+        cursor = conn.execute("SELECT COUNT(*) FROM phases")
+        phases = cursor.fetchone()[0]
+
+        cursor = conn.execute("SELECT COUNT(*) FROM phase_runs")
+        runs = cursor.fetchone()[0]
 
         cursor = conn.execute("SELECT COUNT(*) FROM tasks")
         tasks = cursor.fetchone()[0]
 
-        print(f"  📊 Projects: {projects}, Jobs: {jobs}, Tasks: {tasks}")
+        print(f"  📊 Projects: {projects}, Phases: {phases}, Runs: {runs}, Tasks: {tasks}")
 
     except Exception as e:
         print(f"  📊 Unable to read stats: {e}")
@@ -208,11 +193,9 @@ def init_database(db_path: str, reset: bool = False) -> bool:
 
         reset = True
 
-    # Backup existing database if resetting
+    # Remove old database if resetting
     if db_exists and reset:
-        print(f"\n📦 Backing up existing database...")
-        backup_path = backup_database(db_path_obj)
-        print(f"  ✅ Backup created: {backup_path}")
+        print(f"\n⚠️  No automatic backup created - use external backup tools (git, rsync, cloud)")
 
         # Remove old database
         db_path_obj.unlink()

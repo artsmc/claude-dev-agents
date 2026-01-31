@@ -8,20 +8,19 @@ from project_database import ProjectDatabase
 
 try:
     data = json.load(sys.stdin)
-    job_id = data.get('job_id')
-    task_id = data.get('task_id')
+    phase_run_id = data.get('phase_run_id')
     reviewer = data.get('reviewer')
     summary = data.get('summary')
-    verdict = data.get('verdict', 'approved')
-    issues_found = data.get('issues_found')  # JSON string
-    files_reviewed = data.get('files_reviewed')  # JSON string
+    verdict = data.get('verdict', 'passed')
+    issues_found = data.get('issues_found')  # JSON string (backwards compat)
+    files_reviewed = data.get('files_reviewed')  # JSON string (backwards compat)
 
-    if not reviewer or not summary:
-        print(json.dumps({"error": "reviewer and summary required", "status": "failed"}))
+    if not phase_run_id or not reviewer or not summary:
+        print(json.dumps({"error": "phase_run_id, reviewer and summary required", "status": "failed"}))
         sys.exit(0)
 
     with ProjectDatabase() as db:
-        review_id = db.add_code_review(job_id, task_id, reviewer, summary, verdict, issues_found, files_reviewed)
+        review_id = db.add_code_review(phase_run_id, reviewer, summary, verdict, issues_found, files_reviewed)
         print(json.dumps({"review_id": review_id, "status": "created"}))
 except Exception as e:
     print(json.dumps({"error": str(e), "status": "failed"}), file=sys.stderr)

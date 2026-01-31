@@ -112,43 +112,41 @@ Extract:
 
 ### Step 1.2b: Initialize PM-DB Job Tracking
 
-**Create job record in pm-db for this execution:**
+**Create phase run record in pm-db for this execution:**
 
 ```bash
-# Determine spec_id if not provided
-if [ -z "$spec_id" ]; then
-  # Extract feature name from input_folder (e.g., "feature-dynamodb-profile-schema" → "dynamodb-profile-schema")
-  feature_name=$(basename "$input_folder" | sed 's/^feature-//')
+# Determine project_name from input_folder
+# e.g., "feature-dynamodb-profile-schema" → extract project context
+feature_name=$(basename "$input_folder" | sed 's/^feature-//')
+project_name=${project_name:-$feature_name}
 
-  # Query pm-db for spec_id
-  spec_id=$(sqlite3 ~/.claude/projects.db "SELECT s.id FROM specs s JOIN projects p ON s.project_id = p.id WHERE p.name = '$feature_name' LIMIT 1")
-fi
-
-# Create JSON payload for on-job-start hook
-cat <<EOF | python3 ~/.claude/hooks/pm-db/on-job-start.py
+# Initialize phase run tracking
+hook_output=$(cat <<EOF | python3 ~/.claude/hooks/pm-db/on-phase-run-start.py
 {
-  "job_name": "Execute: $phase_name",
-  "spec_id": ${spec_id:-null},
-  "assigned_agent": "start-phase-execute",
-  "priority": "high",
-  "session_id": "$CLAUDE_SESSION_ID"
+  "phase_name": "$phase_name",
+  "project_name": "$project_name",
+  "assigned_agent": "start-phase-execute"
 }
 EOF
+)
 ```
 
-**Capture job_id from hook output:**
+**Capture phase_run_id from hook output:**
 ```bash
-# Hook outputs: {"job_id": 42, "status": "created"}
-job_id=$(echo "$hook_output" | jq -r '.job_id')
+# Hook outputs: {"phase_run_id": 42, "phase_id": 7, "plan_id": 12, "status": "started"}
+phase_run_id=$(echo "$hook_output" | jq -r '.phase_run_id')
+phase_id=$(echo "$hook_output" | jq -r '.phase_id')
+plan_id=$(echo "$hook_output" | jq -r '.plan_id')
 ```
 
-**Store job_id for the session:**
+**Store phase_run_id for the session:**
 ```
-PM_DB_JOB_ID=$job_id
+PM_DB_PHASE_RUN_ID=$phase_run_id
 
-✅ PM-DB Job Created
-   Job ID: $job_id
-   Spec ID: ${spec_id:-"None"}
+✅ PM-DB Phase Run Created
+   Phase Run ID: $phase_run_id
+   Phase ID: $phase_id
+   Plan ID: $plan_id
    Phase: $phase_name
 
 Tracking active at: ~/.claude/projects.db
@@ -671,24 +669,24 @@ Quality gates: 12/12 passed ✅
 Last commit: 8 minutes ago
 ```
 
-**Create PM-DB task record:**
+**Create PM-DB task run record:**
 ```bash
-cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-start.py
+hook_output=$(cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-run-start.py
 {
-  "job_id": $PM_DB_JOB_ID,
-  "task_name": "Task 13: Add Comprehensive Error Logging",
-  "assigned_agent": "nextjs-backend-developer",
-  "execution_order": 13
+  "phase_run_id": $PM_DB_PHASE_RUN_ID,
+  "task_key": "13",
+  "assigned_agent": "nextjs-backend-developer"
 }
 EOF
+)
 ```
 
-**Capture task_id:**
+**Capture task_run_id:**
 ```bash
-# Hook outputs: {"task_id": 123, "status": "created"}
-PM_DB_TASK_ID=$(echo "$hook_output" | jq -r '.task_id')
+# Hook outputs: {"task_run_id": 123, "task_id": 45, "status": "started"}
+PM_DB_TASK_RUN_ID=$(echo "$hook_output" | jq -r '.task_run_id')
 
-✅ PM-DB Task Created (ID: $PM_DB_TASK_ID)
+✅ PM-DB Task Run Created (ID: $PM_DB_TASK_RUN_ID)
 ```
 
 **Start task execution:**
@@ -708,20 +706,19 @@ Execute task following agent persona.
 Duration: {actual_time}
 ```
 
-**Mark PM-DB task complete:**
+**Mark PM-DB task run complete:**
 ```bash
-cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-complete.py
+cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-run-complete.py
 {
-  "task_id": $PM_DB_TASK_ID,
-  "exit_code": 0,
-  "summary": "Successfully added comprehensive error logging to API endpoints"
+  "task_run_id": $PM_DB_TASK_RUN_ID,
+  "exit_code": 0
 }
 EOF
 ```
 
 **Confirm:**
 ```
-✅ PM-DB Task Completed (ID: $PM_DB_TASK_ID)
+✅ PM-DB Task Run Completed (ID: $PM_DB_TASK_RUN_ID)
 
 → task-complete hook will trigger automatically
 → quality-gate hook will run
@@ -770,16 +767,19 @@ Launching agents...
 
 **Create PM-DB task records for all parallel tasks:**
 ```bash
-# For each parallel task, create task record before launching agent
+# For each parallel task, create task run record before launching agent
 for task in "${parallel_tasks[@]}"; do
-  cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-start.py
+  hook_output=$(cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-run-start.py
 {
-  "job_id": $PM_DB_JOB_ID,
-  "task_name": "$task_name",
-  "assigned_agent": "$agent",
-  "execution_order": $task_number
+  "phase_run_id": $PM_DB_PHASE_RUN_ID,
+  "task_key": "$task_key",
+  "assigned_agent": "$agent"
 }
 EOF
+)
+  task_run_id=$(echo "$hook_output" | jq -r '.task_run_id')
+  # Store for later completion
+  task_run_ids["$task_key"]=$task_run_id
 done
 ```
 
@@ -794,8 +794,8 @@ Task tool:
   - Input folder: {input_folder}
   - Planning folder: {planning_folder}
   - Extra instructions: {extra_instructions}
-  - PM_DB_JOB_ID: {job_id}
-  - PM_DB_TASK_ID: {task_id}
+  - PM_DB_PHASE_RUN_ID: {phase_run_id}
+  - PM_DB_TASK_RUN_ID: {task_run_id}
 
   Task details:
   {detailed task description}
@@ -905,12 +905,24 @@ The **quality-gate hook** runs automatically.
 # After code review completes
 cat <<EOF | python3 ~/.claude/hooks/pm-db/on-code-review.py
 {
-  "task_id": $PM_DB_TASK_ID,
+  "phase_run_id": $PM_DB_PHASE_RUN_ID,
   "reviewer": "code-reviewer-agent",
   "summary": "Code review summary here",
-  "verdict": "approved",
-  "issues_found": 0,
-  "files_reviewed": ["src/api/auth.ts", "src/types/user.ts"]
+  "verdict": "passed"
+}
+EOF
+```
+
+**Store quality gate result in PM-DB:**
+```bash
+# Record quality gate result
+cat <<EOF | python3 ~/.claude/hooks/pm-db/on-quality-gate.py
+{
+  "phase_run_id": $PM_DB_PHASE_RUN_ID,
+  "gate_type": "code_review",
+  "status": "passed",
+  "result_summary": "All checks passed. Lint: 0 errors, Build: success, Tests: 34/34 passing",
+  "checked_by": "code-reviewer"
 }
 EOF
 ```
@@ -921,6 +933,7 @@ EOF
 
 Task {n} complete and verified.
 Code review stored in PM-DB ✅
+Quality gate recorded ✅
 Proceeding to next task...
 ```
 
@@ -987,23 +1000,40 @@ All completed: ✅
 Beginning phase closeout...
 ```
 
-**Mark PM-DB job complete:**
+**Mark PM-DB phase run complete:**
 ```bash
-cat <<EOF | python3 ~/.claude/hooks/pm-db/on-job-complete.py
+hook_output=$(cat <<EOF | python3 ~/.claude/hooks/pm-db/on-phase-run-complete.py
 {
-  "job_id": $PM_DB_JOB_ID,
+  "phase_run_id": $PM_DB_PHASE_RUN_ID,
   "exit_code": 0,
   "summary": "Successfully completed all {total} tasks for {phase_name}"
 }
 EOF
+)
+```
+
+**Display metrics:**
+```bash
+# Extract metrics from hook output
+metrics=$(echo "$hook_output" | jq -r '.metrics')
+echo "📊 Phase Metrics:"
+echo "$metrics" | jq -r 'to_entries | .[] | "  - \(.key): \(.value)"'
 ```
 
 **Confirm:**
 ```
-✅ PM-DB Job Completed (ID: $PM_DB_JOB_ID)
+✅ PM-DB Phase Run Completed (ID: $PM_DB_PHASE_RUN_ID)
    Duration: {calculated_duration}
    Tasks: {total}/{total} complete
    Status: success
+
+📊 Phase Metrics:
+  - total_runs: 3
+  - successful_runs: 3
+  - failed_runs: 0
+  - avg_duration_minutes: 45.2
+  - total_tasks: {total}
+  - avg_tasks_per_run: {avg}
 ```
 
 **Phase-complete hook triggers automatically.**
@@ -1024,13 +1054,19 @@ PM-DB metrics: ✅
 
 **Query PM-DB for metrics:**
 ```bash
+# Metrics already retrieved from on-phase-run-complete hook
+# Access them from the hook output stored earlier
+echo "Phase run metrics:"
+echo "$metrics" | jq '.'
+
+# Or query directly:
 sqlite3 ~/.claude/projects.db <<EOF
 SELECT
-  COUNT(*) as total_tasks,
-  SUM(duration_seconds) as total_duration,
-  AVG(duration_seconds) as avg_duration
-FROM tasks
-WHERE job_id = $PM_DB_JOB_ID;
+  COUNT(*) as total_task_runs,
+  SUM(CAST((julianday(completed_at) - julianday(started_at)) * 86400 AS INTEGER)) as total_duration,
+  AVG(CAST((julianday(completed_at) - julianday(started_at)) * 86400 AS INTEGER)) as avg_duration
+FROM task_runs
+WHERE phase_run_id = $PM_DB_PHASE_RUN_ID;
 EOF
 ```
 
@@ -1046,8 +1082,10 @@ Include PM-DB metrics:
 ```markdown
 ## PM-DB Tracking
 
-- Job ID: {job_id}
-- Total tasks tracked: {total}
+- Phase Run ID: {phase_run_id}
+- Phase ID: {phase_id}
+- Plan ID: {plan_id}
+- Total task runs: {total}
 - Total execution time: {duration}
 - Average task time: {avg_duration}
 - Code reviews: {review_count}
@@ -1126,8 +1164,8 @@ Code added: +{additions} lines
 Test coverage: {coverage}%
 Zero lint/build errors: ✅
 
-PM-DB Job ID: {job_id} ✅
-PM-DB Tasks: {total} tracked ✅
+PM-DB Phase Run ID: {phase_run_id} ✅
+PM-DB Task Runs: {total} tracked ✅
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1136,7 +1174,7 @@ PM-DB Tasks: {total} tracked ✅
 ✅ Next phase candidates ({planning_folder}/phase-structure/next-phase-candidates.md)
 ✅ SLOC analysis (system-changes.md)
 ✅ Phase archive (planning-archive-{phase_name}/)
-✅ PM-DB tracking (Job #{job_id})
+✅ PM-DB tracking (Phase Run #{phase_run_id})
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1160,7 +1198,7 @@ Established in Part 1:
 • task_list_file: {original path}
 • input_folder: {directory of task list}
 • planning_folder: {input_folder}/planning
-• PM_DB_JOB_ID: {job_id from hook}
+• PM_DB_PHASE_RUN_ID: {phase_run_id from hook}
 
 Used throughout Parts 1-5:
 • All planning docs → {planning_folder}/
