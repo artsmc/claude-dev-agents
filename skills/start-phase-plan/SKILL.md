@@ -69,11 +69,45 @@ Beginning strategic review...
 
 ---
 
-### Step 2: Read Context
+### Step 1.5: Initialize Agent Invocation Tracking
+
+**Start cache tracking for this planning session:**
+
+```bash
+# Initialize invocation
+invocation_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py init \
+    --agent-name "start-phase-plan" \
+    --purpose "Strategic planning for $(basename "$input_folder")" 2>/dev/null)
+
+# Extract invocation_id
+INVOCATION_ID=$(echo "$invocation_output" | jq -r '.invocation_id')
+```
+
+**Store for this session:**
+```
+✅ Agent Invocation ID: $INVOCATION_ID
+
+Cache tracking active for all file reads.
+```
+
+---
+
+### Step 2: Read Context with Cache Tracking
 
 **A. Read Task List**
 
 ```bash
+# Read with cache tracking
+read_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
+    --invocation-id $INVOCATION_ID \
+    --file-path "$task_list_file" 2>/dev/null)
+
+# Display cache status
+cache_status=$(echo "$read_output" | jq -r '.cache_status')
+tokens=$(echo "$read_output" | jq -r '.estimated_tokens')
+echo "📄 Task list: $cache_status ($tokens tokens)"
+
+# Read actual content (use Read tool for task list)
 Read {task_list_file}
 ```
 
@@ -86,13 +120,46 @@ Extract:
 **B. Read Documentation Hub (if exists)**
 
 ```bash
-Read {input_folder}/docs/*.md
+# Check for Documentation Hub
+if [ -d "$input_folder/docs" ]; then
+    echo ""
+    echo "📚 Reading Documentation Hub..."
+    for doc_file in "$input_folder/docs"/*.md; do
+        if [ -f "$doc_file" ]; then
+            read_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
+                --invocation-id $INVOCATION_ID \
+                --file-path "$doc_file")
+
+            cache_status=$(echo "$read_output" | jq -r '.cache_status')
+            echo "  $(basename "$doc_file"): $cache_status"
+
+            # Read actual content (use Read tool)
+            Read "$doc_file"
+        fi
+    done
+fi
 ```
 
-Or check for Memory Bank:
+**C. Read Memory Bank (if exists)**
+
 ```bash
-Read memory-bank/systemPatterns.md
-Read memory-bank/activeContext.md
+# Read Memory Bank files with cache tracking
+echo ""
+echo "🧠 Reading Memory Bank..."
+for mb_file in memory-bank/systemPatterns.md memory-bank/activeContext.md; do
+    if [ -f "$mb_file" ]; then
+        read_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
+            --invocation-id $INVOCATION_ID \
+            --file-path "$mb_file")
+
+        cache_status=$(echo "$read_output" | jq -r '.cache_status')
+        tokens=$(echo "$read_output" | jq -r '.estimated_tokens')
+        echo "  $(basename "$mb_file"): $cache_status ($tokens tokens)"
+
+        # Read actual content (use Read tool)
+        Read "$mb_file"
+    fi
+done
 ```
 
 Get context about:
@@ -101,7 +168,23 @@ Get context about:
 - Technologies in use
 - Constraints
 
-**C. Display Current Task List**
+**D. Display Cache Summary**
+
+```bash
+# Get invocation stats
+stats_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py stats \
+    --invocation-id $INVOCATION_ID 2>/dev/null)
+
+echo ""
+echo "📊 Cache Statistics:"
+echo "  Files read: $(echo "$stats_output" | jq -r '.files_read')"
+echo "  Cache hits: $(echo "$stats_output" | jq -r '.cache_hits')"
+echo "  Cache misses: $(echo "$stats_output" | jq -r '.cache_misses')"
+echo "  Estimated tokens: $(echo "$stats_output" | jq -r '.estimated_tokens')"
+echo ""
+```
+
+**E. Display Current Task List**
 
 ```
 📋 Current Task List
@@ -477,6 +560,31 @@ Your question:
 
 **After answering:**
 Return to approval options.
+
+---
+
+### Step 6.5: Complete Agent Invocation
+
+**Mark planning session complete:**
+
+```bash
+# Complete invocation
+complete_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py complete \
+    --invocation-id $INVOCATION_ID 2>/dev/null)
+
+duration=$(echo "$complete_output" | jq -r '.duration_seconds')
+echo ""
+echo "✅ Planning session complete (${duration}s)"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📊 Final Cache Statistics"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Files read: $(echo "$complete_output" | jq -r '.total_files_read')"
+echo "  Cache hits: $(echo "$complete_output" | jq -r '.cache_hits')"
+echo "  Cache misses: $(echo "$complete_output" | jq -r '.cache_misses')"
+echo "  Estimated tokens: $(echo "$complete_output" | jq -r '.estimated_tokens_used')"
+echo ""
+```
 
 ---
 

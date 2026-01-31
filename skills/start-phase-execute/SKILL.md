@@ -154,6 +154,33 @@ Tracking active at: ~/.claude/projects.db
 
 ---
 
+### Step 1.2c: Initialize Agent Invocation Tracking
+
+**Start cache tracking for this execution session:**
+
+```bash
+# Initialize invocation linked to phase_run
+invocation_output=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py init \
+    --agent-name "start-phase-execute" \
+    --purpose "Execute phase: $phase_name" \
+    --phase-run-id $phase_run_id 2>/dev/null)
+
+# Extract invocation_id
+INVOCATION_ID=$(echo "$invocation_output" | jq -r '.invocation_id')
+```
+
+**Store for this session:**
+```
+✅ Agent Invocation ID: $INVOCATION_ID
+
+Cache tracking active:
+• Linked to Phase Run: $phase_run_id
+• All file reads will be tracked
+• Sub-agent invocations will be linked
+```
+
+---
+
 ### Step 1.3: Update Task List (if needed from Mode 1)
 
 If task list was refined in Mode 1:
@@ -689,12 +716,33 @@ PM_DB_TASK_RUN_ID=$(echo "$hook_output" | jq -r '.task_run_id')
 ✅ PM-DB Task Run Created (ID: $PM_DB_TASK_RUN_ID)
 ```
 
+**Create agent invocation for task execution:**
+```bash
+# Initialize sub-agent invocation
+subagent_invocation=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py init \
+    --agent-name "{agent_persona}" \
+    --purpose "Task {n}: {task_name}" \
+    --phase-run-id $PM_DB_PHASE_RUN_ID \
+    --task-run-id $PM_DB_TASK_RUN_ID 2>/dev/null)
+
+SUBAGENT_INVOCATION_ID=$(echo "$subagent_invocation" | jq -r '.invocation_id')
+
+✅ Sub-agent invocation created (ID: $SUBAGENT_INVOCATION_ID)
+   Linked to: Phase Run $PM_DB_PHASE_RUN_ID, Task Run $PM_DB_TASK_RUN_ID
+```
+
 **Start task execution:**
 ```
 Starting Task {n}: {task_name}
 Agent: {agent_persona}
 
 [Adopt agent persona and execute task]
+
+IMPORTANT: For all file reads during task execution, use cache_wrapper.py:
+
+python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
+    --invocation-id $SUBAGENT_INVOCATION_ID \
+    --file-path /path/to/file.md
 ```
 
 Execute task following agent persona.
@@ -704,6 +752,20 @@ Execute task following agent persona.
 ✅ Task {n} execution complete
 
 Duration: {actual_time}
+```
+
+**Complete sub-agent invocation:**
+```bash
+# Complete sub-agent invocation
+subagent_stats=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py complete \
+    --invocation-id $SUBAGENT_INVOCATION_ID 2>/dev/null)
+
+echo "✅ Sub-agent invocation complete"
+echo "   Files read: $(echo "$subagent_stats" | jq -r '.total_files_read')"
+echo "   Cache hits: $(echo "$subagent_stats" | jq -r '.cache_hits')"
+echo "   Cache misses: $(echo "$subagent_stats" | jq -r '.cache_misses')"
+echo "   Estimated tokens: $(echo "$subagent_stats" | jq -r '.estimated_tokens_used')"
+echo "   Duration: $(echo "$subagent_stats" | jq -r '.duration_seconds')s"
 ```
 
 **Mark PM-DB task run complete:**
@@ -765,10 +827,14 @@ vs. ~{total_time} (sequential - 3x slower)
 Launching agents...
 ```
 
-**Create PM-DB task records for all parallel tasks:**
+**Create PM-DB task records and agent invocations for all parallel tasks:**
 ```bash
-# For each parallel task, create task run record before launching agent
+# For each parallel task, create task run record and agent invocation
+declare -A task_run_ids
+declare -A subagent_invocation_ids
+
 for task in "${parallel_tasks[@]}"; do
+  # Create PM-DB task run
   hook_output=$(cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-run-start.py
 {
   "phase_run_id": $PM_DB_PHASE_RUN_ID,
@@ -778,8 +844,19 @@ for task in "${parallel_tasks[@]}"; do
 EOF
 )
   task_run_id=$(echo "$hook_output" | jq -r '.task_run_id')
-  # Store for later completion
   task_run_ids["$task_key"]=$task_run_id
+
+  # Create agent invocation
+  subagent_invocation=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py init \
+      --agent-name "$agent" \
+      --purpose "Task $task_key: $task_name" \
+      --phase-run-id $PM_DB_PHASE_RUN_ID \
+      --task-run-id $task_run_id)
+
+  invocation_id=$(echo "$subagent_invocation" | jq -r '.invocation_id')
+  subagent_invocation_ids["$task_key"]=$invocation_id
+
+  echo "✅ Task $task_key: PM-DB task run $task_run_id, invocation $invocation_id"
 done
 ```
 
@@ -796,6 +873,13 @@ Task tool:
   - Extra instructions: {extra_instructions}
   - PM_DB_PHASE_RUN_ID: {phase_run_id}
   - PM_DB_TASK_RUN_ID: {task_run_id}
+  - AGENT_INVOCATION_ID: {invocation_id}
+
+  IMPORTANT: For all file reads, use cache_wrapper.py:
+
+  python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
+      --invocation-id $AGENT_INVOCATION_ID \
+      --file-path /path/to/file.md
 
   Task details:
   {detailed task description}
@@ -804,8 +888,9 @@ Task tool:
   - Follow agent persona strictly
   - Create working code
   - Modify only assigned files
+  - Track all file reads with cache wrapper
   - Do NOT run quality checks (done by hook)
-  - Mark PM-DB task complete when done
+  - Complete agent invocation when done
   "
 ```
 
@@ -1040,7 +1125,7 @@ echo "$metrics" | jq -r 'to_entries | .[] | "  - \(.key): \(.value)"'
 
 ---
 
-### Step 5.1: Collect Metrics
+### Step 5.1: Collect Metrics with Cache Statistics
 
 ```
 📊 Collecting phase metrics...
@@ -1050,6 +1135,58 @@ Quality gate metrics: ✅
 Git metrics: ✅
 Time metrics: ✅
 PM-DB metrics: ✅
+Cache metrics: ✅
+```
+
+**Complete main orchestrator invocation:**
+
+```bash
+# Complete main invocation
+main_stats=$(python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py complete \
+    --invocation-id $INVOCATION_ID 2>/dev/null)
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📊 Agent Context Caching Statistics"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Main Orchestrator:"
+echo "  Files read: $(echo "$main_stats" | jq -r '.total_files_read')"
+echo "  Cache hits: $(echo "$main_stats" | jq -r '.cache_hits')"
+echo "  Cache misses: $(echo "$main_stats" | jq -r '.cache_misses')"
+echo "  Estimated tokens: $(echo "$main_stats" | jq -r '.estimated_tokens_used')"
+echo "  Duration: $(echo "$main_stats" | jq -r '.duration_seconds')s"
+echo ""
+```
+
+**Query sub-agent cache statistics:**
+
+```bash
+# Query all sub-agent invocations for this phase
+subagent_cache_stats=$(sqlite3 -json ~/.claude/projects.db <<EOF
+SELECT
+  COUNT(*) as total_subagents,
+  SUM(total_files_read) as total_files_read,
+  SUM(cache_hits) as total_cache_hits,
+  SUM(cache_misses) as total_cache_misses,
+  SUM(estimated_tokens_used) as total_estimated_tokens,
+  ROUND(AVG(duration_seconds), 2) as avg_duration,
+  ROUND(100.0 * SUM(cache_hits) / NULLIF(SUM(cache_hits) + SUM(cache_misses), 0), 2) as hit_rate
+FROM agent_invocations
+WHERE phase_run_id = $PM_DB_PHASE_RUN_ID
+  AND agent_name != 'start-phase-execute';
+EOF
+)
+
+echo "Sub-Agents:"
+echo "  Total agents: $(echo "$subagent_cache_stats" | jq -r '.[0].total_subagents')"
+echo "  Total files read: $(echo "$subagent_cache_stats" | jq -r '.[0].total_files_read')"
+echo "  Cache hits: $(echo "$subagent_cache_stats" | jq -r '.[0].total_cache_hits')"
+echo "  Cache misses: $(echo "$subagent_cache_stats" | jq -r '.[0].total_cache_misses')"
+echo "  Cache hit rate: $(echo "$subagent_cache_stats" | jq -r '.[0].hit_rate')%"
+echo "  Estimated tokens: $(echo "$subagent_cache_stats" | jq -r '.[0].total_estimated_tokens')"
+echo "  Avg duration: $(echo "$subagent_cache_stats" | jq -r '.[0].avg_duration')s"
+echo ""
 ```
 
 **Query PM-DB for metrics:**
@@ -1078,7 +1215,7 @@ EOF
 
 (See phase-complete hook for full template)
 
-Include PM-DB metrics:
+Include PM-DB metrics and cache statistics:
 ```markdown
 ## PM-DB Tracking
 
@@ -1092,10 +1229,36 @@ Include PM-DB metrics:
 - Quality gates passed: {total}/{total}
 
 View full dashboard: /pm-db dashboard
+
+## Agent Context Caching Statistics
+
+### Main Orchestrator
+- Files read: {main_files_read}
+- Cache hits: {main_cache_hits}
+- Cache misses: {main_cache_misses}
+- Estimated tokens: {main_estimated_tokens}
+
+### Sub-Agents
+- Total sub-agents: {total_subagents}
+- Total files read: {subagent_files_read}
+- Cache hits: {subagent_cache_hits}
+- Cache misses: {subagent_cache_misses}
+- Cache hit rate: {hit_rate}%
+- Estimated tokens: {subagent_estimated_tokens}
+
+### Token Savings Analysis
+- Total estimated tokens: {total_tokens}
+- Cache hit rate: {overall_hit_rate}%
+- Estimated savings vs no cache: {savings}%
+
+**Performance:**
+- Average cache lookup: <5ms
+- Zero performance degradation
+- Session resumption enabled
 ```
 
 ```
-✅ Phase summary created
+✅ Phase summary created with cache statistics
 ```
 
 ---

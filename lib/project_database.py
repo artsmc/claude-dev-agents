@@ -19,7 +19,7 @@ Usage:
     db = ProjectDatabase()  # Opens ~/.claude/projects.db
 
     # Create a project
-    project_id = db.create_project("my-app", "My application project", "/path/to/app")
+    project_id = db.create_project("my-app", "/path/to/app", "My application project")
 
     # Create a phase
     phase_id = db.create_phase(project_id, "feature-auth", "feature",
@@ -124,16 +124,16 @@ class ProjectDatabase:
     def create_project(
         self,
         name: str,
-        description: Optional[str] = None,
-        filesystem_path: Optional[str] = None
+        filesystem_path: str,
+        description: Optional[str] = None
     ) -> int:
         """
         Create a new project.
 
         Args:
             name: Unique project name (e.g., "message-well")
+            filesystem_path: Absolute path to project folder (required)
             description: Optional project description
-            filesystem_path: Absolute path to project folder
 
         Returns:
             Project ID (integer)
@@ -145,7 +145,10 @@ class ProjectDatabase:
         if not name or not name.strip():
             raise ValueError("Project name cannot be empty")
 
-        if filesystem_path and not Path(filesystem_path).is_absolute():
+        if not filesystem_path or not filesystem_path.strip():
+            raise ValueError("filesystem_path is required")
+
+        if not Path(filesystem_path).is_absolute():
             raise ValueError("filesystem_path must be an absolute path")
 
         cursor = self.conn.execute(
@@ -1299,3 +1302,862 @@ class ProjectDatabase:
             "SELECT * FROM specs_legacy ORDER BY created_at DESC"
         )
         return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== AGENT CONTEXT CACHING ====================
+
+    def calculate_file_hash(self, content: str) -> str:
+        """
+        Calculate SHA-256 hash of file content.
+
+        Args:
+            content: File content string
+
+        Returns:
+            SHA-256 hex string (64 characters)
+        """
+        import hashlib
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+    def cache_file(
+        self,
+        file_path: str,
+        content: str,
+        file_type: str = 'markdown',
+        cache_priority: str = 'normal'
+    ) -> int:
+        """
+        Cache a file with SHA-256 hash for invalidation.
+
+        Args:
+            file_path: Relative path from project root
+            content: File content (UTF-8 text)
+            file_type: File type (markdown, text, json)
+            cache_priority: Cache priority (high, normal, low)
+
+        Returns:
+            Cached file ID (integer)
+        """
+        content_hash = self.calculate_file_hash(content)
+        file_size_bytes = len(content.encode('utf-8'))
+
+        # Check if file already exists
+        cursor = self.conn.execute(
+            "SELECT id, content_hash FROM cached_files WHERE file_path = ?",
+            (file_path,)
+        )
+        row = cursor.fetchone()
+
+        if row:
+            # Update existing entry
+            if row['content_hash'] != content_hash:
+                # Content changed - update cache
+                self.conn.execute(
+                    """
+                    UPDATE cached_files
+                    SET content_hash = ?, content = ?, file_size_bytes = ?,
+                        file_type = ?, cache_priority = ?,
+                        miss_count = miss_count + 1, updated_at = datetime('now')
+                    WHERE file_path = ?
+                    """,
+                    (content_hash, content, file_size_bytes, file_type, cache_priority, file_path)
+                )
+            else:
+                # Content unchanged - just update priority if needed
+                self.conn.execute(
+                    """
+                    UPDATE cached_files
+                    SET cache_priority = ?, updated_at = datetime('now')
+                    WHERE file_path = ?
+                    """,
+                    (cache_priority, file_path)
+                )
+            self.conn.commit()
+            return row['id']
+        else:
+            # Insert new entry
+            cursor = self.conn.execute(
+                """
+                INSERT INTO cached_files (
+                    file_path, content_hash, content, file_size_bytes,
+                    file_type, cache_priority
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (file_path, content_hash, content, file_size_bytes, file_type, cache_priority)
+            )
+            self.conn.commit()
+            return cursor.lastrowid
+
+    def get_cached_file(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Get cached file by path and update access stats.
+
+        Args:
+            file_path: Relative path from project root
+
+        Returns:
+            Dict with file data or None if not cached
+        """
+        cursor = self.conn.execute(
+            "SELECT * FROM cached_files WHERE file_path = ?",
+            (file_path,)
+        )
+        row = cursor.fetchone()
+
+        if row:
+            # Update access stats (cache hit)
+            self.conn.execute(
+                """
+                UPDATE cached_files
+                SET access_count = access_count + 1,
+                    hit_count = hit_count + 1,
+                    last_accessed = datetime('now')
+                WHERE file_path = ?
+                """,
+                (file_path,)
+            )
+            self.conn.commit()
+
+            # Fetch updated row to return current values
+            cursor = self.conn.execute(
+                "SELECT * FROM cached_files WHERE file_path = ?",
+                (file_path,)
+            )
+            updated_row = cursor.fetchone()
+            return dict(updated_row) if updated_row else None
+
+        return None
+
+    def invalidate_cache(self, file_path: str):
+        """
+        Invalidate cache entry for a file.
+
+        Args:
+            file_path: Relative path from project root
+        """
+        self.conn.execute(
+            "DELETE FROM cached_files WHERE file_path = ?",
+            (file_path,)
+        )
+        self.conn.commit()
+
+    def update_file_access(self, file_path: str, cache_hit: bool):
+        """
+        Update file access statistics.
+
+        Args:
+            file_path: Relative path from project root
+            cache_hit: True if cache hit, False if cache miss
+        """
+        if cache_hit:
+            self.conn.execute(
+                """
+                UPDATE cached_files
+                SET access_count = access_count + 1,
+                    hit_count = hit_count + 1,
+                    last_accessed = datetime('now')
+                WHERE file_path = ?
+                """,
+                (file_path,)
+            )
+        else:
+            self.conn.execute(
+                """
+                UPDATE cached_files
+                SET access_count = access_count + 1,
+                    miss_count = miss_count + 1,
+                    last_accessed = datetime('now')
+                WHERE file_path = ?
+                """,
+                (file_path,)
+            )
+        self.conn.commit()
+
+    # ==================== AGENT INVOCATION TRACKING ====================
+
+    def create_agent_invocation(
+        self,
+        agent_name: str,
+        purpose: str,
+        phase_run_id: Optional[int] = None,
+        task_run_id: Optional[int] = None,
+        parent_invocation_id: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> int:
+        """
+        Create a new agent invocation record.
+
+        Args:
+            agent_name: Agent name (e.g., 'nextjs-backend-developer')
+            purpose: Purpose (planning, implementation, review, testing, documentation)
+            phase_run_id: Optional FK to phase_runs
+            task_run_id: Optional FK to task_runs
+            parent_invocation_id: Optional parent invocation for nested agents
+            metadata: Optional JSON metadata
+
+        Returns:
+            Invocation ID (integer)
+        """
+        metadata_json = json.dumps(metadata) if metadata else None
+
+        cursor = self.conn.execute(
+            """
+            INSERT INTO agent_invocations (
+                agent_name, purpose, phase_run_id, task_run_id,
+                parent_invocation_id, metadata, status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 'in-progress')
+            """,
+            (agent_name, purpose, phase_run_id, task_run_id, parent_invocation_id, metadata_json)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def complete_agent_invocation(
+        self,
+        invocation_id: int,
+        status: str = 'completed',
+        error_message: Optional[str] = None,
+        summary: Optional[str] = None
+    ):
+        """
+        Mark agent invocation as completed.
+
+        Args:
+            invocation_id: Invocation ID
+            status: Status (completed, failed, cancelled)
+            error_message: Optional error message if failed
+            summary: Optional summary of work done
+        """
+        valid_statuses = ['completed', 'failed', 'cancelled']
+        if status not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+
+        self.conn.execute(
+            """
+            UPDATE agent_invocations
+            SET status = ?, error_message = ?, summary = ?, completed_at = datetime('now')
+            WHERE id = ?
+            """,
+            (status, error_message, summary, invocation_id)
+        )
+        self.conn.commit()
+
+    def get_agent_invocation(self, invocation_id: int) -> Optional[Dict[str, Any]]:
+        """Get agent invocation by ID."""
+        cursor = self.conn.execute(
+            "SELECT * FROM agent_invocations WHERE id = ?",
+            (invocation_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def list_agent_invocations(
+        self,
+        agent_name: Optional[str] = None,
+        status: Optional[str] = None,
+        phase_run_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """List agent invocations with optional filters."""
+        query = "SELECT * FROM agent_invocations WHERE 1=1"
+        params = []
+
+        if agent_name is not None:
+            query += " AND agent_name = ?"
+            params.append(agent_name)
+
+        if status is not None:
+            query += " AND status = ?"
+            params.append(status)
+
+        if phase_run_id is not None:
+            query += " AND phase_run_id = ?"
+            params.append(phase_run_id)
+
+        query += " ORDER BY started_at DESC"
+
+        cursor = self.conn.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def log_file_read(
+        self,
+        invocation_id: int,
+        file_path: str,
+        cache_status: str,
+        file_size_bytes: int
+    ) -> int:
+        """
+        Log a file read by an agent.
+
+        Args:
+            invocation_id: Agent invocation ID
+            file_path: File path that was read
+            cache_status: Cache status (hit, miss, error)
+            file_size_bytes: File size in bytes
+
+        Returns:
+            File read log ID (integer)
+        """
+        estimated_tokens = file_size_bytes // 4  # Rough estimate
+
+        cursor = self.conn.execute(
+            """
+            INSERT INTO agent_file_reads (
+                invocation_id, file_path, cache_status,
+                file_size_bytes, estimated_tokens
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (invocation_id, file_path, cache_status, file_size_bytes, estimated_tokens)
+        )
+
+        # Update invocation stats
+        if cache_status == 'hit':
+            self.conn.execute(
+                """
+                UPDATE agent_invocations
+                SET total_files_read = total_files_read + 1,
+                    cache_hits = cache_hits + 1,
+                    estimated_tokens_used = estimated_tokens_used + ?
+                WHERE id = ?
+                """,
+                (estimated_tokens, invocation_id)
+            )
+        elif cache_status == 'miss':
+            self.conn.execute(
+                """
+                UPDATE agent_invocations
+                SET total_files_read = total_files_read + 1,
+                    cache_misses = cache_misses + 1,
+                    estimated_tokens_used = estimated_tokens_used + ?
+                WHERE id = ?
+                """,
+                (estimated_tokens, invocation_id)
+            )
+
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_agent_file_reads(self, invocation_id: int) -> List[Dict[str, Any]]:
+        """Get all file reads for an invocation."""
+        cursor = self.conn.execute(
+            "SELECT * FROM agent_file_reads WHERE invocation_id = ? ORDER BY read_at",
+            (invocation_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== CHECKLIST MANAGEMENT ====================
+
+    def create_checklist(
+        self,
+        invocation_id: int,
+        checklist_name: str,
+        total_items: int,
+        template_name: Optional[str] = None,
+        template_version: Optional[int] = None
+    ) -> int:
+        """
+        Create a new checklist.
+
+        Args:
+            invocation_id: Agent invocation ID
+            checklist_name: Checklist name
+            total_items: Total number of items in checklist
+            template_name: Optional template name
+            template_version: Optional template version
+
+        Returns:
+            Checklist ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO checklists (
+                invocation_id, checklist_name, total_items,
+                template_name, template_version, status
+            )
+            VALUES (?, ?, ?, ?, ?, 'in-progress')
+            """,
+            (invocation_id, checklist_name, total_items, template_name, template_version)
+        )
+
+        # Update agent invocation with checklist link
+        checklist_id = cursor.lastrowid
+        self.conn.execute(
+            "UPDATE agent_invocations SET checklist_id = ? WHERE id = ?",
+            (checklist_id, invocation_id)
+        )
+
+        self.conn.commit()
+        return checklist_id
+
+    def create_checklist_items(
+        self,
+        checklist_id: int,
+        items: List[Dict[str, Any]]
+    ) -> List[int]:
+        """
+        Bulk create checklist items.
+
+        Args:
+            checklist_id: Checklist ID
+            items: List of item dicts with keys:
+                   - description (required)
+                   - item_order (required)
+                   - item_key (optional)
+                   - category (optional)
+                   - priority (optional, default: medium)
+                   - verification_type (optional, default: manual)
+
+        Returns:
+            List of item IDs
+        """
+        item_ids = []
+        for item in items:
+            cursor = self.conn.execute(
+                """
+                INSERT INTO checklist_items (
+                    checklist_id, item_order, item_key, description,
+                    category, priority, verification_type, status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+                """,
+                (
+                    checklist_id,
+                    item['item_order'],
+                    item.get('item_key'),
+                    item['description'],
+                    item.get('category'),
+                    item.get('priority', 'medium'),
+                    item.get('verification_type', 'manual')
+                )
+            )
+            item_ids.append(cursor.lastrowid)
+
+        self.conn.commit()
+        return item_ids
+
+    def update_checklist_item(
+        self,
+        item_id: int,
+        status: str,
+        notes: Optional[str] = None
+    ):
+        """
+        Update checklist item status.
+
+        Args:
+            item_id: Checklist item ID
+            status: New status (pending, in-progress, completed, failed, skipped)
+            notes: Optional notes
+        """
+        valid_statuses = ['pending', 'in-progress', 'completed', 'failed', 'skipped']
+        if status not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+
+        # Get current status to check if this is a transition to completed
+        cursor = self.conn.execute(
+            "SELECT status, started_at FROM checklist_items WHERE id = ?",
+            (item_id,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            raise ValueError(f"Checklist item {item_id} not found")
+
+        old_status = row['status']
+        started_at = row['started_at']
+
+        # Update item
+        updates = ["status = ?", "notes = ?"]
+        params = [status, notes]
+
+        # Set started_at if transitioning to in-progress
+        if status == 'in-progress' and old_status == 'pending':
+            updates.append("started_at = datetime('now')")
+
+        # Set completed_at if transitioning to terminal state
+        if status in ['completed', 'failed', 'skipped'] and old_status not in ['completed', 'failed', 'skipped']:
+            updates.append("completed_at = datetime('now')")
+
+        params.append(item_id)
+
+        self.conn.execute(
+            f"UPDATE checklist_items SET {', '.join(updates)} WHERE id = ?",
+            params
+        )
+        self.conn.commit()
+
+    def get_checklist_progress(self, checklist_id: int) -> Dict[str, Any]:
+        """
+        Get checklist progress summary.
+
+        Returns:
+            Dict with completed_items, total_items, completion_percent, etc.
+        """
+        cursor = self.conn.execute(
+            "SELECT * FROM checklists WHERE id = ?",
+            (checklist_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_checklist(self, checklist_id: int) -> Optional[Dict[str, Any]]:
+        """Get full checklist with all items."""
+        checklist = self.get_checklist_progress(checklist_id)
+        if not checklist:
+            return None
+
+        # Get all items
+        cursor = self.conn.execute(
+            "SELECT * FROM checklist_items WHERE checklist_id = ? ORDER BY item_order",
+            (checklist_id,)
+        )
+        items = [dict(row) for row in cursor.fetchall()]
+
+        return {
+            **checklist,
+            'items': items
+        }
+
+    def complete_checklist(self, checklist_id: int, status: str = 'completed'):
+        """
+        Mark checklist as completed.
+
+        Args:
+            checklist_id: Checklist ID
+            status: Final status (completed, partial, failed)
+        """
+        valid_statuses = ['completed', 'partial', 'failed']
+        if status not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+
+        self.conn.execute(
+            """
+            UPDATE checklists
+            SET status = ?, completed_at = datetime('now')
+            WHERE id = ?
+            """,
+            (status, checklist_id)
+        )
+        self.conn.commit()
+
+    # ==================== CHECKLIST VERIFICATION ====================
+
+    def add_checklist_verification(
+        self,
+        checklist_item_id: int,
+        result: str,
+        verification_method: str,
+        verified_by: str,
+        evidence_text: Optional[str] = None,
+        evidence_file_path: Optional[str] = None,
+        quality_gate_id: Optional[int] = None
+    ) -> int:
+        """
+        Add a verification outcome for a checklist item.
+
+        Args:
+            checklist_item_id: Checklist item ID
+            result: Verification result (passed, failed, warning, skipped)
+            verification_method: Method used (manual, automated, tool-based)
+            verified_by: Agent name or user
+            evidence_text: Optional evidence text
+            evidence_file_path: Optional evidence file path
+            quality_gate_id: Optional quality gate ID
+
+        Returns:
+            Verification ID (integer)
+        """
+        cursor = self.conn.execute(
+            """
+            INSERT INTO checklist_verifications (
+                checklist_item_id, result, verification_method, verified_by,
+                evidence_text, evidence_file_path, quality_gate_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (checklist_item_id, result, verification_method, verified_by,
+             evidence_text, evidence_file_path, quality_gate_id)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_checklist_verifications(self, checklist_item_id: int) -> List[Dict[str, Any]]:
+        """Get all verifications for a checklist item."""
+        cursor = self.conn.execute(
+            "SELECT * FROM checklist_verifications WHERE checklist_item_id = ? ORDER BY verified_at",
+            (checklist_item_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ==================== CHECKLIST TEMPLATES ====================
+
+    def create_checklist_template(
+        self,
+        name: str,
+        agent_type: str,
+        items: List[Dict[str, Any]],
+        description: Optional[str] = None,
+        version: int = 1
+    ) -> int:
+        """
+        Create a reusable checklist template.
+
+        Args:
+            name: Template name (unique)
+            agent_type: Agent type (e.g., 'code-reviewer')
+            items: List of template items (JSON serializable)
+            description: Optional description
+            version: Template version (default 1)
+
+        Returns:
+            Template ID (integer)
+        """
+        items_json = json.dumps(items)
+        total_items = len(items)
+
+        cursor = self.conn.execute(
+            """
+            INSERT INTO checklist_templates (
+                name, version, agent_type, description, items, total_items
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (name, version, agent_type, description, items_json, total_items)
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_checklist_template(
+        self,
+        name: str,
+        version: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get checklist template by name and optional version.
+
+        Args:
+            name: Template name
+            version: Optional version (gets latest if None)
+
+        Returns:
+            Dict with template data or None
+        """
+        if version is not None:
+            cursor = self.conn.execute(
+                "SELECT * FROM checklist_templates WHERE name = ? AND version = ? AND is_active = 1",
+                (name, version)
+            )
+        else:
+            cursor = self.conn.execute(
+                """
+                SELECT * FROM checklist_templates
+                WHERE name = ? AND is_active = 1
+                ORDER BY version DESC
+                LIMIT 1
+                """,
+                (name,)
+            )
+
+        row = cursor.fetchone()
+        if row:
+            result = dict(row)
+            # Parse items JSON
+            result['items'] = json.loads(result['items'])
+            return result
+        return None
+
+    def list_checklist_templates(
+        self,
+        agent_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List checklist templates, optionally filtered by agent type."""
+        if agent_type is not None:
+            cursor = self.conn.execute(
+                """
+                SELECT * FROM checklist_templates
+                WHERE agent_type = ? AND is_active = 1
+                ORDER BY name, version DESC
+                """,
+                (agent_type,)
+            )
+        else:
+            cursor = self.conn.execute(
+                "SELECT * FROM checklist_templates WHERE is_active = 1 ORDER BY name, version DESC"
+            )
+
+        results = []
+        for row in cursor.fetchall():
+            result = dict(row)
+            # Parse items JSON
+            result['items'] = json.loads(result['items'])
+            results.append(result)
+
+        return results
+
+    # ==================== CACHE STATISTICS ====================
+
+    def get_cache_stats(
+        self,
+        stat_date: Optional[str] = None,
+        file_path: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cache statistics for a date and optional file.
+
+        Args:
+            stat_date: Date string (YYYY-MM-DD), defaults to today
+            file_path: Optional file path for per-file stats
+
+        Returns:
+            Dict with cache statistics or None
+        """
+        if stat_date is None:
+            stat_date = datetime.now().strftime('%Y-%m-%d')
+
+        cursor = self.conn.execute(
+            """
+            SELECT * FROM cache_statistics
+            WHERE stat_date = ? AND file_path IS ?
+            """,
+            (stat_date, file_path)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_cache_statistics(
+        self,
+        stat_date: str,
+        file_path: Optional[str],
+        total_reads: int,
+        cache_hits: int,
+        cache_misses: int,
+        tokens_saved: int,
+        avg_lookup_time_ms: float
+    ):
+        """
+        Update cache statistics for a date and file.
+
+        Args:
+            stat_date: Date string (YYYY-MM-DD)
+            file_path: Optional file path (None for global stats)
+            total_reads: Total number of reads
+            cache_hits: Number of cache hits
+            cache_misses: Number of cache misses
+            tokens_saved: Estimated tokens saved
+            avg_lookup_time_ms: Average lookup time in milliseconds
+        """
+        hit_rate_percent = (cache_hits / total_reads * 100.0) if total_reads > 0 else 0.0
+
+        # Check if record exists
+        cursor = self.conn.execute(
+            """
+            SELECT id FROM cache_statistics
+            WHERE stat_date = ? AND file_path IS ?
+            """,
+            (stat_date, file_path)
+        )
+        row = cursor.fetchone()
+
+        if row:
+            # Update existing
+            self.conn.execute(
+                """
+                UPDATE cache_statistics
+                SET total_reads = ?, cache_hits = ?, cache_misses = ?,
+                    hit_rate_percent = ?, tokens_saved = ?, avg_lookup_time_ms = ?
+                WHERE stat_date = ? AND file_path IS ?
+                """,
+                (total_reads, cache_hits, cache_misses, hit_rate_percent,
+                 tokens_saved, avg_lookup_time_ms, stat_date, file_path)
+            )
+        else:
+            # Insert new
+            self.conn.execute(
+                """
+                INSERT INTO cache_statistics (
+                    stat_date, file_path, total_reads, cache_hits, cache_misses,
+                    hit_rate_percent, tokens_saved, avg_lookup_time_ms
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (stat_date, file_path, total_reads, cache_hits, cache_misses,
+                 hit_rate_percent, tokens_saved, avg_lookup_time_ms)
+            )
+
+        self.conn.commit()
+
+    def get_agent_metrics(
+        self,
+        agent_name: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated metrics for agent invocations.
+
+        Args:
+            agent_name: Optional agent name filter
+            start_date: Optional start date (YYYY-MM-DD)
+            end_date: Optional end date (YYYY-MM-DD)
+
+        Returns:
+            Dict with metrics (total_invocations, avg_files_read, cache_hit_rate, etc.)
+        """
+        query = "SELECT * FROM agent_invocations WHERE 1=1"
+        params = []
+
+        if agent_name is not None:
+            query += " AND agent_name = ?"
+            params.append(agent_name)
+
+        if start_date is not None:
+            query += " AND DATE(started_at) >= ?"
+            params.append(start_date)
+
+        if end_date is not None:
+            query += " AND DATE(started_at) <= ?"
+            params.append(end_date)
+
+        cursor = self.conn.execute(query, params)
+        invocations = [dict(row) for row in cursor.fetchall()]
+
+        if not invocations:
+            return {
+                'total_invocations': 0,
+                'completed': 0,
+                'failed': 0,
+                'avg_files_read': 0.0,
+                'avg_cache_hits': 0.0,
+                'avg_cache_misses': 0.0,
+                'cache_hit_rate': 0.0,
+                'total_tokens_used': 0,
+                'avg_duration_seconds': 0.0
+            }
+
+        total = len(invocations)
+        completed = sum(1 for i in invocations if i['status'] == 'completed')
+        failed = sum(1 for i in invocations if i['status'] == 'failed')
+
+        total_files = sum(i['total_files_read'] for i in invocations)
+        total_hits = sum(i['cache_hits'] for i in invocations)
+        total_misses = sum(i['cache_misses'] for i in invocations)
+        total_tokens = sum(i['estimated_tokens_used'] for i in invocations)
+
+        # Calculate average duration for completed invocations
+        completed_invs = [i for i in invocations if i['duration_seconds'] is not None]
+        avg_duration = sum(i['duration_seconds'] for i in completed_invs) / len(completed_invs) if completed_invs else 0.0
+
+        cache_hit_rate = (total_hits / (total_hits + total_misses) * 100.0) if (total_hits + total_misses) > 0 else 0.0
+
+        return {
+            'total_invocations': total,
+            'completed': completed,
+            'failed': failed,
+            'avg_files_read': total_files / total,
+            'avg_cache_hits': total_hits / total,
+            'avg_cache_misses': total_misses / total,
+            'cache_hit_rate': cache_hit_rate,
+            'total_tokens_used': total_tokens,
+            'avg_duration_seconds': avg_duration
+        }
