@@ -731,21 +731,62 @@ SUBAGENT_INVOCATION_ID=$(echo "$subagent_invocation" | jq -r '.invocation_id')
    Linked to: Phase Run $PM_DB_PHASE_RUN_ID, Task Run $PM_DB_TASK_RUN_ID
 ```
 
-**Start task execution:**
+
+**Now launch the task with a specialized agent:**
+
+Use the Task tool to delegate this task to the appropriate specialized agent:
+
+1. Determine the agent_persona from the task-delegation.md file
+2. Read the full task details from the task list
+3. Invoke the Task tool with:
+   - subagent_type: {agent_persona} (e.g., "nextjs-backend-developer", "ui-developer", "qa-engineer")
+   - description: Complete task description including:
+     - Task number and name
+     - Full task requirements
+     - Context: input_folder, planning_folder, extra_instructions
+     - PM-DB tracking IDs: PM_DB_PHASE_RUN_ID, PM_DB_TASK_RUN_ID
+     - Agent invocation ID: SUBAGENT_INVOCATION_ID
+     - Cache wrapper instructions
+     - Specific files to modify
+     - Quality requirements
+
+**Example Task tool invocation:**
 ```
-Starting Task {n}: {task_name}
-Agent: {agent_persona}
+Task tool:
+  subagent_type: "nextjs-backend-developer"
+  description: "Execute Task 13: Add Comprehensive Error Logging
 
-[Adopt agent persona and execute task]
+Context:
+- Input folder: {input_folder}
+- Planning folder: {planning_folder}  
+- Extra instructions: {extra_instructions}
+- PM_DB_PHASE_RUN_ID: $PM_DB_PHASE_RUN_ID
+- PM_DB_TASK_RUN_ID: $PM_DB_TASK_RUN_ID
+- SUBAGENT_INVOCATION_ID: $SUBAGENT_INVOCATION_ID
 
-IMPORTANT: For all file reads during task execution, use cache_wrapper.py:
+IMPORTANT: For all file reads during execution, use cache_wrapper.py:
 
-python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
-    --invocation-id $SUBAGENT_INVOCATION_ID \
+python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \\
+    --invocation-id $SUBAGENT_INVOCATION_ID \\
     --file-path /path/to/file.md
+
+Task Requirements:
+{Full task description from task list}
+
+Deliverables:
+- Implement error logging system
+- Add try-catch blocks
+- Log all errors to console and file
+- Include stack traces
+
+Do NOT run quality checks - they will be run automatically by hooks.
+Complete the agent invocation when done using cache_wrapper.py complete.
+"
 ```
 
-Execute task following agent persona.
+**Wait for the agent to complete the task.**
+
+Do NOT proceed to the next step until the agent finishes.
 
 **When task completes:**
 ```
@@ -801,9 +842,12 @@ Proceeding to next task...
 
 ---
 
+
 #### Parallel Tasks
 
-**Show wave progress:**
+**For parallel task waves, you must launch multiple agents simultaneously:**
+
+**First, display wave progress announcement:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 Phase Progress
@@ -828,6 +872,9 @@ Launching agents...
 ```
 
 **Create PM-DB task records and agent invocations for all parallel tasks:**
+
+Use Bash commands to create the tracking records:
+
 ```bash
 # For each parallel task, create task run record and agent invocation
 declare -A task_run_ids
@@ -835,13 +882,13 @@ declare -A subagent_invocation_ids
 
 for task in "${parallel_tasks[@]}"; do
   # Create PM-DB task run
-  hook_output=$(cat <<EOF | python3 ~/.claude/hooks/pm-db/on-task-run-start.py
+  hook_output=$(cat <<INNER_EOF | python3 ~/.claude/hooks/pm-db/on-task-run-start.py
 {
   "phase_run_id": $PM_DB_PHASE_RUN_ID,
   "task_key": "$task_key",
   "assigned_agent": "$agent"
 }
-EOF
+INNER_EOF
 )
   task_run_id=$(echo "$hook_output" | jq -r '.task_run_id')
   task_run_ids["$task_key"]=$task_run_id
@@ -860,43 +907,54 @@ EOF
 done
 ```
 
-**Use Task tool to launch multiple agents:**
+**Now use the Task tool to launch ALL parallel agents in a SINGLE message:**
 
+This is critical - you MUST invoke the Task tool multiple times in ONE message to achieve true parallel execution.
+
+For each task in the parallel wave:
+1. Read the task details from the task list
+2. Identify the assigned agent from task-delegation.md
+3. Prepare the task description with all context
+
+Then, in a SINGLE response message, invoke the Task tool once for each parallel task:
+
+**Task 1 Tool Call:**
 ```
 Task tool:
-  subagent_type: "{agent_persona}"
-  description: "Complete Task {n}: {task_name}
+  subagent_type: "{agent_persona_1}"
+  description: "Execute Task {n}: {task_name_1}
 
-  Context:
-  - Input folder: {input_folder}
-  - Planning folder: {planning_folder}
-  - Extra instructions: {extra_instructions}
-  - PM_DB_PHASE_RUN_ID: {phase_run_id}
-  - PM_DB_TASK_RUN_ID: {task_run_id}
-  - AGENT_INVOCATION_ID: {invocation_id}
-
-  IMPORTANT: For all file reads, use cache_wrapper.py:
-
-  python3 ~/.claude/skills/start-phase/scripts/cache_wrapper.py read \
-      --invocation-id $AGENT_INVOCATION_ID \
-      --file-path /path/to/file.md
-
-  Task details:
-  {detailed task description}
-
-  Requirements:
-  - Follow agent persona strictly
-  - Create working code
-  - Modify only assigned files
-  - Track all file reads with cache wrapper
-  - Do NOT run quality checks (done by hook)
-  - Complete agent invocation when done
-  "
+[Full task context as shown in sequential example above]
+"
 ```
 
-**Launch all parallel agents simultaneously.**
+**Task 2 Tool Call (in same message):**
+```
+Task tool:
+  subagent_type: "{agent_persona_2}"
+  description: "Execute Task {n+1}: {task_name_2}
 
-**Monitor parallel execution:**
+[Full task context]
+"
+```
+
+**Task 3 Tool Call (in same message):**
+```  
+Task tool:
+  subagent_type: "{agent_persona_3}"
+  description: "Execute Task {n+2}: {task_name_3}
+
+[Full task context]
+"
+```
+
+**After invoking all Task tool calls in parallel, wait for ALL agents to complete.**
+
+Do NOT proceed until every agent in the wave has finished.
+
+**Monitor parallel execution progress:**
+
+While agents are working, you can display status (but don't interrupt them):
 ```
 ⏳ Parallel execution in progress...
 
@@ -907,7 +965,7 @@ Task {n+2}: ⏳ Queued (qa-engineer, waiting for agent)
 Wave estimated remaining: ~8 minutes
 ```
 
-**Wait for all to complete:**
+**When all parallel agents complete, display wave results:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Wave {n} Complete
@@ -915,7 +973,7 @@ Wave estimated remaining: ~8 minutes
 
 Wave results:
 ✅ Task {n}: Complete (15m actual vs 20m estimated)
-✅ Task {n+1}: Complete (18m actual vs 15m estimated)
+✅ Task {n+1}: Complete (18m actual vs 15m estimated)  
 ✅ Task {n+2}: Complete (12m actual vs 10m estimated)
 
 Wave duration: 18m (parallel) vs 45m (sequential)
@@ -926,6 +984,8 @@ All PM-DB task records updated ✅
 
 Updated progress: [██████████████░░░░░░] 15/40 tasks (37.5%)
 ```
+
+**Then proceed to the next wave or next sequential task.**
 
 ---
 

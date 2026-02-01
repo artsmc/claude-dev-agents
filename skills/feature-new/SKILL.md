@@ -8,249 +8,266 @@ args:
     required: true
 ---
 
-# feature-new Skill
+# Feature New - Complete Workflow Orchestration
 
-Complete end-to-end feature development workflow with automatic PM-DB tracking.
+Execute the complete end-to-end feature development workflow with automatic PM-DB tracking.
 
-## Usage
+## Your Task
+
+You are orchestrating a complete feature development workflow. Follow these steps in order, handling errors and user approvals as specified.
+
+---
+
+## Step 1: Initialize Documentation Systems (if needed)
+
+First, check if Memory Bank and Document Hub are initialized by reading the memory-bank directory.
 
 ```bash
-/feature-new "add user authentication"
-/feature-new "implement payment processing"
-/feature-new "build admin dashboard"
+Use Read tool to check: memory-bank/systemPatterns.md
 ```
 
-## What It Does
+**If the file doesn't exist:**
+- Use the Skill tool to invoke "documentation-start"
+- Wait for completion
+- Display: "✅ Step 1/6: Documentation initialized"
 
-Orchestrates the complete feature development workflow:
+**If the file exists:**
+- Display: "✅ Step 1/6: Documentation already initialized"
 
-1. **Initialize Documentation** (if needed)
-2. **Create Feature Specification**
-3. **Review Specification**
-4. **Create Phase Plan**
-5. **Import to PM-DB**
-6. **Execute Phase with Quality Gates**
-
-## Complete Workflow
-
-### Part 1: Documentation Initialization
-
-```
-🔄 Step 1/6: Initialize documentation systems...
-
-Calling /documentation-start...
-```
-
-Ensures Memory Bank and Document Hub are initialized.
+**If initialization fails:**
+- Display error and STOP the workflow
+- Show: "❌ Failed at Step 1/6: Could not initialize documentation systems"
 
 ---
 
-### Part 2: Feature Specification
+## Step 2: Generate Feature Specification
+
+Use the Skill tool to invoke "spec-plan" with the feature_description argument:
 
 ```
-🔄 Step 2/6: Create feature specification...
-
-Calling /spec-plan with:
-  Feature: {feature_description}
+Skill tool:
+  skill: "spec-plan"
+  args: "{{feature_description}}"
 ```
 
-**What happens:**
-- Launches spec-writer agent
-- Generates complete specification:
-  - FRD.md (Feature Requirements Document)
-  - FRS.md (Functional Requirements Specification)
-  - GS.md (Gherkin Scenarios)
-  - TR.md (Technical Requirements)
-  - task-list.md (Development tasks)
-- Outputs to: `./job-queue/feature-{name}/docs/`
+**What to expect:**
+- The spec-plan skill will:
+  1. Research and gather context
+  2. Launch spec-writer agent
+  3. Generate FRD, FRS, GS, TR, and task-list.md files
+  4. Save to: `./job-queue/feature-{name}/docs/`
+
+**After it completes:**
+- Display: "✅ Step 2/6: Specification created"
+- Show the location: `./job-queue/feature-{name}/docs/`
+
+**If it fails:**
+- Display: "❌ Failed at Step 2/6: Spec planning failed"
+- Show which steps were completed vs skipped
+- STOP the workflow
 
 ---
 
-### Part 3: Specification Review
+## Step 3: Review Specification Quality
+
+Use the Skill tool to invoke "spec-review":
 
 ```
-🔄 Step 3/6: Review specification...
-
-Calling /spec-review...
+Skill tool:
+  skill: "spec-review"
 ```
 
-**What happens:**
-- Validates all specification files
-- Runs critique_plan.py
-- Presents findings to user
-- **Waits for user approval:**
-  - ✅ Approve → Proceed to planning
-  - 🔄 Request changes → Iterate specification
-  - ❌ Reject → Stop workflow
+**What to expect:**
+- The spec-review skill will validate the generated specs
+- It may find issues or pass cleanly
 
-**IMPORTANT: This is a human-in-the-loop checkpoint.**
+**After it completes:**
+- Display: "✅ Step 3/6: Specification reviewed"
+- If there were warnings, show them to the user
 
-User must explicitly approve before proceeding.
+**If validation fails:**
+- Ask the user: "⚠️ Spec review found issues. Continue anyway?"
+- Use AskUserQuestion with options:
+  - "Yes, continue" (proceed to Step 4)
+  - "No, stop here" (STOP the workflow)
+
+**If user chooses to stop:**
+- Display: "ℹ️ Workflow stopped at user request"
+- Show: "Specification saved at: ./job-queue/feature-{name}/"
+- STOP the workflow
 
 ---
 
-### Part 4: Phase Planning
+## Step 4: Create Strategic Execution Plan
+
+Find the task-list.md file from the spec generation:
+
+```bash
+Use Glob tool: "**/feature-*/task-list.md"
+```
+
+Then use the Skill tool to invoke "start-phase-plan" with the task list path:
 
 ```
-🔄 Step 4/6: Create strategic plan...
-
-Calling /start-phase plan ./job-queue/feature-{name}/tasks.md...
+Skill tool:
+  skill: "start-phase-plan"
+  args: "{path_to_task_list}"
 ```
 
-**What happens:**
-- Analyzes task complexity
-- Identifies parallelism opportunities
-- Proposes wave structure
-- **Waits for user approval:**
-  - ✅ Approve → Proceed to import
-  - 🔄 Revise → Suggest changes
-  - ❌ Reject → Stop workflow
+**What to expect:**
+- The start-phase-plan skill will:
+  1. Analyze task complexity
+  2. Identify parallel execution opportunities
+  3. Create wave structure
+  4. Generate phase plan
+  5. **ASK USER FOR APPROVAL** (built into start-phase-plan)
 
-**IMPORTANT: Another human-in-the-loop checkpoint.**
+**After user approves:**
+- Display: "✅ Step 4/6: Strategic plan approved"
+
+**If user rejects the plan:**
+- Display: "ℹ️ Plan rejected by user"
+- Show: "Specification saved at: ./job-queue/feature-{name}/"
+- Show: "You can re-plan later with: /start-phase plan {path}"
+- STOP the workflow
 
 ---
 
-### Part 5: Import to PM-DB
+## Step 5: Import to PM-DB
+
+Use the Skill tool to invoke "pm-db" with import command:
 
 ```
-🔄 Step 5/6: Import to project database...
-
-Calling /pm-db import --project {feature-name}...
+Skill tool:
+  skill: "pm-db"
+  args: "import --project feature-{name}"
 ```
 
-**What happens:**
-- Imports specification to PM-DB
-- Creates project record
+**What to expect:**
+- Creates project record in PM-DB
 - Creates phase record
 - Creates phase_plan record
-- Links tasks to plan
+- Links all tasks to the plan
+- Returns project ID, phase ID, plan ID
 
-**Output:**
-```
-✅ Imported to PM-DB
-   Project ID: 12
-   Phase ID: 34
-   Plan ID: 56
-   Tasks: 7
-```
+**After it completes:**
+- Display: "✅ Step 5/6: Imported to PM-DB"
+- Show the IDs returned
+- Show task count
 
----
-
-### Part 6: Execute Phase
-
-```
-🔄 Step 6/6: Execute phase with quality gates...
-
-Calling /start-phase execute ./job-queue/feature-{name}/tasks.md...
-```
-
-**What happens:**
-- Calls on-phase-run-start hook (gets phase_run_id)
-- Executes Part 1-5 of start-phase-execute
-- For each task:
-  - Calls on-task-run-start hook
-  - Executes task with agent
-  - Calls on-task-run-complete hook
-  - Runs quality gates
-  - Calls on-quality-gate hook
-  - Creates task update
-  - Git commits
-- Calls on-phase-run-complete hook
-- Displays metrics
+**If import fails:**
+- Display: "⚠️ PM-DB import failed"
+- Show manual import instructions
+- Ask user: "Continue to execution anyway?"
+  - If no: STOP
+  - If yes: proceed to Step 6 (with warning)
 
 ---
 
-## Complete Output Example
+## Step 6: Execute Phase with Quality Gates
+
+Use the Skill tool to invoke "start-phase-execute" with the task list path:
+
+```
+Skill tool:
+  skill: "start-phase-execute"
+  args: "{path_to_task_list}"
+```
+
+**What to expect:**
+- The start-phase-execute skill will:
+  1. Call on-phase-run-start hook (gets phase_run_id)
+  2. Execute Part 1-5 of the execution workflow
+  3. For each task:
+     - Call on-task-run-start hook
+     - Execute task with appropriate agent
+     - Call on-task-run-complete hook
+     - Run quality gates
+     - Create task update
+     - Git commit
+  4. Call on-phase-run-complete hook
+  5. Display execution metrics
+
+**After it completes:**
+- Display: "✅ Step 6/6: Phase execution complete"
+- Show final metrics
+- Show completion message
+
+**If execution fails:**
+- Display which task failed
+- Show: "Use /feature-continue to resume"
+
+---
+
+## Final Output
+
+When all steps complete successfully, display:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚀 Starting Feature Development Workflow
+🎉 FEATURE COMPLETE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Feature: add user authentication
+Feature: {{feature_description}}
+Location: ./job-queue/feature-{name}/
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔄 Step 1/6: Initialize documentation systems...
-✅ Memory Bank: Ready
-✅ Document Hub: Ready
-
-🔄 Step 2/6: Create feature specification...
-✅ Specification created
-   Location: ./job-queue/feature-auth/docs/
-   Files: FRD.md, FRS.md, GS.md, TR.md, task-list.md
-
-🔄 Step 3/6: Review specification...
-✅ Validation passed
-✅ Critique completed
-
-⏸️ WAITING FOR USER APPROVAL
-
-   Options:
-   1. Approve → Proceed to planning
-   2. Request changes → Iterate spec
-   3. Reject → Stop workflow
-
-[User selects: Approve]
-
-✅ Specification approved
-
-🔄 Step 4/6: Create strategic plan...
-✅ Strategic plan created
-   Waves: 3
-   Parallel tasks: 4
-   Sequential tasks: 3
-
-⏸️ WAITING FOR USER APPROVAL
-
-[User selects: Approve]
-
-✅ Plan approved
-
-🔄 Step 5/6: Import to project database...
-✅ Imported to PM-DB
-   Project ID: 12
-   Phase ID: 34
-   Plan ID: 56
-   Tasks: 7
-
-🔄 Step 6/6: Execute phase with quality gates...
-✅ Phase run started (ID: 78)
-
-   Executing tasks...
-   [1/7] ████████░░░░░░░░░░░░ Task 1 complete ✅
-   [2/7] ████████████░░░░░░░░ Task 2 complete ✅
-   [3/7] ████████████████░░░░ Task 3 complete ✅
-   ...
-   [7/7] ████████████████████ Task 7 complete ✅
-
-✅ Phase run completed (ID: 78)
-
-📊 Phase Metrics:
-   Total runs: 1
-   Successful: 1
-   Failed: 0
-   Duration: 45.2 minutes
-   Tasks: 7/7 complete
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎉 FEATURE COMPLETE: add user authentication
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Completed Steps:
+  ✅ [1/6] Documentation initialized
+  ✅ [2/6] Specification created
+  ✅ [3/6] Specification reviewed
+  ✅ [4/6] Strategic plan approved
+  ✅ [5/6] Imported to PM-DB
+  ✅ [6/6] Phase executed
 
 Next steps:
   - View metrics: /pm-db dashboard
   - Update Memory Bank: /memory-bank-sync
-  - View phase summary: ./job-queue/feature-auth/planning/phase-structure/phase-summary.md
+  - View phase summary: ./job-queue/feature-{name}/planning/phase-structure/phase-summary.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Error Handling Guidelines
+
+**At any step failure:**
+1. Display which step failed with [X/6] notation
+2. List which steps were completed (✓)
+3. List which steps were skipped (⏭)
+4. Provide recovery instructions
+5. STOP the workflow (don't continue to next step)
+
+**Example error output:**
+```
+❌ Workflow Failed at Step 3/6: Spec Review
+
+Steps completed:
+  ✓ [1/6] Documentation initialized
+  ✓ [2/6] Specification created
+  ✗ [3/6] Specification review FAILED
+
+Steps skipped:
+  ⏭ [4/6] Strategic plan
+  ⏭ [5/6] PM-DB import
+  ⏭ [6/6] Phase execution
+
+Error: Validation found critical issues in FRD.md
+
+Recovery options:
+  1. Fix issues manually and run: /spec-review
+  2. Regenerate spec: /spec-plan "{{feature_description}}"
+  3. Resume with: /feature-continue
 ```
 
 ---
 
 ## Human-in-the-Loop Checkpoints
 
-This workflow has **2 required approval steps**:
+This workflow has **2 required approval steps** (handled by the sub-skills):
 
-1. **After spec review**: User must approve specification
-2. **After phase plan**: User must approve execution plan
+1. **After spec review** (Step 3): If validation fails, ask user to continue or stop
+2. **After phase plan** (Step 4): User must approve the execution plan (built into start-phase-plan)
 
 These checkpoints prevent:
 - Executing poorly-defined specifications
@@ -259,80 +276,26 @@ These checkpoints prevent:
 
 ---
 
-## Error Handling
+## Notes for Execution
 
-If any step fails, the workflow stops and reports:
-
-```
-❌ Step {n}/6 failed: {error}
-
-Workflow stopped. You can:
-  1. Fix the issue manually
-  2. Resume with /feature-continue
-  3. Start over with /feature-new
-```
+- **Sequential execution**: Each step must complete before starting the next
+- **Use Skill tool**: All sub-skills must be invoked using the Skill tool, not mentioned as text
+- **Wait for completion**: Don't proceed to next step until current step finishes
+- **Check exit codes**: If a sub-skill fails, handle the error and stop
+- **Display progress**: Show step numbers [X/6] throughout
+- **Path management**: Track the feature folder path for use in later steps
+- **Error recovery**: Provide clear instructions for manual recovery if needed
 
 ---
 
-## When to Use
+## Total Expected Duration
 
-- **Starting a new feature**: Always use this
-- **First time workflow**: Great for learning the process
-- **Automated pipeline**: Reduces manual orchestration
+- Step 1: ~1 min (or skip if exists)
+- Step 2: ~3-5 min (AI generation)
+- Step 3: ~1-2 min (validation)
+- Step 4: ~2-4 min (planning + user approval)
+- Step 5: ~5 sec (database import)
+- Step 6: ~varies (depends on task complexity)
 
----
-
-## When NOT to Use
-
-- **Resuming interrupted work**: Use `/feature-continue` instead
-- **Skipping specification**: Use individual skills
-- **Custom workflow**: Use skills directly
-
----
-
-## Implementation Details
-
-This skill uses the Skill tool to invoke:
-1. `/documentation-start`
-2. `/spec-plan {feature_description}`
-3. `/spec-review`
-4. `/start-phase plan {task_list_path}`
-5. `/pm-db import`
-6. `/start-phase execute {task_list_path}`
-
-Waits for user approval at checkpoints 3 and 4.
-
----
-
-## Path Management
-
-All artifacts stored in:
-```
-./job-queue/feature-{name}/
-├── docs/
-│   ├── FRD.md
-│   ├── FRS.md
-│   ├── GS.md
-│   ├── TR.md
-│   └── task-list.md
-└── planning/
-    ├── agent-delegation/
-    ├── phase-structure/
-    ├── task-updates/
-    └── code-reviews/
-```
-
----
-
-## PM-DB Tracking
-
-This workflow creates complete PM-DB records:
-- **Project record**: Top-level project
-- **Phase record**: Feature phase
-- **Phase plan record**: Approved plan
-- **Phase run record**: Execution tracking
-- **Task run records**: Per-task execution
-- **Quality gate records**: QA results
-- **Code review records**: Review summaries
-
-All linked together for complete traceability.
+**Planning phase (Steps 1-5):** ~6-12 minutes
+**Execution phase (Step 6):** Varies by feature scope

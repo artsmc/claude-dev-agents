@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model agent_assignments {
+  id           Int        @id @default(autoincrement())
+  phase_run_id Int
+  agent_name   String
+  role         String
+  assigned_at  String     @default("datetime('now')")
+  phase_runs   phase_runs @relation(fields: [phase_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([agent_name], map: "idx_agent_assignments_agent_name")
+  @@index([phase_run_id], map: "idx_agent_assignments_phase_run_id")
+}
+
+model code_reviews {
+  id           Int        @id @default(autoincrement())
+  phase_run_id Int
+  reviewer     String
+  status       String     @default("pending")
+  comments     String?
+  reviewed_at  String?
+  created_at   String     @default("datetime('now')")
+  phase_runs   phase_runs @relation(fields: [phase_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([status], map: "idx_code_reviews_status")
+  @@index([phase_run_id], map: "idx_code_reviews_phase_run_id")
+}
+
+model execution_logs {
+  id           Int        @id @default(autoincrement())
+  phase_run_id Int
+  log_level    String     @default("INFO")
+  message      String
+  logged_at    String     @default("datetime('now')")
+  phase_runs   phase_runs @relation(fields: [phase_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([log_level], map: "idx_execution_logs_log_level")
+  @@index([phase_run_id], map: "idx_execution_logs_phase_run_id")
+}
+
+model phase_metrics {
+  id                   Int    @id @default(autoincrement())
+  phase_id             Int    @unique(map: "sqlite_autoindex_phase_metrics_1")
+  total_runs           Int    @default(0)
+  successful_runs      Int    @default(0)
+  failed_runs          Int    @default(0)
+  avg_duration_seconds Int?
+  total_tasks          Int    @default(0)
+  completed_tasks      Int    @default(0)
+  blocked_tasks        Int    @default(0)
+  total_quality_gates  Int    @default(0)
+  passed_quality_gates Int    @default(0)
+  last_calculated_at   String @default("datetime('now')")
+  phases               phases @relation(fields: [phase_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([phase_id], map: "idx_phase_metrics_phase_id")
+}
+
+model phase_plans {
+  id                                          Int              @id @default(autoincrement())
+  phase_id                                    Int
+  revision                                    Int              @default(1)
+  planning_approach                           String?
+  status                                      String           @default("draft")
+  approved_by                                 String?
+  approved_at                                 String?
+  created_at                                  String           @default("datetime('now')")
+  phases_phase_plans_phase_idTophases         phases           @relation("phase_plans_phase_idTophases", fields: [phase_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  phase_runs                                  phase_runs[]
+  phases_phases_approved_plan_idTophase_plans phases[]         @relation("phases_approved_plan_idTophase_plans")
+  plan_documents                              plan_documents[]
+  tasks                                       tasks[]
+
+  @@unique([phase_id, revision], map: "sqlite_autoindex_phase_plans_1")
+  @@index([status], map: "idx_phase_plans_status")
+  @@index([phase_id], map: "idx_phase_plans_phase_id")
+}
+
+model phase_runs {
+  id                Int                 @id @default(autoincrement())
+  phase_id          Int
+  plan_id           Int
+  run_number        Int
+  status            String              @default("pending")
+  assigned_agent    String?
+  started_at        String?
+  completed_at      String?
+  duration_seconds  Int?
+  exit_code         Int?
+  summary           String?
+  created_at        String              @default("datetime('now')")
+  agent_assignments agent_assignments[]
+  code_reviews      code_reviews[]
+  execution_logs    execution_logs[]
+  phase_plans       phase_plans         @relation(fields: [plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  phases            phases              @relation(fields: [phase_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  quality_gates     quality_gates[]
+  run_artifacts     run_artifacts[]
+  task_runs         task_runs[]
+
+  @@unique([phase_id, run_number], map: "sqlite_autoindex_phase_runs_1")
+  @@index([assigned_agent], map: "idx_phase_runs_assigned_agent")
+  @@index([status], map: "idx_phase_runs_status")
+  @@index([plan_id], map: "idx_phase_runs_plan_id")
+  @@index([phase_id], map: "idx_phase_runs_phase_id")
+}
+
+model phases {
+  id                                               Int            @id @default(autoincrement())
+  project_id                                       Int
+  name                                             String
+  description                                      String?
+  phase_type                                       String         @default("feature")
+  status                                           String         @default("draft")
+  job_queue_rel_path                               String?
+  planning_rel_path                                String?
+  approved_plan_id                                 Int?
+  created_at                                       String         @default("datetime('now')")
+  updated_at                                       String         @default("datetime('now')")
+  phase_metrics                                    phase_metrics?
+  phase_plans_phase_plans_phase_idTophases         phase_plans[]  @relation("phase_plans_phase_idTophases")
+  phase_runs                                       phase_runs[]
+  phase_plans_phases_approved_plan_idTophase_plans phase_plans?   @relation("phases_approved_plan_idTophase_plans", fields: [approved_plan_id], references: [id], onUpdate: NoAction)
+  projects                                         projects       @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([project_id, name], map: "sqlite_autoindex_phases_1")
+  @@index([phase_type], map: "idx_phases_phase_type")
+  @@index([status], map: "idx_phases_status")
+  @@index([project_id], map: "idx_phases_project_id")
+}
+
+model plan_documents {
+  id            Int         @id @default(autoincrement())
+  phase_plan_id Int
+  doc_type      String
+  doc_name      String
+  content       String
+  file_path     String?
+  created_at    String      @default("datetime('now')")
+  updated_at    String      @default("datetime('now')")
+  phase_plans   phase_plans @relation(fields: [phase_plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([phase_plan_id, doc_type], map: "sqlite_autoindex_plan_documents_1")
+  @@index([doc_type], map: "idx_plan_documents_doc_type")
+  @@index([phase_plan_id], map: "idx_plan_documents_phase_plan_id")
+}
+
+model projects {
+  id              Int      @id @default(autoincrement())
+  name            String   @unique(map: "sqlite_autoindex_projects_1")
+  description     String?
+  filesystem_path String
+  created_at      String   @default("datetime('now')")
+  updated_at      String   @default("datetime('now')")
+  phases          phases[]
+
+  @@index([created_at], map: "idx_projects_created_at")
+  @@index([name], map: "idx_projects_name")
+}
+
+model quality_gates {
+  id             Int        @id @default(autoincrement())
+  phase_run_id   Int
+  gate_type      String
+  status         String     @default("pending")
+  result_summary String?
+  checked_by     String?
+  checked_at     String?
+  created_at     String     @default("datetime('now')")
+  phase_runs     phase_runs @relation(fields: [phase_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([status], map: "idx_quality_gates_status")
+  @@index([gate_type], map: "idx_quality_gates_gate_type")
+  @@index([phase_run_id], map: "idx_quality_gates_phase_run_id")
+}
+
+model run_artifacts {
+  id              Int        @id @default(autoincrement())
+  phase_run_id    Int
+  artifact_type   String
+  artifact_name   String
+  file_path       String?
+  file_size_bytes Int?
+  created_at      String     @default("datetime('now')")
+  phase_runs      phase_runs @relation(fields: [phase_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([artifact_type], map: "idx_run_artifacts_artifact_type")
+  @@index([phase_run_id], map: "idx_run_artifacts_phase_run_id")
+}
+
+model schema_version {
+  version     Int     @id @default(autoincrement())
+  applied_at  String  @default("datetime('now')")
+  description String?
+}
+
+model task_dependencies {
+  id                                                Int    @id @default(autoincrement())
+  task_id                                           Int
+  depends_on_task_id                                Int
+  dependency_type                                   String @default("blocks")
+  created_at                                        String @default("datetime('now')")
+  tasks_task_dependencies_depends_on_task_idTotasks tasks  @relation("task_dependencies_depends_on_task_idTotasks", fields: [depends_on_task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks_task_dependencies_task_idTotasks            tasks  @relation("task_dependencies_task_idTotasks", fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([task_id, depends_on_task_id], map: "sqlite_autoindex_task_dependencies_1")
+  @@index([depends_on_task_id], map: "idx_task_dependencies_depends_on_task_id")
+  @@index([task_id], map: "idx_task_dependencies_task_id")
+}
+
+model task_runs {
+  id               Int            @id @default(autoincrement())
+  phase_run_id     Int
+  task_id          Int
+  assigned_agent   String?
+  status           String         @default("pending")
+  started_at       String?
+  completed_at     String?
+  duration_seconds Int?
+  exit_code        Int?
+  created_at       String         @default("datetime('now')")
+  tasks            tasks          @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  phase_runs       phase_runs     @relation(fields: [phase_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  task_updates     task_updates[]
+
+  @@unique([phase_run_id, task_id], map: "sqlite_autoindex_task_runs_1")
+  @@index([assigned_agent], map: "idx_task_runs_assigned_agent")
+  @@index([status], map: "idx_task_runs_status")
+  @@index([task_id], map: "idx_task_runs_task_id")
+  @@index([phase_run_id], map: "idx_task_runs_phase_run_id")
+}
+
+model task_updates {
+  id          Int       @id @default(autoincrement())
+  task_run_id Int
+  update_type String
+  content     String
+  file_path   String?
+  created_at  String    @default("datetime('now')")
+  task_runs   task_runs @relation(fields: [task_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([update_type], map: "idx_task_updates_update_type")
+  @@index([task_run_id], map: "idx_task_updates_task_run_id")
+}
+
+model tasks {
+  id                                                            Int                 @id @default(autoincrement())
+  phase_plan_id                                                 Int
+  task_key                                                      String
+  name                                                          String
+  description                                                   String?
+  sub_phase                                                     String?
+  execution_order                                               Int
+  wave                                                          Int                 @default(1)
+  priority                                                      String              @default("medium")
+  difficulty                                                    String              @default("medium")
+  status                                                        String              @default("pending")
+  created_at                                                    String              @default("datetime('now')")
+  updated_at                                                    String              @default("datetime('now')")
+  task_dependencies_task_dependencies_depends_on_task_idTotasks task_dependencies[] @relation("task_dependencies_depends_on_task_idTotasks")
+  task_dependencies_task_dependencies_task_idTotasks            task_dependencies[] @relation("task_dependencies_task_idTotasks")
+  task_runs                                                     task_runs[]
+  phase_plans                                                   phase_plans         @relation(fields: [phase_plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([phase_plan_id, task_key], map: "sqlite_autoindex_tasks_1")
+  @@index([sub_phase], map: "idx_tasks_sub_phase")
+  @@index([execution_order], map: "idx_tasks_execution_order")
+  @@index([wave], map: "idx_tasks_wave")
+  @@index([status], map: "idx_tasks_status")
+  @@index([phase_plan_id], map: "idx_tasks_phase_plan_id")
+}

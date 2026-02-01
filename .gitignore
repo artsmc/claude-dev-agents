@@ -43,3 +43,4 @@ __pycache__/
 
 # Keep only agents and commands folders
 # along with documentation
+/lib/generated/prisma

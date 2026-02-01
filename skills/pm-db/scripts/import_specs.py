@@ -183,26 +183,45 @@ def import_spec(
             filesystem_path=filesystem_path
         )
 
-    # Check if spec already exists
-    specs = db.list_specs(project_id=project_id)
-    existing_spec = next((s for s in specs if s['name'] == feature_name), None)
+    # Check if phase already exists
+    phases = db.list_phases(project_id=project_id)
+    existing_phase = next((p for p in phases if p['name'] == feature_name), None)
 
-    if existing_spec:
-        print(f"   ⚠️  Spec already exists (ID: {existing_spec['id']}), skipping")
+    if existing_phase:
+        print(f"   ⚠️  Phase already exists (ID: {existing_phase['id']}), skipping")
         return False
 
-    # Create spec
-    spec_id = db.create_spec(
+    # Create phase (replaces spec)
+    phase_id = db.create_phase(
         project_id=project_id,
         name=feature_name,
-        frd_content=contents['frd'],
-        frs_content=contents['frs'],
-        gs_content=contents['gs'],
-        tr_content=contents['tr'],
-        task_list_content=contents['task_list']
+        description=f"Auto-imported from {feature_name}",
+        phase_type='feature',
+        status='planning'
     )
 
-    print(f"   ✅ Spec imported (ID: {spec_id})")
+    # Create phase plan
+    plan_id = db.create_phase_plan(
+        phase_id=phase_id,
+        planning_approach="Auto-imported from job-queue"
+    )
+
+    # Add plan documents (FRD, FRS, GS, TR, task-list)
+    if contents['frd']:
+        db.add_plan_document(plan_id, 'frd', 'FRD', contents['frd'])
+    if contents['frs']:
+        db.add_plan_document(plan_id, 'frs', 'FRS', contents['frs'])
+    if contents['gs']:
+        db.add_plan_document(plan_id, 'gs', 'GS', contents['gs'])
+    if contents['tr']:
+        db.add_plan_document(plan_id, 'tr', 'TR', contents['tr'])
+    if contents['task_list']:
+        db.add_plan_document(plan_id, 'task-list', 'Task List', contents['task_list'])
+
+    # Auto-approve the plan
+    db.approve_phase_plan(plan_id, 'auto-import')
+
+    print(f"   ✅ Phase imported (ID: {phase_id}, Plan ID: {plan_id})")
 
     return True
 
