@@ -15,12 +15,12 @@ Quick overview of current Memory Bank state.
 
 ### 1. Validate
 ```bash
-python scripts/validate_memorybank.py /path/to/project
+python3 scripts/validate_memorybank.py /path/to/project
 ```
 
 ### 2. Check Staleness
 ```bash
-python scripts/detect_stale.py /path/to/project
+python3 scripts/detect_stale.py /path/to/project
 ```
 
 ### 3. Read Files in Order

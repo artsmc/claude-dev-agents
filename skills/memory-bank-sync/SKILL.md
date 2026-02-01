@@ -40,7 +40,7 @@ What changed:
 
 ```bash
 # Prepare JSON input
-python scripts/sync_active.py /path/to/project '{
+python3 scripts/sync_active.py /path/to/project '{
   "completed": ["Task that was finished"],
   "new_focus": "What working on now",
   "learnings": ["New pattern discovered"],
@@ -50,7 +50,7 @@ python scripts/sync_active.py /path/to/project '{
 
 Or extract from conversation:
 ```bash
-python scripts/extract_todos.py /path/to/project
+python3 scripts/extract_todos.py /path/to/project
 # Use output to populate sync input
 ```
 
@@ -89,7 +89,7 @@ Tool returns what changed:
 /memorybank sync
 
 # Claude runs:
-python scripts/sync_active.py /path/to/project '{
+python3 scripts/sync_active.py /path/to/project '{
   "completed": ["Implemented user authentication API"],
   "new_focus": "Adding password reset flow",
   "learnings": ["JWT tokens work well with our session management"]

@@ -158,7 +158,7 @@ project-root/
 
 ```bash
 # After creating files, validate
-python scripts/validate_memorybank.py /path/to/project
+python3 scripts/validate_memorybank.py /path/to/project
 ```
 
 See `scripts/README.md` for complete documentation.

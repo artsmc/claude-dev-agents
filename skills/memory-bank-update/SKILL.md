@@ -19,13 +19,13 @@ Comprehensive review and update of entire Memory Bank.
 
 ### 2. Validate
 ```bash
-python scripts/validate_memorybank.py /path/to/project
+python3 scripts/validate_memorybank.py /path/to/project
 ```
 Fix any errors before proceeding.
 
 ### 3. Detect Staleness
 ```bash
-python scripts/detect_stale.py /path/to/project
+python3 scripts/detect_stale.py /path/to/project
 ```
 Identify files needing attention.
 
@@ -38,7 +38,7 @@ Read in hierarchical order:
 
 ### 5. Extract TODOs
 ```bash
-python scripts/extract_todos.py /path/to/project
+python3 scripts/extract_todos.py /path/to/project
 ```
 Get current action items.
 
@@ -56,7 +56,7 @@ Update files based on approved changes.
 
 ### 9. Validate Result
 ```bash
-python scripts/validate_memorybank.py /path/to/project
+python3 scripts/validate_memorybank.py /path/to/project
 ```
 
 ## When to Use
