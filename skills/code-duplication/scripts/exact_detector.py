@@ -192,10 +192,21 @@ def extract_code_blocks(
     # Extract blocks using sliding window
     blocks = []
 
-    # Window size from min_lines to total lines
-    for window_size in range(min_lines, len(non_blank_lines) + 1):
-        # Slide window
-        for start_idx in range(len(non_blank_lines) - window_size + 1):
+    # Use a limited set of window sizes for performance
+    # Extract blocks of size: min_lines, min_lines*2, min_lines*4
+    # This gives good coverage without exponential blowup
+    window_sizes = [min_lines]
+    if len(non_blank_lines) >= min_lines * 2:
+        window_sizes.append(min_lines * 2)
+    if len(non_blank_lines) >= min_lines * 4:
+        window_sizes.append(min_lines * 4)
+
+    for window_size in window_sizes:
+        # Slide window with step size for performance
+        # Use step of min_lines/2 to balance coverage and performance
+        step = max(1, min_lines // 2)
+
+        for start_idx in range(0, len(non_blank_lines) - window_size + 1, step):
             end_idx = start_idx + window_size
 
             # Extract block
