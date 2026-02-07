@@ -12,6 +12,35 @@ from pathlib import Path
 from enum import Enum
 
 
+class ErrorCategory(Enum):
+    """Category of error encountered during analysis."""
+    PARSE_ERROR = "parse_error"
+    PERMISSION_ERROR = "permission_error"
+    ENCODING_ERROR = "encoding_error"
+    IO_ERROR = "io_error"
+    DISK_FULL = "disk_full"
+    MEMORY_ERROR = "memory_error"
+    GENERAL_ERROR = "general_error"
+
+
+@dataclass
+class AnalysisIssue:
+    """Represents an issue encountered during analysis."""
+
+    category: ErrorCategory
+    severity: str  # "warning" or "error"
+    file_path: Optional[str]
+    message: str
+    details: Optional[str] = None
+
+    def __str__(self) -> str:
+        """Format issue for display."""
+        prefix = "⚠️ " if self.severity == "warning" else "❌"
+        if self.file_path:
+            return f"{prefix} {self.category.value}: {self.file_path} - {self.message}"
+        return f"{prefix} {self.category.value}: {self.message}"
+
+
 class DuplicateType(Enum):
     """Type of code duplication detected."""
     EXACT = "exact"
