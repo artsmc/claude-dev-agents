@@ -258,6 +258,8 @@ class AnalysisSummary:
     exact_blocks: int = 0
     structural_blocks: int = 0
     pattern_blocks: int = 0
+    issues: List['AnalysisIssue'] = field(default_factory=list)
+    skipped_files: int = 0
 
     @property
     def duplication_percentage(self) -> float:
@@ -270,6 +272,24 @@ class AnalysisSummary:
     def analyzed_files_count(self) -> int:
         """Alias for total_files."""
         return self.total_files
+
+    @property
+    def error_count(self) -> int:
+        """Count of errors encountered."""
+        return sum(1 for issue in self.issues if issue.severity == "error")
+
+    @property
+    def warning_count(self) -> int:
+        """Count of warnings encountered."""
+        return sum(1 for issue in self.issues if issue.severity == "warning")
+
+    def issues_by_category(self) -> Dict[ErrorCategory, int]:
+        """Group issues by category."""
+        from collections import defaultdict
+        counts = defaultdict(int)
+        for issue in self.issues:
+            counts[issue.category] += 1
+        return dict(counts)
 
 
 @dataclass
@@ -419,6 +439,8 @@ class Config:
 __all__ = [
     "DuplicateType",
     "RefactoringTechnique",
+    "ErrorCategory",
+    "AnalysisIssue",
     "CodeLocation",
     "CodeBlock",
     "RefactoringSuggestion",

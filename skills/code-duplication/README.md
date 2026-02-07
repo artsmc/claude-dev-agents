@@ -1,180 +1,148 @@
 # Code Duplication Analysis Skill
 
-Automated detection and analysis of code duplication across your entire codebase.
+Deep analysis of codebase for code duplication. Detects exact, structural, and pattern-level duplicates, generates comprehensive reports with refactoring suggestions and metrics.
 
-## Overview
+## Features
 
-The Code Duplication Analysis Skill helps you:
-- 🔍 **Detect** exact, structural, and pattern-level code duplicates
-- 📊 **Quantify** technical debt with duplication metrics
-- 💡 **Refactor** with actionable, specific refactoring suggestions
-- 📈 **Track** duplication trends over time
+- **🔴 Exact Duplicate Detection** - Hash-based detection of identical code blocks
+- **🟡 Structural Duplicate Detection** - AST-based detection of functionally identical code with different names
+- **🔵 Pattern Duplicate Detection** - Regex-based detection of common anti-patterns (12 patterns)
+- **📊 Comprehensive Metrics** - LOC analysis, duplication percentage, trend analysis
+- **🗺️ Heatmap Visualization** - Visual representation of duplication across codebase
+- **💡 Refactoring Suggestions** - Actionable recommendations with implementation steps
+- **📄 Multiple Output Formats** - Markdown reports and CSV exports
 
 ## Quick Start
 
 ```bash
-# Analyze entire project
-/code-duplication
+# Analyze current directory
+/code-duplication .
 
 # Analyze specific directory
-/code-duplication src/
+/code-duplication /path/to/project
 
-# Custom output location
-/code-duplication --output reports/duplication.md
+# Analyze with Python only
+/code-duplication /path/to/project --language python
+
+# Multiple languages
+/code-duplication /path/to/project --language python javascript typescript
 ```
 
-## Features
+## Usage
 
-### Multi-Type Detection
-
-**Exact Duplicates**
-- Finds copy-pasted code blocks
-- Configurable minimum line threshold (default: 5-10 lines)
-- Ignores comments and whitespace
-
-**Structural Duplicates**
-- AST-based analysis for Python and JavaScript
-- Detects similar code with different variable names
-- Adjustable similarity threshold
-
-**Pattern Duplicates**
-- Identifies repeated coding patterns
-- Suggests opportunities for abstraction
-- Extensible pattern catalog
-
-### Comprehensive Reports
-
-**Metrics**:
-- Duplication percentage
-- Total duplicate blocks
-- LOC savings potential
-- Per-file breakdown
-
-**Visualizations**:
-- Top offender files ranked by duplication
-- File-level heatmap
-- Trend analysis (with historical data)
-
-**Actionable Suggestions**:
-- Extract function
-- Extract class
-- Use helper utilities
-- Apply DRY principle
-- And more...
-
-## Configuration
-
-Create `.duplication-config.json`:
-
-```json
-{
-  "min_lines": 7,
-  "exclude_patterns": [
-    "**/node_modules/**",
-    "**/test_*.py",
-    "**/__generated__/**"
-  ],
-  "similarity_threshold": 0.85,
-  "languages": ["python", "javascript", "typescript", "go"]
-}
-```
-
-## Command-Line Options
+### Detection Modes
 
 ```bash
-/code-duplication [path] [options]
+# Run all detection engines (default)
+/code-duplication /path/to/project
 
-Options:
-  --config PATH          Path to configuration file
-  --format FORMAT        Output format: markdown (default) or json
-  --output PATH          Output file path (default: ./duplication-report.md)
-  --min-lines N          Minimum lines for duplication (default: 7)
-  --exclude PATTERN      Exclude pattern (can be repeated)
-  --incremental          Analyze only git-modified files
-  --verbose              Show detailed progress
+# Only exact duplicates (faster)
+/code-duplication /path/to/project --exact-only
+
+# Only structural duplicates
+/code-duplication /path/to/project --structural-only
+
+# Only pattern duplicates
+/code-duplication /path/to/project --pattern-only
 ```
+
+### Output Options
+
+```bash
+# Custom output path
+/code-duplication /path/to/project --output report.md
+
+# Export to CSV for data analysis
+/code-duplication /path/to/project --csv duplicates.csv
+
+# Limit duplicates in report
+/code-duplication /path/to/project --max-duplicates 20
+
+# Quiet mode (no progress indicators)
+/code-duplication /path/to/project --quiet
+```
+
+### Filtering
+
+```bash
+# Exclude patterns
+/code-duplication /path/to/project --exclude "**/test_*.py" "**/__pycache__/**"
+
+# Configure thresholds
+/code-duplication /path/to/project --min-lines 10 --min-chars 100
+```
+
+## How It Works
+
+### 1. Exact Duplicate Detection
+
+Hash-based comparison after code normalization (Python tokenize, JavaScript regex).
+
+### 2. Structural Duplicate Detection
+
+AST-based comparison - finds code with identical logic but different variable names.
+
+### 3. Pattern Duplicate Detection
+
+Regex matching for 12 common anti-patterns (try-catch-logging, null-check, env-var-access, etc.).
 
 ## Example Output
 
-```markdown
-# Code Duplication Analysis Report
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 Code Duplication Analysis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Path: /home/user/project
 
-## Executive Summary
-📊 Analysis Date: 2026-02-07
-📁 Files Analyzed: 156 files
-📏 Total LOC: 12,450
-🔄 Duplicate LOC: 1,834 (14.7%)
-🎯 Cleanup Potential: 1,200-1,500 LOC reduction
+✅ Scanning files (127 found) - 0.1s
+✅ Reading files (127 found) - 0.3s
+✅ Detecting exact duplicates (15 found) - 2.4s
+✅ Detecting structural duplicates (8 found) - 3.1s
+✅ Detecting pattern duplicates (23 found) - 1.2s
+✅ Calculating metrics - 0.1s
+✅ Generating report - 0.2s
 
-## Top 5 Files with Duplication
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Analysis Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. **src/services/user_service.py** - 340 LOC duplicated (23%)
-   - 6 duplicate blocks found
-   - Primary issue: Repeated authentication logic
-   - Suggested: Extract to auth_utils.py
+Files analyzed: 127
+Total LOC: 15,432
+Duplicate LOC: 1,234
+Duplication: 8.00%
 
-2. **src/api/handlers.py** - 245 LOC duplicated (18%)
-   ...
+Duplicate blocks found: 46
+  - Exact: 15
+  - Structural: 8
+  - Pattern: 23
+
+📄 Report: /home/user/project/duplication-report.md
+
+✅ Good - Low duplication, minor cleanup opportunities
 ```
 
-## Performance
+## Report Structure
 
-- **Small projects** (<5k LOC): < 5 seconds
-- **Medium projects** (5-20k LOC): < 30 seconds
-- **Large projects** (20-50k LOC): < 2 minutes
-- **Very large projects** (>50k LOC): Use --incremental mode
+The generated markdown report includes:
+
+- **📊 Executive Summary** - Metrics, assessment, top offenders, heatmap
+- **📋 Duplicate Blocks** - Detailed listings with code samples and refactoring suggestions
+- **💡 Recommendations** - Priority actions grouped by difficulty (easy/medium/hard)
+
+## Dependencies
+
+- **Python 3.7+** (required)
+- **Zero external dependencies** - Uses only Python stdlib
 
 ## Development Status
 
-🚧 **Wave 1 Complete** - Foundation established
+✅ **Complete** - All features implemented and tested
 
-Current capabilities:
-- ✅ Data models defined
-- ✅ Configuration system
-- ✅ Utility functions
+## Technical Details
 
-Coming in future waves:
-- ⏳ Detection algorithms (Wave 2)
-- ⏳ Metrics and analysis (Wave 3)
-- ⏳ Report generation (Wave 3)
-- ⏳ CLI interface (Wave 4)
-- ⏳ Testing and documentation (Wave 5)
-
-## Technical Specifications
-
-- **Language**: Python 3.8+
-- **Dependencies**: None (pure stdlib)
-- **Platform**: Linux, macOS, Windows (WSL2)
-- **License**: Part of Claude Code CLI
-
-## Integration
-
-Works seamlessly with:
-- **PM-DB**: Track duplication cleanup tasks
-- **Memory Bank**: Store baseline metrics
-- **Git**: Incremental analysis mode
-- **CI/CD**: Automated quality gates
-
-## Roadmap
-
-### Wave 2: Detection Engines (~12 hours)
-- File discovery with .gitignore support
-- Exact duplicate detector
-- AST-based structural detector
-- Pattern matching detector
-
-### Wave 3: Analysis & Reporting (~10 hours)
-- Metrics calculator
-- Refactoring suggestion engine
-- Markdown and JSON report generators
-
-### Wave 4-6: Integration & Quality (~20 hours)
-- CLI interface
-- Error handling
-- Testing suite
-- Documentation
-
----
-
-**Total remaining effort**: ~62 hours (Waves 2-6)
-**Next milestone**: Wave 2 execution
+See full documentation in README.md for:
+- Architecture overview
+- Data models
+- Pattern catalog
+- Performance benchmarks
+- Development guide

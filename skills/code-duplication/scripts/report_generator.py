@@ -15,7 +15,9 @@ from models import (
     AnalysisSummary,
     FileOffender,
     HeatmapData,
-    DuplicateType
+    DuplicateType,
+    AnalysisIssue,
+    ErrorCategory
 )
 from heatmap_renderer import render_heatmap_text
 
@@ -252,6 +254,90 @@ def create_summary_section(
         lines.append(heatmap_text)
         lines.append("```")
         lines.append("")
+
+    return '\n'.join(lines)
+
+
+def create_issues_section(summary: AnalysisSummary) -> str:
+    """
+    Create analysis issues section showing errors and warnings.
+
+    Args:
+        summary: Analysis summary with issues
+
+    Returns:
+        Formatted markdown section
+
+    Example:
+        >>> section = create_issues_section(summary)
+        >>> "## Analysis Issues" in section
+        True
+    """
+    if not summary.issues:
+        return ""
+
+    lines = []
+
+    lines.append("## Analysis Issues")
+    lines.append("")
+
+    # Summary counts
+    error_count = summary.error_count
+    warning_count = summary.warning_count
+
+    lines.append(f"**Total Issues:** {len(summary.issues)} ({error_count} errors, {warning_count} warnings)")
+    lines.append("")
+
+    if summary.skipped_files > 0:
+        lines.append(f"**Files Skipped:** {summary.skipped_files}")
+        lines.append("")
+
+    # Group by category
+    issues_by_category = summary.issues_by_category()
+
+    if issues_by_category:
+        lines.append("### Issues by Category")
+        lines.append("")
+
+        for category, count in sorted(issues_by_category.items(), key=lambda x: x[1], reverse=True):
+            lines.append(f"- **{category.value}**: {count}")
+
+        lines.append("")
+
+    # List errors first, then warnings
+    errors = [i for i in summary.issues if i.severity == "error"]
+    warnings = [i for i in summary.issues if i.severity == "warning"]
+
+    if errors:
+        lines.append("### Errors")
+        lines.append("")
+        for issue in errors[:20]:  # Limit to first 20
+            if issue.file_path:
+                lines.append(f"- `{issue.file_path}`: {issue.message}")
+            else:
+                lines.append(f"- {issue.message}")
+
+        if len(errors) > 20:
+            lines.append(f"- _... and {len(errors) - 20} more errors_")
+
+        lines.append("")
+
+    if warnings:
+        lines.append("### Warnings")
+        lines.append("")
+        for issue in warnings[:20]:  # Limit to first 20
+            if issue.file_path:
+                lines.append(f"- `{issue.file_path}`: {issue.message}")
+            else:
+                lines.append(f"- {issue.message}")
+
+        if len(warnings) > 20:
+            lines.append(f"- _... and {len(warnings) - 20} more warnings_")
+
+        lines.append("")
+
+    lines.append("---")
+    lines.append("")
 
     return '\n'.join(lines)
 
