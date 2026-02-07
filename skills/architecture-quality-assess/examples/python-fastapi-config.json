@@ -1,0 +1,25 @@
+{
+  "description": "Configuration for FastAPI projects",
+
+  "exclude_paths": [
+    "__pycache__/",
+    "*.pyc",
+    "test_*.py",
+    "*_test.py",
+    "alembic/"
+  ],
+
+  "rules": {
+    "max_fan_out": 12,
+    "max_file_loc": 400,
+    "max_function_params": 5,
+    "allow_sql_in_routes": false,
+    "require_repository_pattern": true
+  },
+
+  "layer_definitions": {
+    "presentation": ["routers/", "schemas/", "main.py"],
+    "business": ["services/", "core/"],
+    "data": ["repositories/", "models/", "db/"]
+  }
+}

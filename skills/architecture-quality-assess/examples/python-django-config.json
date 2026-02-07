@@ -1,0 +1,25 @@
+{
+  "description": "Configuration for Django projects",
+
+  "exclude_paths": [
+    "__pycache__/",
+    "migrations/",
+    "*.pyc",
+    "test_*.py",
+    "*_test.py"
+  ],
+
+  "rules": {
+    "max_fan_out": 15,
+    "max_file_loc": 500,
+    "max_class_methods": 15,
+    "allow_sql_in_views": false,
+    "require_service_layer": true
+  },
+
+  "layer_definitions": {
+    "presentation": ["views.py", "serializers.py", "urls.py"],
+    "business": ["services.py", "managers.py"],
+    "data": ["models.py", "repositories.py"]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Architecture Assessment Configuration",
+  "description": "Configuration for architecture quality assessment tool",
+
+  "exclude_paths": [
+    "node_modules/",
+    "dist/",
+    "build/",
+    ".next/",
+    "__pycache__/",
+    "*.test.ts",
+    "*.spec.js",
+    "*.test.py"
+  ],
+
+  "severity_thresholds": {
+    "critical": 0,
+    "high": 5,
+    "medium": 20,
+    "comment": "Build fails if violations exceed these counts"
+  },
+
+  "rules": {
+    "max_fan_out": 15,
+    "max_file_loc": 500,
+    "max_method_count": 10,
+    "allow_sql_in_routes": false,
+    "require_repository_pattern": true,
+    "max_class_methods": 20,
+    "max_function_params": 5
+  },
+
+  "output": {
+    "format": "markdown",
+    "path": "docs/architecture-assessment.md",
+    "generate_task_list": true
+  },
+
+  "integrations": {
+    "memory_bank": {
+      "enabled": true,
+      "check_drift": true
+    },
+    "ci_cd": {
+      "fail_on_critical": true,
+      "comment_on_pr": true
+    }
+  }
+}

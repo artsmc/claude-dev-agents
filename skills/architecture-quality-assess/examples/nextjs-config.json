@@ -1,0 +1,25 @@
+{
+  "description": "Configuration for Next.js App Router projects",
+
+  "exclude_paths": [
+    "node_modules/",
+    ".next/",
+    "out/",
+    "public/",
+    "*.test.tsx",
+    "*.spec.ts"
+  ],
+
+  "rules": {
+    "max_fan_out": 12,
+    "max_file_loc": 300,
+    "allow_sql_in_routes": false,
+    "require_repository_pattern": true
+  },
+
+  "layer_definitions": {
+    "presentation": ["app/", "components/", "app/**/route.ts"],
+    "business": ["lib/services/", "lib/actions/"],
+    "data": ["lib/repositories/", "lib/db/"]
+  }
+}

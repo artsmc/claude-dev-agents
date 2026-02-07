@@ -568,5 +568,18 @@ def main():
     sys.exit(0)
 
 
+def detect_project_type(project_path: str) -> Dict[str, Any]:
+    """Convenience function for programmatic usage.
+
+    Args:
+        project_path: Path to project directory (string).
+
+    Returns:
+        Detection result dictionary.
+    """
+    detector = ProjectTypeDetector(Path(project_path))
+    return detector.detect()
+
+
 if __name__ == "__main__":
     main()
