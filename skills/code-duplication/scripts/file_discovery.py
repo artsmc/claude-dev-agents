@@ -372,10 +372,87 @@ def get_file_stats(files: List[Path]) -> dict:
     return stats
 
 
+def discover_files_incremental(
+    config: Config,
+    root_path: Optional[Path] = None,
+    compare_to: Optional[str] = None
+) -> List[Path]:
+    """
+    Discover modified files using git for incremental analysis.
+
+    Only analyzes files that have been modified according to git.
+    Much faster than full discovery for large codebases.
+
+    Args:
+        config: Configuration object with filtering rules
+        root_path: Root directory (defaults to current directory)
+        compare_to: Git ref to compare against (e.g., 'main', 'HEAD~1')
+                   If None, uses uncommitted changes
+
+    Returns:
+        List of modified file paths to analyze
+
+    Raises:
+        ImportError: If git_integration module not available
+        GitError: If git operations fail
+    """
+    try:
+        from git_integration import (
+            is_git_repository,
+            get_modified_files,
+            GitError
+        )
+    except ImportError:
+        raise ImportError(
+            "git_integration module required for incremental mode. "
+            "Ensure git_integration.py is available."
+        )
+
+    if root_path is None:
+        root_path = Path.cwd()
+
+    root_path = root_path.resolve()
+
+    # Check if we're in a git repository
+    if not is_git_repository(root_path):
+        raise GitError(
+            f"Incremental mode requires a git repository. "
+            f"Path {root_path} is not in a git repo."
+        )
+
+    # Get modified files from git
+    try:
+        if compare_to:
+            # Compare against specific ref
+            modified_files = get_modified_files(
+                root_path,
+                include_staged=True,
+                include_unstaged=True,
+                include_untracked=False,
+                compare_to=compare_to
+            )
+        else:
+            # Use uncommitted changes
+            modified_files = get_modified_files(
+                root_path,
+                include_staged=True,
+                include_unstaged=True,
+                include_untracked=config.include_patterns is not None
+            )
+    except GitError as e:
+        raise GitError(f"Failed to get modified files: {e}")
+
+    # Filter using standard discovery rules
+    filtered_files = discover_files_from_list(modified_files, config)
+
+    return filtered_files
+
+
 # Export public API
 __all__ = [
     "discover_files",
     "discover_files_from_list",
+    "discover_files_incremental",
     "get_file_stats",
     "get_supported_extensions",
 ]
