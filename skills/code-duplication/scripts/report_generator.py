@@ -461,8 +461,16 @@ def generate_report(
     lines.append("## Table of Contents")
     lines.append("")
     lines.append("1. [Executive Summary](#executive-summary)")
-    lines.append("2. [Duplicate Blocks](#duplicate-blocks)")
-    lines.append("3. [Recommendations](#recommendations)")
+
+    # Include Analysis Issues in TOC if there are any
+    toc_index = 2
+    if summary.issues:
+        lines.append(f"{toc_index}. [Analysis Issues](#analysis-issues)")
+        toc_index += 1
+
+    lines.append(f"{toc_index}. [Duplicate Blocks](#duplicate-blocks)")
+    toc_index += 1
+    lines.append(f"{toc_index}. [Recommendations](#recommendations)")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -470,6 +478,11 @@ def generate_report(
     # Summary section
     summary_section = create_summary_section(summary, offenders, heatmap)
     lines.append(summary_section)
+
+    # Issues section (if any)
+    if summary.issues:
+        issues_section = create_issues_section(summary)
+        lines.append(issues_section)
 
     # Duplicates section
     duplicates_section = format_duplicate_listings(duplicates, max_duplicates)
@@ -490,8 +503,18 @@ def generate_report(
 
     # Write to file if path provided
     if output_path:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(report, encoding='utf-8')
+        try:
+            # Ensure parent directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # Write report
+            output_path.write_text(report, encoding='utf-8')
+        except PermissionError as e:
+            raise PermissionError(f"Cannot write to {output_path}: Permission denied")
+        except OSError as e:
+            # Re-raise OSError (includes disk full, etc.)
+            raise
+        except Exception as e:
+            raise IOError(f"Failed to write report to {output_path}: {str(e)}")
 
     return report
 
@@ -507,41 +530,57 @@ def generate_csv_export(
         duplicates: List of duplicates to export
         output_path: Path to write CSV file
 
+    Raises:
+        PermissionError: If cannot write to output path
+        OSError: If disk full or other OS error
+        IOError: If other write error occurs
+
     Example:
         >>> generate_csv_export(duplicates, Path("duplicates.csv"))
     """
     import csv
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # Ensure parent directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with output_path.open('w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
+        # Write CSV file
+        with output_path.open('w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
 
-        # Header
-        writer.writerow([
-            'duplicate_id',
-            'type',
-            'instances',
-            'similarity',
-            'file_path',
-            'start_line',
-            'end_line',
-            'line_count'
-        ])
+            # Header
+            writer.writerow([
+                'duplicate_id',
+                'type',
+                'instances',
+                'similarity',
+                'file_path',
+                'start_line',
+                'end_line',
+                'line_count'
+            ])
 
-        # Data rows
-        for dup in duplicates:
-            for instance in dup.instances:
-                writer.writerow([
-                    dup.id,
-                    dup.type.value,
-                    len(dup.instances),
-                    dup.similarity_score,
-                    str(instance.file_path),
-                    instance.start_line,
-                    instance.end_line,
-                    instance.line_count
-                ])
+            # Data rows
+            for dup in duplicates:
+                for instance in dup.instances:
+                    writer.writerow([
+                        dup.id,
+                        dup.type.value,
+                        len(dup.instances),
+                        dup.similarity_score,
+                        str(instance.file_path),
+                        instance.start_line,
+                        instance.end_line,
+                        instance.line_count
+                    ])
+
+    except PermissionError as e:
+        raise PermissionError(f"Cannot write to {output_path}: Permission denied")
+    except OSError as e:
+        # Re-raise OSError (includes disk full, etc.)
+        raise
+    except Exception as e:
+        raise IOError(f"Failed to write CSV to {output_path}: {str(e)}")
 
 
 # Export public API
@@ -549,6 +588,7 @@ __all__ = [
     'format_duplicate_block',
     'format_duplicate_listings',
     'create_summary_section',
+    'create_issues_section',
     'create_recommendations_section',
     'generate_report',
     'generate_csv_export',
