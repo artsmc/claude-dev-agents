@@ -13,15 +13,19 @@ Exports:
         insecure session cookies, and missing authentication on routes.
     DependencyAnalyzer: Detects known vulnerabilities in third-party
         dependencies via the OSV database API.
+    ConfigAnalyzer: Detects CORS misconfigurations, debug mode enabled,
+        missing security headers, and verbose error disclosure.
 """
 
 from lib.analyzers.auth_analyzer import AuthAnalyzer
+from lib.analyzers.config_analyzer import ConfigAnalyzer
 from lib.analyzers.dependency_analyzer import DependencyAnalyzer
 from lib.analyzers.injection_analyzer import InjectionAnalyzer
 from lib.analyzers.secrets_analyzer import SecretsAnalyzer
 
 __all__ = [
     "AuthAnalyzer",
+    "ConfigAnalyzer",
     "DependencyAnalyzer",
     "InjectionAnalyzer",
     "SecretsAnalyzer",
