@@ -1,0 +1,557 @@
+{
+  "_comment": "Expected findings for each test fixture. Used to validate analyzer correctness.",
+  "_format": "Each entry maps a fixture file path (relative to tests/fixtures/) to an array of expected findings.",
+  "_note": "Line numbers are approximate and may shift if fixtures are edited. Use them as guidance, not exact assertions.",
+
+  "python/secrets.py": {
+    "analyzer": "SecretsAnalyzer",
+    "total_expected": 6,
+    "findings": [
+      {
+        "rule_id": "hardcoded-secret",
+        "sub_type": "aws-access-key",
+        "severity": "CRITICAL",
+        "line": 19,
+        "pattern_matched": "AKIA[0-9A-Z]{16}",
+        "description": "Hardcoded AWS access key ID in variable AWS_ACCESS_KEY",
+        "owasp": "A02:2021",
+        "cwe": "CWE-798"
+      },
+      {
+        "rule_id": "hardcoded-secret",
+        "sub_type": "github-token",
+        "severity": "CRITICAL",
+        "line": 22,
+        "pattern_matched": "ghp_[a-zA-Z0-9]{36}",
+        "description": "Hardcoded GitHub personal access token in variable GITHUB_TOKEN",
+        "owasp": "A02:2021",
+        "cwe": "CWE-798"
+      },
+      {
+        "rule_id": "hardcoded-secret",
+        "sub_type": "generic-api-key",
+        "severity": "HIGH",
+        "line": 25,
+        "pattern_matched": "api[_-]?key\\s*=\\s*[\"']",
+        "description": "Generic API key assigned to variable api_key",
+        "owasp": "A02:2021",
+        "cwe": "CWE-798"
+      },
+      {
+        "rule_id": "high-entropy-string",
+        "sub_type": "entropy-detection",
+        "severity": "HIGH",
+        "line": 28,
+        "pattern_matched": "Shannon entropy > 4.5, length >= 20",
+        "description": "High-entropy string in variable INTERNAL_TOKEN suggests embedded secret",
+        "owasp": "A02:2021",
+        "cwe": "CWE-798"
+      },
+      {
+        "rule_id": "weak-crypto",
+        "sub_type": "md5-usage",
+        "severity": "MEDIUM",
+        "line": 41,
+        "pattern_matched": "\\bhashlib\\.md5\\b",
+        "description": "MD5 hash algorithm usage - cryptographically broken",
+        "owasp": "A02:2021",
+        "cwe": "CWE-327"
+      },
+      {
+        "rule_id": "weak-crypto",
+        "sub_type": "sha1-usage",
+        "severity": "MEDIUM",
+        "line": 45,
+        "pattern_matched": "\\bhashlib\\.sha1\\b",
+        "description": "SHA-1 hash algorithm usage - cryptographically weakened",
+        "owasp": "A02:2021",
+        "cwe": "CWE-327"
+      }
+    ],
+    "safe_patterns": [
+      {"line": 32, "reason": "os.environ.get() - loaded from environment variable"},
+      {"line": 49, "reason": "hashlib.sha256 - acceptable hash algorithm"},
+      {"line": 55, "reason": "URL string - false positive filter should exclude"},
+      {"line": 58, "reason": "File path - false positive filter should exclude"},
+      {"line": 61, "reason": "UUID format - false positive filter should exclude"}
+    ]
+  },
+
+  "python/injection.py": {
+    "analyzer": "InjectionAnalyzer",
+    "total_expected": 9,
+    "findings": [
+      {
+        "rule_id": "sql-injection",
+        "sub_type": "string-concatenation",
+        "severity": "HIGH",
+        "line": 30,
+        "pattern_matched": "SQL query built with string concatenation (BinOp)",
+        "description": "SQL injection via string concatenation in get_user_concat()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-89"
+      },
+      {
+        "rule_id": "sql-injection",
+        "sub_type": "f-string-interpolation",
+        "severity": "HIGH",
+        "line": 35,
+        "pattern_matched": "SQL query built with f-string (JoinedStr)",
+        "description": "SQL injection via f-string interpolation in get_user_fstring()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-89"
+      },
+      {
+        "rule_id": "sql-injection",
+        "sub_type": "format-method",
+        "severity": "HIGH",
+        "line": 40,
+        "pattern_matched": "SQL query built with .format() call",
+        "description": "SQL injection via .format() in get_user_format()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-89"
+      },
+      {
+        "rule_id": "command-injection",
+        "sub_type": "os-system",
+        "severity": "CRITICAL",
+        "line": 53,
+        "pattern_matched": "os.system() call",
+        "description": "Command injection via os.system() in run_command_os()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-78"
+      },
+      {
+        "rule_id": "command-injection",
+        "sub_type": "subprocess-shell",
+        "severity": "CRITICAL",
+        "line": 57,
+        "pattern_matched": "subprocess.call() with shell=True",
+        "description": "Command injection via subprocess with shell=True in run_command_shell()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-78"
+      },
+      {
+        "rule_id": "command-injection",
+        "sub_type": "subprocess-no-shell",
+        "severity": "MEDIUM",
+        "line": 62,
+        "pattern_matched": "subprocess.run() without shell=True",
+        "description": "Potential command injection via subprocess.run() in run_command_no_shell()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-78"
+      },
+      {
+        "rule_id": "code-injection",
+        "sub_type": "eval",
+        "severity": "HIGH",
+        "line": 70,
+        "pattern_matched": "eval() builtin call",
+        "description": "Code injection via eval() in calculate()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-94"
+      },
+      {
+        "rule_id": "code-injection",
+        "sub_type": "exec",
+        "severity": "HIGH",
+        "line": 74,
+        "pattern_matched": "exec() builtin call",
+        "description": "Code injection via exec() in run_code()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-94"
+      },
+      {
+        "rule_id": "code-injection",
+        "sub_type": "pickle-loads",
+        "severity": "HIGH",
+        "line": 81,
+        "pattern_matched": "pickle.loads() call",
+        "description": "Unsafe deserialization via pickle.loads() in load_data()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-502"
+      }
+    ],
+    "safe_patterns": [
+      {"line": 45, "reason": "Parameterized query with ? placeholder"},
+      {"line": 88, "reason": "json.loads() - safe deserialization"}
+    ]
+  },
+
+  "python/auth.py": {
+    "analyzer": "AuthAnalyzer",
+    "total_expected": 7,
+    "findings": [
+      {
+        "rule_id": "hardcoded-password",
+        "sub_type": "password-variable",
+        "severity": "CRITICAL",
+        "line": 24,
+        "pattern_matched": "password\\s*=\\s*[\"']",
+        "description": "Hardcoded password in variable assignment",
+        "owasp": "A07:2021",
+        "cwe": "CWE-798"
+      },
+      {
+        "rule_id": "hardcoded-password",
+        "sub_type": "secret-key-variable",
+        "severity": "CRITICAL",
+        "line": 27,
+        "pattern_matched": "secret_key\\s*=\\s*[\"']",
+        "description": "Hardcoded secret_key in variable assignment",
+        "owasp": "A07:2021",
+        "cwe": "CWE-798"
+      },
+      {
+        "rule_id": "weak-jwt-secret",
+        "sub_type": "jwt-encode-short-secret",
+        "severity": "HIGH",
+        "line": 40,
+        "pattern_matched": "jwt.encode() with secret < 32 characters",
+        "description": "JWT signed with weak secret 'short_secret' (< 32 chars)",
+        "owasp": "A02:2021",
+        "cwe": "CWE-327"
+      },
+      {
+        "rule_id": "weak-jwt-secret",
+        "sub_type": "jwt-secret-assignment",
+        "severity": "HIGH",
+        "line": 43,
+        "pattern_matched": "jwt_secret\\s*=\\s*[\"'].{1,31}[\"']",
+        "description": "JWT secret variable assigned short value 'weak_key_123'",
+        "owasp": "A02:2021",
+        "cwe": "CWE-327"
+      },
+      {
+        "rule_id": "insecure-session-cookie",
+        "sub_type": "secure-flag-false",
+        "severity": "MEDIUM",
+        "line": 53,
+        "pattern_matched": "SESSION_COOKIE_SECURE.*=.*False",
+        "description": "Session cookie SECURE flag set to False",
+        "owasp": "A07:2021",
+        "cwe": "CWE-614"
+      },
+      {
+        "rule_id": "insecure-session-cookie",
+        "sub_type": "httponly-flag-false",
+        "severity": "MEDIUM",
+        "line": 54,
+        "pattern_matched": "SESSION_COOKIE_HTTPONLY.*=.*False",
+        "description": "Session cookie HTTPONLY flag set to False",
+        "owasp": "A07:2021",
+        "cwe": "CWE-1004"
+      },
+      {
+        "rule_id": "missing-authentication",
+        "sub_type": "unprotected-route",
+        "severity": "HIGH",
+        "line": 69,
+        "pattern_matched": "@app.route() without auth decorator",
+        "description": "Route handler /api/users has no authentication decorator",
+        "owasp": "A01:2021",
+        "cwe": "CWE-306"
+      }
+    ],
+    "safe_patterns": [
+      {"line": 31, "reason": "Password from os.environ.get() - not hardcoded"},
+      {"line": 47, "reason": "JWT with 36-char secret (>= 32) - acceptable strength"},
+      {"line": 64, "reason": "/login route - public endpoint, no auth required"},
+      {"line": 77, "reason": "Route with @login_required decorator - properly protected"}
+    ]
+  },
+
+  "javascript/xss.js": {
+    "analyzer": "InjectionAnalyzer",
+    "total_expected": 5,
+    "findings": [
+      {
+        "rule_id": "xss-vulnerability",
+        "sub_type": "innerHTML",
+        "severity": "HIGH",
+        "line": 20,
+        "pattern_matched": "\\.innerHTML\\s*=",
+        "description": "XSS via innerHTML assignment with unsanitized user input",
+        "owasp": "A03:2021",
+        "cwe": "CWE-79"
+      },
+      {
+        "rule_id": "xss-vulnerability",
+        "sub_type": "dangerouslySetInnerHTML",
+        "severity": "HIGH",
+        "line": 26,
+        "pattern_matched": "dangerouslySetInnerHTML",
+        "description": "XSS via React dangerouslySetInnerHTML with user-provided HTML",
+        "owasp": "A03:2021",
+        "cwe": "CWE-79"
+      },
+      {
+        "rule_id": "xss-vulnerability",
+        "sub_type": "document-write",
+        "severity": "HIGH",
+        "line": 32,
+        "pattern_matched": "document\\.write\\(",
+        "description": "XSS via document.write() with unsanitized content",
+        "owasp": "A03:2021",
+        "cwe": "CWE-79"
+      },
+      {
+        "rule_id": "code-injection",
+        "sub_type": "eval",
+        "severity": "HIGH",
+        "line": 37,
+        "pattern_matched": "\\beval\\s*\\(",
+        "description": "Code injection via eval() in processExpression()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-94"
+      },
+      {
+        "rule_id": "xss-vulnerability",
+        "sub_type": "outerHTML",
+        "severity": "HIGH",
+        "line": 42,
+        "pattern_matched": "\\.outerHTML\\s*=",
+        "description": "XSS via outerHTML assignment with user-provided HTML",
+        "owasp": "A03:2021",
+        "cwe": "CWE-79"
+      }
+    ],
+    "safe_patterns": [
+      {"line": 47, "reason": "textContent assignment - not vulnerable to XSS"},
+      {"line": 52, "reason": "innerHTML with DOMPurify.sanitize() - properly sanitized"}
+    ]
+  },
+
+  "javascript/injection.js": {
+    "analyzer": "InjectionAnalyzer",
+    "total_expected": 5,
+    "findings": [
+      {
+        "rule_id": "sql-injection",
+        "sub_type": "sequelize-raw-concat",
+        "severity": "HIGH",
+        "line": 22,
+        "pattern_matched": "sequelize.query() with string concatenation",
+        "description": "SQL injection via Sequelize raw query with string concatenation",
+        "owasp": "A03:2021",
+        "cwe": "CWE-89"
+      },
+      {
+        "rule_id": "sql-injection",
+        "sub_type": "template-literal",
+        "severity": "HIGH",
+        "line": 28,
+        "pattern_matched": "SQL template literal with ${} interpolation",
+        "description": "SQL injection via template literal interpolation in searchUsers()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-89"
+      },
+      {
+        "rule_id": "code-injection",
+        "sub_type": "eval",
+        "severity": "HIGH",
+        "line": 34,
+        "pattern_matched": "\\beval\\s*\\(",
+        "description": "Code injection via eval() in dynamicCalculate()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-94"
+      },
+      {
+        "rule_id": "code-injection",
+        "sub_type": "function-constructor",
+        "severity": "HIGH",
+        "line": 39,
+        "pattern_matched": "new\\s+Function\\s*\\(",
+        "description": "Code injection via new Function() constructor in createDynamicFunction()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-94"
+      },
+      {
+        "rule_id": "sql-injection",
+        "sub_type": "string-concatenation",
+        "severity": "HIGH",
+        "line": 45,
+        "pattern_matched": "SQL string concatenation with + operator",
+        "description": "SQL injection via string concatenation in buildQuery()",
+        "owasp": "A03:2021",
+        "cwe": "CWE-89"
+      }
+    ],
+    "safe_patterns": [
+      {"line": 51, "reason": "Parameterized Sequelize query with replacements array"},
+      {"line": 60, "reason": "JSON.parse() - safe alternative to eval()"}
+    ]
+  },
+
+  "lockfiles/package-lock.json": {
+    "analyzer": "DependencyParser",
+    "total_expected": 4,
+    "findings": [
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "lodash",
+        "version": "4.17.15",
+        "description": "Known vulnerable version of lodash (prototype pollution CVE-2020-8203)",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "express",
+        "version": "4.17.1",
+        "description": "Known vulnerable version of express (multiple CVEs)",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "axios",
+        "version": "0.21.0",
+        "description": "Known vulnerable version of axios (SSRF CVE-2021-3749)",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "MEDIUM",
+        "package": "minimist",
+        "version": "1.2.5",
+        "description": "Known vulnerable version of minimist (prototype pollution CVE-2021-44906)",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      }
+    ]
+  },
+
+  "lockfiles/yarn.lock": {
+    "analyzer": "DependencyParser",
+    "total_expected": 5,
+    "findings": [
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "lodash",
+        "version": "4.17.15",
+        "description": "Known vulnerable version of lodash",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "express",
+        "version": "4.17.1",
+        "description": "Known vulnerable version of express",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "MEDIUM",
+        "package": "@babel/core",
+        "version": "7.12.0",
+        "description": "Older version of @babel/core",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "MEDIUM",
+        "package": "minimist",
+        "version": "1.2.5",
+        "description": "Known vulnerable version of minimist",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "axios",
+        "version": "0.21.0",
+        "description": "Known vulnerable version of axios",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      }
+    ]
+  },
+
+  "lockfiles/poetry.lock": {
+    "analyzer": "DependencyParser",
+    "total_expected": 4,
+    "findings": [
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "requests",
+        "version": "2.25.0",
+        "description": "Known vulnerable version of requests",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "urllib3",
+        "version": "1.26.5",
+        "description": "Known vulnerable version of urllib3",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "HIGH",
+        "package": "jinja2",
+        "version": "2.11.3",
+        "description": "Known vulnerable version of jinja2 (sandbox escape)",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      },
+      {
+        "rule_id": "vulnerable-dependency",
+        "severity": "MEDIUM",
+        "package": "pyyaml",
+        "version": "5.3.1",
+        "description": "Known vulnerable version of pyyaml (arbitrary code execution)",
+        "owasp": "A06:2021",
+        "cwe": "CWE-1395"
+      }
+    ]
+  },
+
+  "_summary": {
+    "total_fixture_files": 8,
+    "total_expected_findings": 40,
+    "by_analyzer": {
+      "SecretsAnalyzer": 6,
+      "InjectionAnalyzer_python": 9,
+      "AuthAnalyzer": 7,
+      "InjectionAnalyzer_js_xss": 5,
+      "InjectionAnalyzer_js_injection": 5,
+      "DependencyParser_npm": 4,
+      "DependencyParser_yarn": 5,
+      "DependencyParser_poetry": 4
+    },
+    "by_severity": {
+      "CRITICAL": 6,
+      "HIGH": 26,
+      "MEDIUM": 8
+    },
+    "by_owasp": {
+      "A01:2021 - Broken Access Control": 1,
+      "A02:2021 - Cryptographic Failures": 6,
+      "A03:2021 - Injection": 19,
+      "A06:2021 - Vulnerable Components": 13,
+      "A07:2021 - Auth Failures": 4
+    },
+    "safe_patterns_count": 16,
+    "coverage_notes": [
+      "All 5 analyzers are covered: SecretsAnalyzer, InjectionAnalyzer, AuthAnalyzer, ConfigAnalyzer (via auth fixture session config), SensitiveDataAnalyzer (indirect coverage)",
+      "All 3 parser types are covered: PythonParser (AST), JavaScriptParser (regex), DependencyParser (lockfiles)",
+      "All 3 lockfile formats are covered: npm (package-lock.json v3), yarn (v1), poetry (TOML)",
+      "Both vulnerability categories and safe patterns are documented for false-positive testing"
+    ]
+  }
+}
