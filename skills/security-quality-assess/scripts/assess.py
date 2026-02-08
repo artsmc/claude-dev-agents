@@ -84,6 +84,37 @@ from lib.reporters import SecurityMarkdownReporter
 logger = logging.getLogger("security-quality-assess")
 
 # ---------------------------------------------------------------------------
+# Binary file detection
+# ---------------------------------------------------------------------------
+
+# Byte sequences that strongly indicate a binary (non-text) file.
+# Checking the first 8192 bytes for null bytes is the standard heuristic
+# used by Git, file(1), and most text editors.
+_BINARY_CHECK_SIZE = 8192
+
+
+def _is_binary_file(file_path: Path) -> bool:
+    """Detect whether a file is binary (non-text).
+
+    Reads the first 8192 bytes of the file and checks for null bytes,
+    which is the standard heuristic used by Git and most editors.
+
+    Args:
+        file_path: Path to the file to check.
+
+    Returns:
+        ``True`` if the file appears to be binary, ``False`` otherwise.
+        Returns ``False`` on any read error (let the caller handle it).
+    """
+    try:
+        with open(file_path, "rb") as f:
+            chunk = f.read(_BINARY_CHECK_SIZE)
+        return b"\x00" in chunk
+    except OSError:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Version information
 # ---------------------------------------------------------------------------
 
@@ -248,6 +279,7 @@ def parse_source_file(
     project_path: Path,
     py_parser: PythonSecurityParser,
     js_parser: JavaScriptSecurityParser,
+    errors: Optional[List[str]] = None,
 ) -> Optional[ParseResult]:
     """Parse a single source file into a ``ParseResult``.
 
@@ -257,25 +289,54 @@ def parse_source_file(
     and TypeScript files are parsed with the regex-based
     :class:`JavaScriptSecurityParser`.
 
+    Binary files are detected and skipped automatically.  When a file
+    cannot be decoded as UTF-8, the replacement character strategy is used
+    to allow best-effort analysis.
+
     Args:
         file_path: Absolute path to the source file.
         project_path: Project root for computing relative paths.
         py_parser: Pre-instantiated Python parser.
         js_parser: Pre-instantiated JavaScript parser.
+        errors: Optional mutable list for collecting non-fatal error
+            messages.  When provided, error descriptions are appended
+            instead of only being logged.
 
     Returns:
         A ``ParseResult`` for the file, or ``None`` if the file could not
         be read or its extension is not recognized.
     """
+    if errors is None:
+        errors = []
+
     try:
         rel_path = str(file_path.relative_to(project_path))
     except ValueError:
         rel_path = str(file_path)
 
+    # --- Binary file detection ---
+    if _is_binary_file(file_path):
+        msg = f"Skipped binary file: {rel_path}"
+        logger.debug(msg)
+        return None
+
+    # --- File reading with encoding handling ---
     try:
         content = file_path.read_text(encoding="utf-8", errors="replace")
+    except PermissionError as exc:
+        msg = f"Permission denied reading {rel_path}: {exc}"
+        logger.warning(msg)
+        errors.append(msg)
+        return None
     except OSError as exc:
-        logger.warning("Could not read file %s: %s", file_path, exc)
+        msg = f"Could not read file {rel_path}: {exc}"
+        logger.warning(msg)
+        errors.append(msg)
+        return None
+
+    # --- Empty file detection ---
+    if not content.strip():
+        logger.debug("Skipping empty file: %s", rel_path)
         return None
 
     source_lines = content.splitlines()
@@ -284,16 +345,25 @@ def parse_source_file(
     if suffix == ".py":
         tree, _ = py_parser.parse(content, filename=rel_path)
 
-        string_literals = []
-        dangerous_calls = []
-        sql_queries = []
-        function_decorators = []
+        string_literals: list = []
+        dangerous_calls: list = []
+        sql_queries: list = []
+        function_decorators: list = []
 
         if tree is not None:
-            string_literals = py_parser.extract_string_literals(tree, source_lines)
-            dangerous_calls = py_parser.extract_dangerous_calls(tree)
-            sql_queries = py_parser.extract_sql_queries(tree)
-            function_decorators = py_parser.extract_all_function_decorators(tree)
+            try:
+                string_literals = py_parser.extract_string_literals(tree, source_lines)
+                dangerous_calls = py_parser.extract_dangerous_calls(tree)
+                sql_queries = py_parser.extract_sql_queries(tree)
+                function_decorators = py_parser.extract_all_function_decorators(tree)
+            except Exception as exc:
+                msg = f"AST extraction error in {rel_path}: {exc}"
+                logger.warning(msg)
+                errors.append(msg)
+                # Continue with whatever was extracted before the error.
+        else:
+            msg = f"Syntax error in {rel_path} -- parsed with limited analysis"
+            errors.append(msg)
 
         return ParseResult(
             file_path=rel_path,
@@ -307,9 +377,17 @@ def parse_source_file(
         )
 
     if suffix in (".js", ".ts", ".jsx", ".tsx"):
-        js_string_literals = js_parser.extract_string_literals(content)
-        dangerous_patterns = js_parser.extract_dangerous_patterns(content)
-        js_db_queries = js_parser.extract_database_queries(content)
+        try:
+            js_string_literals = js_parser.extract_string_literals(content)
+            dangerous_patterns = js_parser.extract_dangerous_patterns(content)
+            js_db_queries = js_parser.extract_database_queries(content)
+        except Exception as exc:
+            msg = f"Parse error in {rel_path}: {exc}"
+            logger.warning(msg)
+            errors.append(msg)
+            js_string_literals = []
+            dangerous_patterns = []
+            js_db_queries = []
 
         return ParseResult(
             file_path=rel_path,
@@ -330,6 +408,7 @@ def parse_lockfile(
     lockfile_path: Path,
     project_path: Path,
     dep_parser: DependencyParser,
+    errors: Optional[List[str]] = None,
 ) -> Optional[ParseResult]:
     """Parse a lockfile into a ``ParseResult``.
 
@@ -341,11 +420,16 @@ def parse_lockfile(
         lockfile_path: Absolute path to the lockfile.
         project_path: Project root for computing relative paths.
         dep_parser: Pre-instantiated dependency parser.
+        errors: Optional mutable list for collecting non-fatal error
+            messages.
 
     Returns:
         A ``ParseResult`` with the ``dependencies`` field populated, or
         ``None`` if parsing fails.
     """
+    if errors is None:
+        errors = []
+
     try:
         rel_path = str(lockfile_path.relative_to(project_path))
     except ValueError:
@@ -359,18 +443,19 @@ def parse_lockfile(
 
     parse_fn = parse_methods.get(lockfile_type)
     if parse_fn is None:
-        logger.warning("Unknown lockfile type: %s", lockfile_type)
+        msg = f"Unknown lockfile type: {lockfile_type}"
+        logger.warning(msg)
+        errors.append(msg)
         return None
 
     try:
         dependencies = parse_fn(lockfile_path)
     except Exception as exc:
-        logger.warning(
-            "Failed to parse %s lockfile at %s: %s",
-            lockfile_type,
-            lockfile_path,
-            exc,
+        msg = (
+            f"Failed to parse {lockfile_type} lockfile at {rel_path}: {exc}"
         )
+        logger.warning(msg)
+        errors.append(msg)
         return None
 
     return ParseResult(
@@ -384,22 +469,28 @@ def parse_all_files(
     source_files: List[Path],
     lockfiles: Dict[str, Path],
     project_path: Path,
+    errors: Optional[List[str]] = None,
 ) -> List[ParseResult]:
     """Parse all discovered files into ``ParseResult`` objects.
 
     Instantiates the language-specific parsers, iterates through source
     files and lockfiles, and returns a flat list of results.  Files that
-    fail to parse are logged and skipped silently.
+    fail to parse are logged, their errors recorded, and silently skipped.
 
     Args:
         source_files: Source file paths from :func:`discover_source_files`.
         lockfiles: Lockfile dict from :func:`discover_lockfiles`.
         project_path: Project root used for relative path computation.
+        errors: Optional mutable list for collecting non-fatal error
+            messages encountered during parsing.
 
     Returns:
         A list of ``ParseResult`` objects.  May be empty if no files could
         be parsed.
     """
+    if errors is None:
+        errors = []
+
     py_parser = PythonSecurityParser()
     js_parser = JavaScriptSecurityParser()
     dep_parser = DependencyParser()
@@ -411,7 +502,9 @@ def parse_all_files(
         if idx % 500 == 0:
             logger.info("Parsing progress: %d / %d source files...", idx, len(source_files))
 
-        result = parse_source_file(file_path, project_path, py_parser, js_parser)
+        result = parse_source_file(
+            file_path, project_path, py_parser, js_parser, errors=errors
+        )
         if result is not None:
             parsed_files.append(result)
 
@@ -423,7 +516,9 @@ def parse_all_files(
 
     # Parse lockfiles.
     for lockfile_type, lockfile_path in lockfiles.items():
-        result = parse_lockfile(lockfile_type, lockfile_path, project_path, dep_parser)
+        result = parse_lockfile(
+            lockfile_type, lockfile_path, project_path, dep_parser, errors=errors
+        )
         if result is not None:
             parsed_files.append(result)
             dep_count = len(result.dependencies)
@@ -445,6 +540,7 @@ def run_analyzers(
     parsed_files: List[ParseResult],
     skip_osv: bool,
     config: Optional[Dict[str, Any]] = None,
+    errors: Optional[List[str]] = None,
 ) -> List[Finding]:
     """Execute all security analyzers and collect findings.
 
@@ -462,6 +558,9 @@ def run_analyzers(
             sentinel to skip network calls.
         config: Optional configuration dictionary passed to each analyzer.
             Defaults to an empty dict.
+        errors: Optional mutable list for collecting non-fatal error
+            messages.  Analyzer failures are appended here in addition
+            to being logged.
 
     Returns:
         A sorted list of ``Finding`` objects with sequential IDs assigned.
@@ -469,6 +568,8 @@ def run_analyzers(
     """
     if config is None:
         config = {}
+    if errors is None:
+        errors = []
 
     all_findings: List[Finding] = []
 
@@ -490,11 +591,9 @@ def run_analyzers(
             logger.info("  %s analyzer: %d finding(s)", name, len(findings))
             all_findings.extend(findings)
         except Exception as exc:
-            logger.error(
-                "  %s analyzer failed: %s -- skipping",
-                name,
-                exc,
-            )
+            msg = f"{name} analyzer failed: {exc} -- results may be incomplete"
+            logger.error("  %s", msg)
+            errors.append(msg)
 
     # ---- Dependency analyzer (optional network) ---------------------------
 
@@ -502,9 +601,6 @@ def run_analyzers(
     try:
         if skip_osv:
             logger.info("  OSV lookups disabled (--skip-osv)")
-            # Create a client with caching enabled but no network calls will
-            # be made because we only pass it through; the DependencyAnalyzer
-            # still processes lockfile data for structural analysis.
             osv_client = OSVClient(cache_enabled=False)
         else:
             osv_client = OSVClient(cache_enabled=True)
@@ -521,7 +617,9 @@ def run_analyzers(
         logger.info("  Dependency analyzer: %d finding(s)", len(findings))
         all_findings.extend(findings)
     except Exception as exc:
-        logger.error("  Dependency analyzer failed: %s -- skipping", exc)
+        msg = f"Dependency analyzer failed: {exc} -- dependency results unavailable"
+        logger.error("  %s", msg)
+        errors.append(msg)
 
     # ---- Assign sequential IDs and sort -----------------------------------
 
@@ -611,12 +709,13 @@ def build_assessment_result(
     scan_duration: float,
     findings: List[Finding],
     suppressed_count: int,
+    errors: Optional[List[str]] = None,
 ) -> AssessmentResult:
     """Construct the final ``AssessmentResult``.
 
     Creates a :class:`ProjectInfo` from the scan metadata and wraps it
-    together with findings and suppression statistics into an
-    :class:`AssessmentResult`.
+    together with findings, suppression statistics, and any non-fatal
+    errors into an :class:`AssessmentResult`.
 
     Args:
         project_path: Absolute path to the assessed project.
@@ -624,6 +723,8 @@ def build_assessment_result(
         scan_duration: Wall-clock scan time in seconds.
         findings: Post-suppression findings list.
         suppressed_count: Number of findings that were suppressed.
+        errors: Optional list of non-fatal error messages collected
+            during the assessment run.
 
     Returns:
         A fully populated ``AssessmentResult`` instance.
@@ -641,6 +742,7 @@ def build_assessment_result(
         findings=findings,
         suppressed_count=suppressed_count,
         analyzer_versions=dict(ANALYZER_VERSIONS),
+        errors=errors if errors else [],
     )
 
 
@@ -771,6 +873,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Start the performance timer.
     start_time = time.monotonic()
 
+    # Collect non-fatal errors across all phases.
+    assessment_errors: List[str] = []
+
     # ------------------------------------------------------------------
     # Step 4: Discover source files and lockfiles
     # ------------------------------------------------------------------
@@ -778,7 +883,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 1: File Discovery")
     logger.info("-" * 60)
 
-    gitignore_patterns = parse_gitignore(project_path)
+    try:
+        gitignore_patterns = parse_gitignore(project_path)
+    except Exception as exc:
+        msg = f"Failed to parse .gitignore: {exc} -- proceeding without ignore patterns"
+        logger.warning(msg)
+        assessment_errors.append(msg)
+        gitignore_patterns = []
 
     source_files = discover_source_files(project_path, gitignore_patterns)
     lockfiles = discover_lockfiles(project_path)
@@ -803,7 +914,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 2: File Parsing")
     logger.info("-" * 60)
 
-    parsed_files = parse_all_files(source_files, lockfiles, project_path)
+    parsed_files = parse_all_files(
+        source_files, lockfiles, project_path, errors=assessment_errors
+    )
 
     logger.info("Successfully parsed %d file(s)", len(parsed_files))
 
@@ -814,7 +927,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 3: Security Analysis")
     logger.info("-" * 60)
 
-    all_findings = run_analyzers(parsed_files, skip_osv=args.skip_osv)
+    all_findings = run_analyzers(
+        parsed_files, skip_osv=args.skip_osv, errors=assessment_errors
+    )
 
     # ------------------------------------------------------------------
     # Step 7: Load and apply suppressions
@@ -823,11 +938,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 4: Suppression Filtering")
     logger.info("-" * 60)
 
-    filtered_findings, suppressed_count = handle_suppressions(
-        all_findings,
-        project_path,
-        args.config,
-    )
+    try:
+        filtered_findings, suppressed_count = handle_suppressions(
+            all_findings,
+            project_path,
+            args.config,
+        )
+    except Exception as exc:
+        msg = (
+            f"Suppression processing failed: {exc} -- "
+            "continuing without suppression filtering"
+        )
+        logger.warning(msg)
+        assessment_errors.append(msg)
+        filtered_findings = all_findings
+        suppressed_count = 0
 
     # ------------------------------------------------------------------
     # Step 8: Build the assessment result
@@ -840,6 +965,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         scan_duration=scan_duration,
         findings=filtered_findings,
         suppressed_count=suppressed_count,
+        errors=assessment_errors,
     )
 
     # ------------------------------------------------------------------
@@ -873,7 +999,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         severity_counts["LOW"],
     )
     logger.info("  Risk score     : %d", risk_score)
+    logger.info("  Errors         : %d", len(result.errors))
     logger.info("  Exit code      : %d", exit_code)
+
+    if result.errors:
+        logger.warning(
+            "  %d non-fatal error(s) occurred -- see report for details",
+            len(result.errors),
+        )
 
     return exit_code
 

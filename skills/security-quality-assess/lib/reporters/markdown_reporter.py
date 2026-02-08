@@ -135,8 +135,14 @@ class SecurityMarkdownReporter:
             self._risk_breakdown(result),
             self._owasp_coverage(result),
             self._detailed_findings(result),
-            self._footer(result),
         ]
+
+        # Include the error summary section only when errors were collected.
+        if result.errors:
+            sections.append(self._error_summary(result))
+
+        sections.append(self._footer(result))
+
         return "\n\n".join(sections)
 
     # -----------------------------------------------------------------------
@@ -444,6 +450,46 @@ class SecurityMarkdownReporter:
         lines.append("")
 
         return lines
+
+    # -----------------------------------------------------------------------
+    # Section: Error Summary
+    # -----------------------------------------------------------------------
+
+    def _error_summary(self, result: AssessmentResult) -> str:
+        """Render the error summary section.
+
+        Lists all non-fatal errors that occurred during the assessment.
+        These are situations where the tool encountered a problem (file
+        unreadable, parser failure, API timeout, etc.) but continued
+        running. The section alerts the reader that the assessment may
+        be incomplete.
+
+        Args:
+            result: Assessment result containing the errors list.
+
+        Returns:
+            Markdown string for the error summary section. Returns an
+            empty string if no errors were collected.
+        """
+        if not result.errors:
+            return ""
+
+        lines: List[str] = [
+            "---",
+            "",
+            "## Errors and Warnings",
+            "",
+            (
+                f"**{len(result.errors)} non-fatal error(s)** occurred "
+                "during the assessment. Some results may be incomplete."
+            ),
+            "",
+        ]
+
+        for idx, error in enumerate(result.errors, start=1):
+            lines.append(f"{idx}. {error}")
+
+        return "\n".join(lines)
 
     # -----------------------------------------------------------------------
     # Section: Footer

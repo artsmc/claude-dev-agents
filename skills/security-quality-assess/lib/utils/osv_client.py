@@ -301,17 +301,24 @@ class OSVClient:
                 response_bytes = response.read()
         except urllib.error.HTTPError as exc:
             status = exc.code
-            if 500 <= status < 600:
+            pkg_name = request_body.get("package", {}).get("name", "unknown")
+            if status == 429:
+                logger.warning(
+                    "OSV API rate limited (HTTP 429) for query %s "
+                    "-- consider using cached results or --skip-osv",
+                    pkg_name,
+                )
+            elif 500 <= status < 600:
                 logger.warning(
                     "OSV API returned server error %d for query %s",
                     status,
-                    request_body.get("package", {}).get("name", "unknown"),
+                    pkg_name,
                 )
             else:
                 logger.warning(
                     "OSV API returned HTTP %d for query %s",
                     status,
-                    request_body.get("package", {}).get("name", "unknown"),
+                    pkg_name,
                 )
             raise
         except urllib.error.URLError as exc:

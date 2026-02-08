@@ -30,7 +30,7 @@ Example:
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from .finding import Finding, Severity
 
@@ -99,6 +99,13 @@ class AssessmentResult:
         analyzer_versions: Mapping of analyzer name to its version string.
             For example: {"secrets": "1.0", "injection": "1.0"}.
             Defaults to an empty dict.
+        errors: List of non-fatal error messages collected during the
+            assessment run. Each entry is a human-readable string
+            describing a file that could not be read, a parser that
+            failed, an API call that timed out, etc. These errors did
+            not prevent the assessment from completing but indicate
+            that some results may be incomplete. Defaults to an empty
+            list.
 
     Example:
         >>> from lib.models.finding import Finding, Severity, OWASPCategory
@@ -120,6 +127,7 @@ class AssessmentResult:
     findings: List[Finding] = field(default_factory=list)
     suppressed_count: int = 0
     analyzer_versions: Dict[str, str] = field(default_factory=dict)
+    errors: List[str] = field(default_factory=list)
 
     def get_severity_counts(self) -> Dict[str, int]:
         """Count findings grouped by severity level.
@@ -207,4 +215,5 @@ class AssessmentResult:
             "analyzer_versions": dict(self.analyzer_versions),
             "severity_counts": self.get_severity_counts(),
             "risk_score": self.calculate_risk_score(),
+            "errors": list(self.errors),
         }
