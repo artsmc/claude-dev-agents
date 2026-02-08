@@ -352,10 +352,13 @@ def parse_source_file(
 
         if tree is not None:
             try:
-                string_literals = py_parser.extract_string_literals(tree, source_lines)
-                dangerous_calls = py_parser.extract_dangerous_calls(tree)
-                sql_queries = py_parser.extract_sql_queries(tree)
-                function_decorators = py_parser.extract_all_function_decorators(tree)
+                # Use the combined single-walk extraction for performance.
+                (
+                    string_literals,
+                    dangerous_calls,
+                    sql_queries,
+                    function_decorators,
+                ) = py_parser.extract_all_security_data(tree, source_lines)
             except Exception as exc:
                 msg = f"AST extraction error in {rel_path}: {exc}"
                 logger.warning(msg)
@@ -497,10 +500,25 @@ def parse_all_files(
 
     parsed_files: List[ParseResult] = []
 
+    # Compute a reasonable progress interval: report roughly every 10% of
+    # files, but at most every 500 files and at least every 100 files for
+    # very small projects (< 100 files -> report at end only).
+    total_source = len(source_files)
+    progress_interval = max(100, min(500, total_source // 10)) if total_source > 0 else 1
+
+    parse_start = time.monotonic()
+
     # Parse source files.
     for idx, file_path in enumerate(source_files, start=1):
-        if idx % 500 == 0:
-            logger.info("Parsing progress: %d / %d source files...", idx, len(source_files))
+        if idx % progress_interval == 0:
+            elapsed = time.monotonic() - parse_start
+            rate = idx / elapsed if elapsed > 0 else 0
+            logger.info(
+                "Parsing progress: %d / %d files (%.0f files/sec)",
+                idx,
+                total_source,
+                rate,
+            )
 
         result = parse_source_file(
             file_path, project_path, py_parser, js_parser, errors=errors
@@ -508,10 +526,13 @@ def parse_all_files(
         if result is not None:
             parsed_files.append(result)
 
+    parse_elapsed = time.monotonic() - parse_start
+    rate = total_source / parse_elapsed if parse_elapsed > 0 else 0
     logger.info(
-        "Parsed %d of %d source files successfully",
+        "Parsed %d of %d source files successfully (%.0f files/sec)",
         len(parsed_files),
-        len(source_files),
+        total_source,
+        rate,
     )
 
     # Parse lockfiles.
@@ -586,9 +607,16 @@ def run_analyzers(
     for name, analyzer_cls in analyzer_classes:
         logger.info("Running %s analyzer...", name)
         try:
+            analyzer_start = time.monotonic()
             analyzer = analyzer_cls()
             findings = analyzer.analyze(parsed_files, config)
-            logger.info("  %s analyzer: %d finding(s)", name, len(findings))
+            analyzer_elapsed = time.monotonic() - analyzer_start
+            logger.info(
+                "  %s analyzer: %d finding(s) in %.3fs",
+                name,
+                len(findings),
+                analyzer_elapsed,
+            )
             all_findings.extend(findings)
         except Exception as exc:
             msg = f"{name} analyzer failed: {exc} -- results may be incomplete"
@@ -599,6 +627,8 @@ def run_analyzers(
 
     logger.info("Running Dependency analyzer...")
     try:
+        dep_start = time.monotonic()
+
         if skip_osv:
             logger.info("  OSV lookups disabled (--skip-osv)")
             osv_client = OSVClient(cache_enabled=False)
@@ -614,7 +644,12 @@ def run_analyzers(
             dep_config["skip_osv"] = True
 
         findings = dep_analyzer.analyze(parsed_files, dep_config)
-        logger.info("  Dependency analyzer: %d finding(s)", len(findings))
+        dep_elapsed = time.monotonic() - dep_start
+        logger.info(
+            "  Dependency analyzer: %d finding(s) in %.3fs",
+            len(findings),
+            dep_elapsed,
+        )
         all_findings.extend(findings)
     except Exception as exc:
         msg = f"Dependency analyzer failed: {exc} -- dependency results unavailable"
@@ -873,6 +908,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Start the performance timer.
     start_time = time.monotonic()
 
+    # Per-phase timing dictionary for performance reporting.
+    phase_timings: Dict[str, float] = {}
+
     # Collect non-fatal errors across all phases.
     assessment_errors: List[str] = []
 
@@ -882,6 +920,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("-" * 60)
     logger.info("Phase 1: File Discovery")
     logger.info("-" * 60)
+
+    phase_start = time.monotonic()
 
     try:
         gitignore_patterns = parse_gitignore(project_path)
@@ -894,10 +934,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     source_files = discover_source_files(project_path, gitignore_patterns)
     lockfiles = discover_lockfiles(project_path)
 
+    phase_timings["discovery"] = time.monotonic() - phase_start
+
     logger.info(
-        "Discovered %d source file(s) and %d lockfile(s)",
+        "Discovered %d source file(s) and %d lockfile(s) in %.3fs",
         len(source_files),
         len(lockfiles),
+        phase_timings["discovery"],
     )
 
     if not source_files and not lockfiles:
@@ -914,11 +957,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 2: File Parsing")
     logger.info("-" * 60)
 
+    phase_start = time.monotonic()
+
     parsed_files = parse_all_files(
         source_files, lockfiles, project_path, errors=assessment_errors
     )
 
-    logger.info("Successfully parsed %d file(s)", len(parsed_files))
+    phase_timings["parsing"] = time.monotonic() - phase_start
+
+    logger.info(
+        "Successfully parsed %d file(s) in %.3fs",
+        len(parsed_files),
+        phase_timings["parsing"],
+    )
 
     # ------------------------------------------------------------------
     # Step 6: Run all security analyzers
@@ -927,8 +978,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 3: Security Analysis")
     logger.info("-" * 60)
 
+    phase_start = time.monotonic()
+
     all_findings = run_analyzers(
         parsed_files, skip_osv=args.skip_osv, errors=assessment_errors
+    )
+
+    phase_timings["analysis"] = time.monotonic() - phase_start
+
+    logger.info(
+        "Analysis complete: %d finding(s) in %.3fs",
+        len(all_findings),
+        phase_timings["analysis"],
     )
 
     # ------------------------------------------------------------------
@@ -937,6 +998,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("-" * 60)
     logger.info("Phase 4: Suppression Filtering")
     logger.info("-" * 60)
+
+    phase_start = time.monotonic()
 
     try:
         filtered_findings, suppressed_count = handle_suppressions(
@@ -953,6 +1016,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         assessment_errors.append(msg)
         filtered_findings = all_findings
         suppressed_count = 0
+
+    phase_timings["suppression"] = time.monotonic() - phase_start
+
+    logger.info(
+        "Suppression complete in %.3fs",
+        phase_timings["suppression"],
+    )
 
     # ------------------------------------------------------------------
     # Step 8: Build the assessment result
@@ -975,7 +1045,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("Phase 5: Report Generation")
     logger.info("-" * 60)
 
+    phase_start = time.monotonic()
+
     generate_and_write_report(result, args.output)
+
+    phase_timings["reporting"] = time.monotonic() - phase_start
+
+    logger.info(
+        "Report generated in %.3fs",
+        phase_timings["reporting"],
+    )
 
     # ------------------------------------------------------------------
     # Step 10: Summary and exit code
@@ -1001,6 +1080,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     logger.info("  Risk score     : %d", risk_score)
     logger.info("  Errors         : %d", len(result.errors))
     logger.info("  Exit code      : %d", exit_code)
+
+    # Performance timing breakdown.
+    logger.info("-" * 60)
+    logger.info("Performance Breakdown")
+    logger.info("-" * 60)
+    for phase_name, phase_duration in phase_timings.items():
+        pct = (phase_duration / scan_duration * 100) if scan_duration > 0 else 0
+        logger.info(
+            "  %-15s: %.3fs (%4.1f%%)", phase_name, phase_duration, pct
+        )
+    logger.info("  %-15s: %.3fs", "total", scan_duration)
 
     if result.errors:
         logger.warning(

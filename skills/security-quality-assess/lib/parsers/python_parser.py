@@ -732,6 +732,78 @@ class PythonSecurityParser:
                 results.append((node.name, lineno, decorators))
         return results
 
+    def extract_all_security_data(
+        self,
+        tree: ast.AST,
+        source_lines: Optional[Sequence[str]] = None,
+    ) -> Tuple[
+        List[StringLiteral],
+        List[DangerousCall],
+        List[SQLQuery],
+        List[Tuple[str, int, List[str]]],
+    ]:
+        """Extract all security-relevant data in a single AST walk.
+
+        Performance optimization that combines the work of
+        :meth:`extract_string_literals`, :meth:`extract_dangerous_calls`,
+        :meth:`extract_sql_queries`, and :meth:`extract_all_function_decorators`
+        into one traversal of the AST. This avoids the overhead of four
+        separate ``ast.walk`` or ``ast.NodeVisitor.visit`` passes.
+
+        Args:
+            tree: A parsed AST tree (typically from :meth:`parse`).
+            source_lines: Optional sequence of source code lines for context
+                extraction in string literals.
+
+        Returns:
+            A 4-tuple of::
+
+                (string_literals, dangerous_calls, sql_queries, function_decorators)
+
+            Each element matches the return type of the corresponding
+            individual extraction method.
+        """
+        str_visitor = _StringLiteralVisitor(source_lines or [])
+        call_visitor = _DangerousCallVisitor()
+        sql_visitor = _SQLQueryVisitor()
+        func_decorators: List[Tuple[str, int, List[str]]] = []
+
+        # Walk the AST once and dispatch each node to the relevant visitors.
+        for node in ast.walk(tree):
+            # String literals
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                lineno = getattr(node, "lineno", 0) or 0
+                str_visitor._record(node.value, lineno)
+            elif isinstance(node, ast.Str):  # type: ignore[attr-defined]
+                lineno = getattr(node, "lineno", 0) or 0
+                str_visitor._record(node.s, lineno)  # type: ignore[attr-defined]
+
+            # Dangerous calls and SQL .format()/.execute() detection
+            if isinstance(node, ast.Call):
+                call_visitor.visit_Call(node)
+                sql_visitor.visit_Call(node)
+
+            # SQL string concatenation
+            if isinstance(node, ast.BinOp):
+                sql_visitor.visit_BinOp(node)
+
+            # SQL f-strings
+            if isinstance(node, ast.JoinedStr):
+                sql_visitor.visit_JoinedStr(node)
+
+            # Function decorators
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                lineno = getattr(node, "lineno", 0) or 0
+                decorators = self.extract_decorators(node)
+                func_decorators.append((node.name, lineno, decorators))
+
+        return (
+            str_visitor.literals,
+            call_visitor.calls,
+            sql_visitor.queries,
+            func_decorators,
+        )
+
     # -- Private helpers --
 
     @staticmethod
