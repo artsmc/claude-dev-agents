@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "suppressions": [
+    {
+      "rule_id": "hardcoded-secret",
+      "file_path": "tests/fixtures/auth_test.py",
+      "line_number": 42,
+      "reason": "Test fixture password for unit tests. Not used in production. Value is 'test123' which is documented in test docs.",
+      "expires": "2027-12-31",
+      "created_by": "security-team@example.com",
+      "approved_by": "tech-lead@example.com"
+    },
+    {
+      "rule_id": "api-key-exposed",
+      "file_path": "docs/api-guide.md",
+      "line_number": null,
+      "reason": "Documentation contains example API keys with 'example-' prefix. All keys in this file are fake examples for documentation purposes only.",
+      "expires": "2028-06-30",
+      "created_by": "docs-team@example.com",
+      "approved_by": "security-team@example.com"
+    },
+    {
+      "rule_id": "sql-injection",
+      "file_path": "src/database/queries.py",
+      "line_number": 156,
+      "reason": "False positive: This query uses parameterized statements via SQLAlchemy ORM. The detector flagged string formatting but it's in a logging statement, not the actual query.",
+      "expires": "2026-12-31",
+      "created_by": "backend-dev@example.com",
+      "approved_by": "security-team@example.com"
+    },
+    {
+      "rule_id": "missing-authentication",
+      "file_path": "src/api/health.py",
+      "line_number": 23,
+      "reason": "Health check endpoint is intentionally public for monitoring. No sensitive data exposed. Required by load balancer and ops team.",
+      "expires": "2029-01-01",
+      "created_by": "devops@example.com",
+      "approved_by": "security-team@example.com"
+    },
+    {
+      "rule_id": "hardcoded-secret",
+      "file_path": "scripts/migration_rollback.py",
+      "line_number": 89,
+      "reason": "Temporary suppression during Q1 2026 migration. This script contains a legacy connection string that will be removed after migration completes. Track in ticket SEC-1234.",
+      "expires": "2026-03-31",
+      "created_by": "db-admin@example.com",
+      "approved_by": "security-team@example.com"
+    }
+  ]
+}

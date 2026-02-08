@@ -139,25 +139,34 @@ ANALYZER_VERSIONS: Dict[str, str] = {
 def build_argument_parser() -> argparse.ArgumentParser:
     """Build and return the CLI argument parser.
 
+    Uses ``RawDescriptionHelpFormatter`` so that the epilog renders with
+    structured exit-code documentation, usage examples, and a pointer to
+    the full project documentation.
+
     Defines the following arguments:
 
         project_path (positional)
-            Absolute or relative path to the project root directory to assess.
+            Absolute or relative path to the project root directory to
+            assess.  Must contain supported source files or lockfiles.
 
         --output / -o (optional)
-            Path where the generated Markdown report will be written.  When
-            omitted the report is printed to stdout.
+            Path where the generated Markdown report will be written.
+            When omitted the report is printed to stdout.
 
         --config (optional)
-            Path to a custom ``.security-suppress.json`` configuration file.
-            Overrides the default location at ``<project_path>/.security-suppress.json``.
+            Path to a custom ``.security-suppress.json`` configuration
+            file.  Overrides the default location at
+            ``<project_path>/.security-suppress.json``.
 
         --skip-osv (flag)
             Skip querying the OSV vulnerability database for dependency
-            analysis.  Useful when offline or to avoid network latency.
+            analysis.  Useful when offline, behind a firewall, or when
+            faster scan times are preferred.
 
         --verbose / -v (flag)
-            Enable DEBUG-level logging for detailed progress output.
+            Enable DEBUG-level logging to stderr.  Shows per-file parse
+            progress, individual analyzer timings, suppression match
+            details, and a full performance breakdown.
 
         --version (flag)
             Print version information and exit.
@@ -167,22 +176,48 @@ def build_argument_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog="assess",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
-            "Run a security quality assessment against a project directory. "
-            "Scans source files for vulnerabilities across OWASP Top 10 "
-            "categories and generates a comprehensive Markdown report."
-        ),
+            "Security Quality Assessment v%(version)s -- "
+            "static analysis tool for Python and JavaScript/TypeScript projects.\n"
+            "\n"
+            "Scans source files for vulnerabilities across OWASP Top 10 (2021)\n"
+            "categories, checks dependencies for known CVEs via the OSV database,\n"
+            "and generates a comprehensive Markdown report with remediation guidance."
+        ) % {"version": __version__},
         epilog=(
-            "Exit codes: 0 = no critical/high findings, "
-            "1 = critical/high findings detected, "
-            "2 = fatal error."
+            "exit codes:\n"
+            "  0   Assessment completed -- no CRITICAL or HIGH findings.\n"
+            "  1   Assessment completed -- CRITICAL or HIGH findings detected.\n"
+            "  2   Fatal error prevented the assessment from completing.\n"
+            "\n"
+            "examples:\n"
+            "  %(prog)s /path/to/project\n"
+            "      Scan a project and print the report to stdout.\n"
+            "\n"
+            "  %(prog)s /path/to/project -o report.md\n"
+            "      Scan a project and write the report to a file.\n"
+            "\n"
+            "  %(prog)s . --skip-osv --verbose\n"
+            "      Fast offline scan of the current directory with debug output.\n"
+            "\n"
+            "  %(prog)s . --config team-suppressions.json -o report.md\n"
+            "      Scan with a custom suppression configuration.\n"
+            "\n"
+            "documentation:\n"
+            "  Full docs and suppression schema are in the project README.md\n"
+            "  and SKILL.md files located alongside this script."
         ),
     )
 
     parser.add_argument(
         "project_path",
         type=str,
-        help="Path to the project root directory to assess.",
+        help=(
+            "Path (absolute or relative) to the project root directory to "
+            "assess. The directory must exist and contain supported source "
+            "files (.py, .js, .ts, .jsx, .tsx) or lockfiles."
+        ),
     )
 
     parser.add_argument(
@@ -212,7 +247,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--skip-osv",
         action="store_true",
         default=False,
-        help="Skip the OSV vulnerability database lookup for dependencies.",
+        help=(
+            "Skip the OSV vulnerability database lookup for dependencies. "
+            "Useful when working offline, behind a firewall, or when faster "
+            "scan times are preferred over dependency CVE detection."
+        ),
     )
 
     parser.add_argument(
@@ -220,13 +259,20 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "-v",
         action="store_true",
         default=False,
-        help="Enable verbose (DEBUG) logging output.",
+        help=(
+            "Enable verbose (DEBUG) logging to stderr. Shows per-file parse "
+            "progress, individual analyzer timings, suppression match details, "
+            "and a full performance breakdown at the end of the run."
+        ),
     )
 
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {__version__}",
+        version=(
+            f"%(prog)s {__version__} "
+            "(Security Quality Assessment -- Python/JS/TS static analysis)"
+        ),
     )
 
     return parser
