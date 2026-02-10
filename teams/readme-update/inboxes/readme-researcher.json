@@ -1,0 +1,15 @@
+[
+  {
+    "from": "team-lead",
+    "text": "Outstanding research on Tasks #1-2! Your analysis is excellent:\n\n**Best Practices Highlights:**\n- 4 critical questions framework\n- Structure priority order (Highlights → Overview → Usage → Installation)\n- \"Documentation reflects software quality\" principle\n\n**Inspiring Examples Insights:**\n- Problem-first positioning (show pain point immediately)\n- Show don't tell (working examples, not descriptions)\n- Dual-audience design (beginners + advanced)\n- Social proof & credibility (real projects using it)\n- Golden rules framework\n\nThe \"marketing material disguised as documentation\" insight is spot-on. Combined with doc-reviewer's content extraction, we have everything needed for a compelling README.\n\nTasks complete - you can go idle. Excellent work!",
+    "summary": "Research complete - outstanding work!",
+    "timestamp": "2026-02-10T11:57:22.194Z",
+    "read": true
+  },
+  {
+    "from": "team-lead",
+    "text": "{\"type\":\"shutdown_request\",\"requestId\":\"shutdown-1770725245537@readme-researcher\",\"from\":\"team-lead\",\"reason\":\"All tasks completed successfully! Your research on README best practices was crucial to the final result. Thank you!\",\"timestamp\":\"2026-02-10T12:07:25.537Z\"}",
+    "timestamp": "2026-02-10T12:07:25.537Z",
+    "read": true
+  }
+]
