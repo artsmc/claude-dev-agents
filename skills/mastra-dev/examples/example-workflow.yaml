@@ -1,0 +1,78 @@
+# Example Workflow Configuration
+# This file demonstrates how to define a Mastra workflow using YAML
+
+name: form-generation
+displayName: Government Form Auto-Fill Workflow
+description: Automatically populate government forms using data from SAM.gov
+
+# Input schema (Zod object definition)
+inputSchema:
+  opportunityId:
+    type: string
+    description: SAM.gov opportunity identifier
+  formTemplate:
+    type: string
+    description: Path to form template file
+
+# Output schema (Zod object definition)
+outputSchema:
+  formData:
+    type: object
+    description: Populated form data
+  pdfUrl:
+    type: string
+    description: URL to generated PDF
+  status:
+    type: string
+    description: Completion status
+
+# Workflow steps
+steps:
+  - id: fetch-opportunity
+    name: Fetch SAM.gov Data
+    description: Retrieve opportunity details from SAM.gov API
+    inputSchema:
+      opportunityId:
+        type: string
+    outputSchema:
+      opportunityData:
+        type: object
+
+  - id: parse-requirements
+    name: Parse Requirements
+    description: Extract form requirements from opportunity data
+    inputSchema:
+      opportunityData:
+        type: object
+    outputSchema:
+      requirements:
+        type: object
+
+  - id: fill-form
+    name: Populate Form
+    description: Fill form template with extracted data
+    inputSchema:
+      requirements:
+        type: object
+      formTemplate:
+        type: string
+    outputSchema:
+      formData:
+        type: object
+
+  - id: generate-pdf
+    name: Generate PDF
+    description: Convert filled form to PDF document
+    inputSchema:
+      formData:
+        type: object
+    outputSchema:
+      pdfUrl:
+        type: string
+
+# Workflow composition strategy
+composition: sequential  # Options: sequential, parallel, branching
+
+# Alternative composition examples:
+# composition: parallel  # Run steps 1-3 in parallel, then step 4
+# composition: branching  # Use .branch() for conditional logic

@@ -1,0 +1,66 @@
+# Example Tool Configuration
+# This file demonstrates how to define a Mastra tool using YAML
+
+name: pdf-generator
+displayName: PDF Generator Tool
+description: Generate PDF documents from templates and data
+
+# Input schema (Zod object definition)
+inputSchema:
+  template:
+    type: string
+    description: Template identifier or path
+  data:
+    type: object
+    description: Data to populate in the template
+  options:
+    type: object
+    description: PDF generation options (optional)
+    properties:
+      format:
+        type: string
+        enum: [A4, Letter]
+        default: Letter
+      orientation:
+        type: string
+        enum: [portrait, landscape]
+        default: portrait
+
+# Output schema (Zod object definition)
+outputSchema:
+  pdfUrl:
+    type: string
+    description: URL to the generated PDF
+  fileSize:
+    type: number
+    description: File size in bytes
+  pageCount:
+    type: number
+    description: Number of pages in the PDF
+
+# Execute body template (Python will substitute this)
+executeBody: |
+  // Import required dependencies
+  const PDFDocument = require('pdfkit');
+  const fs = require('fs');
+
+  // Load template
+  const template = await loadTemplate(inputData.template);
+
+  // Generate PDF
+  const doc = new PDFDocument({
+    size: inputData.options?.format || 'Letter',
+    layout: inputData.options?.orientation || 'portrait',
+  });
+
+  // Populate template with data
+  const pdfBuffer = await renderTemplate(doc, template, inputData.data);
+
+  // Upload to storage
+  const pdfUrl = await uploadToS3(pdfBuffer);
+
+  return {
+    pdfUrl,
+    fileSize: pdfBuffer.length,
+    pageCount: doc.pageCount,
+  };
