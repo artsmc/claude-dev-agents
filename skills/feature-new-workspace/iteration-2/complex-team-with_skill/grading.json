@@ -1,9 +1,0 @@
-{
-  "expectations": [
-    {"text": "Recognizes --team flag and sets mode to team", "passed": true, "evidence": "Section 1: 'It finds --team at the end of the input, strips it, and sets mode = \"team\"'."},
-    {"text": "Passes --team flag through to spec-plan invocation", "passed": true, "evidence": "Section 4: 'Skill: spec-plan, Args: \"...--team\"'. Section 2: '--team is only re-appended as a string argument to spec-plan (Step 1)'."},
-    {"text": "Uses start-phase-execute-team (not start-phase-execute) for execution", "passed": true, "evidence": "Section 6: 'Because mode = \"team\", Step 5 calls start-phase-execute-team (not start-phase-execute)'."},
-    {"text": "Still follows the 5-step sequence even in team mode", "passed": true, "evidence": "Trace documents all 5 steps in order: spec-plan → spec-review → start-phase-plan → pm-db → start-phase-execute-team. Section 3 confirms all steps proceed for fresh run."}
-  ],
-  "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0}
-}

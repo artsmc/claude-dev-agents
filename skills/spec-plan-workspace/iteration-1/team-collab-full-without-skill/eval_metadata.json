@@ -1,9 +1,0 @@
-{
-  "eval_id": 3,
-  "eval_name": "team-collab-full",
-  "prompt": "Build a team collaboration feature with role-based permissions — team owners can invite members, assign roles (viewer, editor, admin), and control who can edit workflows vs just view them. Needs audit logging for compliance.",
-  "variant": "without_skill",
-  "assertions": [
-    {"id": "baseline_overproduces", "text": "Without the skill, Claude generates documentation without tier-appropriate scoping (no triage gate, no scope confirmation)", "type": "content_check"}
-  ]
-}

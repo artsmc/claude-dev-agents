@@ -1,9 +1,0 @@
-{
-  "eval_id": 2,
-  "eval_name": "file-upload-standard",
-  "prompt": "We need to add file upload support — users should be able to attach files to workflow steps. The files need to go to S3, and the API needs new endpoints for upload/download.",
-  "variant": "without_skill",
-  "assertions": [
-    {"id": "baseline_overproduces", "text": "Without the skill, Claude generates more documentation than FRD + TR + task-list (e.g., creates FRS, GS, or other extra spec files)", "type": "file_check"}
-  ]
-}

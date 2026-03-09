@@ -7,6 +7,9 @@ mcp_servers.json
 .env
 *.env.local
 
+# Backup files (may contain secrets)
+backups/
+
 # System and cache directories
 cache/
 debug/
