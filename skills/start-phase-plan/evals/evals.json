@@ -1,0 +1,26 @@
+{
+  "skill_name": "start-phase-plan",
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-health-check",
+      "prompt": "/start-phase plan /home/artsmc/.claude/skills/start-phase-plan-workspace/iteration-1/test-tasklist-simple.md",
+      "expected_output": "Should recognize this is a simple 3-task list, recommend single agent (no team), identify that tasks are mostly sequential, and not over-plan a simple feature",
+      "files": ["/home/artsmc/.claude/skills/start-phase-plan-workspace/iteration-1/test-tasklist-simple.md"]
+    },
+    {
+      "id": 2,
+      "name": "medium-dashboard",
+      "prompt": "/start-phase plan /home/artsmc/.claude/skills/start-phase-plan-workspace/iteration-1/test-tasklist-medium.md",
+      "expected_output": "Should identify parallelism (DB schema + API can happen parallel to frontend), recommend team execution, assign appropriate agents (database-schema-specialist, express-api-developer, frontend-developer, qa-engineer), organize into 3-4 waves",
+      "files": ["/home/artsmc/.claude/skills/start-phase-plan-workspace/iteration-1/test-tasklist-medium.md"]
+    },
+    {
+      "id": 3,
+      "name": "complex-sso-auth",
+      "prompt": "/start-phase plan /home/artsmc/.claude/skills/start-phase-plan-workspace/iteration-1/test-tasklist-complex.md",
+      "expected_output": "Should flag 13 tasks as too many for one phase, recommend splitting into 2 phases, identify security-auditor for security tasks, recommend deferring deployment (task 13), organize remaining into waves with proper dependencies",
+      "files": ["/home/artsmc/.claude/skills/start-phase-plan-workspace/iteration-1/test-tasklist-complex.md"]
+    }
+  ]
+}
