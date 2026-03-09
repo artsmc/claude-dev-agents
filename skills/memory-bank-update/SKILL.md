@@ -17,6 +17,12 @@ Comprehensive review and update of entire Memory Bank.
 ### 1. Announce
 "Understood. Initiating a full Memory Bank review and update."
 
+### 1.5. Health Check (Staleness Detection)
+```bash
+find /home/artsmc/.claude/memory-bank -name "*.md" -mtime +7 -printf "STALE: %f (last modified %TD)\n"
+```
+Flag any files older than 7 days for priority attention. Every file must have a `Last Updated: YYYY-MM-DD` line after its title.
+
 ### 2. Validate
 ```bash
 python3 scripts/validate_memorybank.py /path/to/project

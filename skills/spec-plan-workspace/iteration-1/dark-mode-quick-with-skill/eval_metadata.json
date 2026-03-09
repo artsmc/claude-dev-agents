@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "dark-mode-quick",
+  "prompt": "I need to add a dark mode toggle to the settings page in the web app",
+  "variant": "with_skill",
+  "assertions": [
+    {"id": "correct_tier_classification", "text": "Agent classified this feature as 'quick' tier", "type": "string_match"},
+    {"id": "only_tasklist_generated", "text": "Only task-list.md was generated — no FRD.md, FRS.md, GS.md, or TR.md", "type": "file_check"},
+    {"id": "scope_confirmation_shown", "text": "Output includes a scope confirmation template before generation began", "type": "content_check"},
+    {"id": "tasklist_has_inline_requirements", "text": "task-list.md starts with a feature summary or inline requirements section", "type": "content_check"},
+    {"id": "reasonable_task_count", "text": "task-list.md contains between 3 and 8 implementation tasks", "type": "count_check"}
+  ]
+}

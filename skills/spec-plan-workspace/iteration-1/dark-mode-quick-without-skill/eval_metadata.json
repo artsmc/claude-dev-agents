@@ -1,0 +1,9 @@
+{
+  "eval_id": 1,
+  "eval_name": "dark-mode-quick",
+  "prompt": "I need to add a dark mode toggle to the settings page in the web app",
+  "variant": "without_skill",
+  "assertions": [
+    {"id": "baseline_overproduces", "text": "Without the skill, Claude generates more documentation than just a task-list (e.g., creates FRD, TR, or other spec files)", "type": "file_check"}
+  ]
+}

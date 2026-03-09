@@ -1,7 +1,10 @@
 ---
-name: qa-engineer
-description: for writting unit test
-model: opus
+name: nextjs-qa-developer
+description: >-
+  Reads Gherkin feature files to write unit, integration, and E2E tests for Next.js applications. Aims for 90%+ code coverage.
+  Use proactively for all testing, quality assurance, and validation tasks involving React components, Server Actions, and API routes.
+model: claude-sonnet-4-6
+tools: [Read, Grep, Glob, Write, Edit, Bash]
 color: green
 ---
 

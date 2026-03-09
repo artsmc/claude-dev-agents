@@ -1,0 +1,47 @@
+{
+  "skill_name": "spec-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to add a dark mode toggle to the settings page in the web app",
+      "expected_output": "Triages as quick tier. Generates only task-list.md with inline requirements. Does NOT generate FRD, FRS, GS, or TR.",
+      "files": [],
+      "assertions": [
+        {"id": "correct_tier_classification", "text": "Agent classified this feature as 'quick' tier"},
+        {"id": "only_tasklist_generated", "text": "Only task-list.md was generated — no FRD.md, FRS.md, GS.md, or TR.md"},
+        {"id": "scope_confirmation_shown", "text": "Output includes a scope confirmation template before generation began"},
+        {"id": "tasklist_has_inline_requirements", "text": "task-list.md starts with a feature summary or inline requirements section"},
+        {"id": "reasonable_task_count", "text": "task-list.md contains between 3 and 8 implementation tasks"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We need to add file upload support — users should be able to attach files to workflow steps. The files need to go to S3, and the API needs new endpoints for upload/download.",
+      "expected_output": "Triages as standard tier. Generates FRD.md, TR.md, and task-list.md. Does NOT generate FRS.md or GS.md.",
+      "files": [],
+      "assertions": [
+        {"id": "correct_tier_classification", "text": "Agent classified this feature as 'standard' tier"},
+        {"id": "correct_files_generated", "text": "FRD.md, TR.md, and task-list.md were generated — no FRS.md or GS.md"},
+        {"id": "scope_confirmation_shown", "text": "Output includes a scope confirmation template before generation began"},
+        {"id": "tr_has_api_contracts", "text": "TR.md includes API endpoint definitions with HTTP methods and paths"},
+        {"id": "tr_has_s3_integration", "text": "TR.md mentions S3 storage integration details"},
+        {"id": "identifies_two_apps", "text": "Run summary or scope confirmation identifies both API and Web as affected apps"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Build a team collaboration feature with role-based permissions — team owners can invite members, assign roles (viewer, editor, admin), and control who can edit workflows vs just view them. Needs audit logging for compliance.",
+      "expected_output": "Triages as full tier. Generates all 5 files: FRD.md, FRS.md, GS.md, TR.md, task-list.md.",
+      "files": [],
+      "assertions": [
+        {"id": "correct_tier_classification", "text": "Agent classified this feature as 'full' tier"},
+        {"id": "all_five_files_generated", "text": "All 5 files generated: FRD.md, FRS.md, GS.md, TR.md, task-list.md"},
+        {"id": "scope_confirmation_shown", "text": "Output includes a scope confirmation template before generation began"},
+        {"id": "gs_has_gherkin_scenarios", "text": "GS.md contains proper Gherkin syntax with Feature, Scenario, Given/When/Then"},
+        {"id": "tr_has_rbac_design", "text": "TR.md covers role-based access control design (roles, permissions, enforcement)"},
+        {"id": "tr_mentions_audit_logging", "text": "TR.md addresses audit logging for compliance requirements"},
+        {"id": "identifies_three_plus_apps", "text": "Run summary or scope confirmation identifies 3+ affected apps"}
+      ]
+    }
+  ]
+}
