@@ -1,0 +1,23 @@
+{
+  "skill_name": "start-phase-execute",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Execute the tasks in the file-upload task-list. The task list is at /home/artsmc/.claude/skills/spec-plan-workspace/iteration-1/file-upload-standard-with-skill/outputs/task-list.md",
+      "expected_output": "Follows Part 1-2 workflow: extracts paths, reads task list, creates directory structure, creates delegation plan and parallel execution plan. Documents what Part 3 execution would look like.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I was working on the file upload feature but got interrupted. Resume execution from where I left off. Task list is at /home/artsmc/.claude/skills/spec-plan-workspace/iteration-1/file-upload-standard-with-skill/outputs/task-list.md",
+      "expected_output": "Detects existing planning folder (if any), offers resume options, identifies completed tasks vs remaining tasks.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Execute the team collaboration task list with parallel waves. The task list is at /home/artsmc/.claude/skills/spec-plan-workspace/iteration-1/team-collab-full-with-skill/outputs/task-list.md",
+      "expected_output": "Reads task list, identifies parallel waves, creates wave-based execution plan, documents how agents would be spawned in parallel.",
+      "files": []
+    }
+  ]
+}

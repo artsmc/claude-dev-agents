@@ -1,0 +1,23 @@
+{
+  "skill_name": "pm-db",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just started a new project and want to track my feature work. Set up project tracking for me.",
+      "expected_output": "Guides user through init → import flow. Explains what the database does. Runs init_db.py, then offers to import specs from job-queue.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "What's the status of my current projects? How many tasks are pending vs completed?",
+      "expected_output": "Runs the dashboard command. Presents project status with metrics. Shows pending vs completed task counts.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I just finished speccing out the file upload feature with /spec-plan. Now I want to track the implementation tasks in pm-db.",
+      "expected_output": "Imports specs from the job-queue feature folder. Creates project and spec records. Shows what was imported. Connects spec-plan output to pm-db tracking.",
+      "files": []
+    }
+  ]
+}
