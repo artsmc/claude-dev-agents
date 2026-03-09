@@ -1,375 +1,192 @@
-# 🎯 Claude Skills Framework
+# Claude Dev Agents
 
-**Build specialized AI skills with instant deployment for Claude Code**
+**A multi-agent development framework built on Claude Code CLI**
 
-[![Skills: 19](https://img.shields.io/badge/Skills-19-blue)](./skills/)
-[![Agents: 17](https://img.shields.io/badge/Agents-17-green)](./agents/)
-[![Performance: 11.3K LOC/s](https://img.shields.io/badge/Performance-11.3K%20LOC%2Fs-orange)](#-performance--benchmarks)
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue)](https://www.python.org/)
-[![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-green)](#-installation)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](./LICENSE)
+[![Agents: 19](https://img.shields.io/badge/Agents-19-green)](./agents/)
+[![Skills: 34](https://img.shields.io/badge/Skills-34-blue)](./skills/)
+[![Modules: 5](https://img.shields.io/badge/Modules-5-purple)](./agents/modules/)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-green)](#installation)
 
-> Turn Claude Code into a specialized powerhouse: from security audits to full-stack development, deploy production-ready skills in seconds. **11,300 lines/sec**, **40-66% token savings**, **1.5x faster** than manual workflows.
+> Turn Claude Code into a coordinated team of specialized AI agents. 19 agents, 34 skills, model-routed for cost efficiency, with shadow git rollback and cross-agent working memory.
 
-## 🚀 Quick Start (30 seconds)
+## What This Is
 
-```bash
-# Deploy your first skill
-/feature-new "Add user authentication"  # Beginner-friendly guided workflow
-/start-phase "Refactor auth system"     # Advanced multi-agent coordination
-```
+A framework that sits in `~/.claude/` and transforms Claude Code from a single-agent tool into a multi-agent development team. Agents have specialized expertise, model assignments (Opus for deep reasoning, Sonnet for implementation), tool restrictions, and team coordination patterns.
 
-**That's it.** Zero config. Zero dependencies. Pure Python stdlib.
-
----
-
-## ✨ Why Claude Skills Framework?
-
-- **⚡ Instant Specialization:** 19 pre-built skills across 7 systems (FastAPI, Django, security, testing, documentation)
-- **🎯 Token Efficiency:** 40-66% fewer tokens with agent prompt caching, 1.5x faster than manual Claude workflows
-- **🧠 Self-Checking Agents:** 6 agents with built-in quality gates and verification (no manual checking required)
-- **🔓 Zero Lock-in:** Pure Python standard library, no external dependencies, runs anywhere Claude Code runs
-
-## 📚 What Can You Build?
-
-### For Beginners
-- **`/feature-new`** - Guided feature development with spec → design → code → test workflow
-- **`/security-scan`** - Automated vulnerability detection (v1.0.0 production-ready, 11,300 LOC/sec)
-- **`/test-new`** - Smart test generation with automatic coverage analysis
-
-### For Advanced Users
-- **`/start-phase`** - Multi-agent team coordination (spec-writer → api-designer → developers → QA → reviewers)
-- **`/remote-control-builder`** - Complex system orchestration with stateful workflows
-- **`/spec-plan`** - Architecture planning with collaborative agent design sessions
-
-**[View All 19 Skills →](./skills/)**
-
----
-
-## 🎬 See It In Action
-
-### Example: Security Audit in 10 Seconds
-
-**Before (Manual):**
-```bash
-# Manually read code... search for vulnerabilities... check OWASP guidelines...
-# Cross-reference security patterns... verify auth flows...
-# 20+ minutes of context-switching and manual checking
-```
-
-**After (Skill):**
-```bash
-/security-scan
-
-# ✅ SQL injection check: PASS (0 vulnerabilities)
-# ⚠️  XSS vulnerability: 2 found
-#     - auth.py:45 - Unescaped user input in template
-#     - api.py:102 - Missing content-type validation
-# ✅ Authentication: PASS (secure token handling)
-# ✅ Authorization: PASS (proper role checks)
-# 📊 Report generated: ./security-report.md (completed in 12 seconds)
-```
-
-**Performance:** 11,300 LOC/sec analyzed | 40% fewer tokens | Automatic remediation suggestions
-
----
-
-## 📦 Installation
-
-### Prerequisites
-- **Python 3.8 or higher** (check with `python --version`)
-- **Claude Code** installed ([Get it here](https://claude.ai/code))
-
-### Install
-
-**IMPORTANT:** This framework must be installed INTO your `~/.claude` directory, not as a subfolder. Follow these steps:
-
-#### Option 1: Fresh Installation (Recommended)
+## Quick Start
 
 ```bash
-# If ~/.claude doesn't exist yet
-git clone https://github.com/yourusername/claude-skills-framework.git ~/.claude
-cd ~/.claude
+# Clone into ~/.claude
+git clone https://github.com/artsmc/claude-dev-agents.git ~/.claude
+
+# Verify
+ls ~/.claude/agents/    # 19 specialized agents
+ls ~/.claude/skills/    # 34 workflow skills
+~/.claude/scripts/health-check.sh  # Validate installation
 ```
 
-#### Option 2: Merge with Existing ~/.claude
+Then open Claude Code -- agents and skills are available immediately via `/skill-name` commands.
 
-```bash
-# If you already have a ~/.claude directory with existing files
-cd ~/.claude
-git init
-git remote add origin https://github.com/yourusername/claude-skills-framework.git
-git fetch
-git reset --hard origin/main
+## Architecture
 
-# IMPORTANT: This will overwrite existing files. Back up first if needed:
-# cp -r ~/.claude ~/.claude.backup
-```
-
-#### Option 3: Manual Copy (Safest)
-
-```bash
-# Clone to a temporary location first
-git clone https://github.com/yourusername/claude-skills-framework.git /tmp/claude-skills
-cd /tmp/claude-skills
-
-# Copy contents to ~/.claude (will not overwrite existing files)
-cp -rn * ~/.claude/
-cd ~/.claude
-
-# Clean up temp directory
-rm -rf /tmp/claude-skills
-```
-
-**Expected Directory Structure After Installation:**
 ```
 ~/.claude/
-├── agents/           # 17 specialized agents
-├── skills/           # 19 pre-built skills
-├── hooks/            # Automated workflow enforcement
-├── cline-docs/       # Documentation hub
-├── README.md         # This file
-└── ...
+├── agents/              # 19 specialized agent personas (.md)
+│   └── modules/         # 5 extracted deep-reference modules
+├── skills/              # 34 workflow skills
+├── hooks/               # PreToolUse shadow git snapshots
+├── memory-bank/         # 6-file project context (episodic memory)
+├── working-memory/      # Cross-agent scratchpad (per-team, session-scoped)
+├── scripts/             # Health check, utilities
+├── enhancements/        # Research, specs, validation reports
+├── lib/                 # Python utilities (project_database.py)
+└── projects.db          # SQLite PM-DB (25 tables)
 ```
 
-### Verify Installation
+## Agents (19)
 
-**Step 1: Check directory structure**
-```bash
-# Verify skills are in the right place (NOT in a subfolder)
-ls ~/.claude/skills/
+Every agent has standardized YAML frontmatter with `name`, `model`, and `tools` fields.
 
-# Should show: feature-new, start-phase, security-quality-assess, etc.
-# NOT: claude-skills-framework/
-```
+### Model Routing
 
-**Step 2: Test in Claude Code**
-Open Claude Code and test that skills are accessible:
+| Model | Count | Agents | Use Case |
+|-------|-------|--------|----------|
+| Opus | 6 | debugger-specialist, mastra-core-developer, mastra-framework-expert, security-auditor, strategic-planner, team-lead | Deep reasoning, architecture, security analysis |
+| Sonnet | 13 | All others | Implementation, review, documentation (~40-60% cheaper) |
 
-```bash
-# List available skills (in Claude Code)
-/feature-new --help
+### Tool Restriction Profiles
 
-# Should display skill documentation and usage examples
-```
+| Profile | Agents | Access |
+|---------|--------|--------|
+| Read-only | api-designer, nextjs-code-reviewer, strategic-planner, team-lead, technical-writer, mastra-framework-expert | Read, Grep, Glob only |
+| Write (no shell) | accessibility-specialist, frontend-developer, spec-writer, ui-developer | Read, Grep, Glob, Write, Edit |
+| Full | express-api-developer, database-schema-specialist, debugger-specialist, devops-infrastructure, and others | All tools including Bash |
 
-**Common Issues:**
-- **"Skill not found"** → Check that files are in `~/.claude/skills/`, not `~/.claude/claude-skills-framework/skills/`
-- **"Permission denied"** → Run `chmod +x ~/.claude/skills/*/scripts/*.py`
-- **Missing directories** → You cloned into a subfolder. Follow Option 2 or 3 above to fix.
+### Modularized Agents
 
-**Troubleshooting:** [Common Issues →](./docs/TROUBLESHOOTING.md)
+Three large agents were split into core + loadable modules:
 
----
+| Agent | Core | Modules |
+|-------|------|---------|
+| security-auditor | 9KB | `modules/security-auditor-compliance.md`, `modules/security-auditor-pentest.md` |
+| mastra-core-developer | 9KB | `modules/mastra-core-developer-workflows.md`, `modules/mastra-core-developer-mcp.md` |
+| technical-writer | 9KB | `modules/technical-writer-style.md` |
 
-## ⚙️ Configuration
+Modules are loaded on-demand only when the task requires them.
 
-### Zero Configuration Required
-Skills work out-of-the-box with sensible defaults. No setup needed to get started!
+## Skills (34)
 
-### Optional Customization
+### Core Workflows
+- `/feature-new` -- Full feature development lifecycle (spec -> design -> code -> test)
+- `/feature-continue` -- Resume interrupted feature work
+- `/start-phase-plan` -- Strategic planning with user approval
+- `/start-phase-execute` -- Structured execution with quality gates
+- `/start-phase-execute-team` -- Parallel multi-agent team execution
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SKILLS_CACHE_DIR` | Agent prompt cache location | `./.cache/agents` |
-| `SKILLS_LOG_LEVEL` | Logging verbosity (DEBUG, INFO, WARNING, ERROR) | `INFO` |
-| `SKILLS_MAX_TOKENS` | Token limit per skill execution | `100000` |
-| `SKILLS_TEAM_SIZE` | Max concurrent agents in team workflows | `5` |
-
-**Advanced:** [Full Configuration Guide →](./docs/CONFIGURATION.md)
-
----
-
-## 🏗️ How It Works
-
-### Architecture
-
-```mermaid
-flowchart LR
-    User[👤 User] -->|/skill-name| Skill[📦 Skill Handler]
-    Skill --> Team[🤖 Agent Team]
-    Team --> Agent1[spec-writer]
-    Team --> Agent2[api-designer]
-    Team --> Agent3[developer]
-    Team --> Agent4[tester]
-    Agent1 & Agent2 & Agent3 & Agent4 --> Claude[🧠 Claude Code API]
-    Claude --> Cache[(💾 Prompt Cache<br/>40-66% savings)]
-    Cache --> Response[✅ Response]
-    Response --> User
-```
-
-### Key Concepts
-
-- **Skills:** Pre-packaged workflows triggered by `/skill-name` commands (e.g., `/feature-new`, `/security-scan`)
-- **Agents:** Specialized AI workers with domain expertise (spec-writer, security-auditor, python-tester, etc.)
-- **Teams:** Coordinated agent groups that collaborate on complex tasks with defined handoffs
-- **Caching:** Agent prompt caching provides 40-66% token savings by reusing system prompts across invocations
-
-**Deep Dive:** [System Architecture →](./cline-docs/systemArchitecture.md) | [Tech Stack →](./cline-docs/techStack.md)
-
----
-
-## 📊 Performance & Benchmarks
-
-| Metric | Value | Baseline (Manual) | Improvement |
-|--------|-------|-------------------|-------------|
-| Code Analysis Speed | **11,300 LOC/sec** | 4,200 LOC/sec | **2.7x faster** |
-| Token Efficiency | **40-66% savings** | No caching (100%) | **40-66% reduction** |
-| Workflow Speedup | **1.5x faster** | Manual Claude usage | **50% time saved** |
-| Agent Self-Checks | **6/17 agents** | 0 (100% manual) | **Automatic QA** |
-
-**Test Conditions:**
-- Security scan of 135,000 LOC FastAPI project
-- Python 3.11, Claude Sonnet 4.5
-- Agent caching enabled
-
-**Methodology:** [Benchmark Details →](./docs/BENCHMARKS.md)
-
----
-
-## 🎓 Learning Paths
-
-### 🌱 Beginner (0-2 hours)
-**Goal:** Understand skills and run your first workflow
-
-1. [Quick Start Tutorial](./docs/tutorials/quickstart.md) (15 min) - Get up and running
-2. [Your First Skill: `/feature-new`](./docs/tutorials/feature-new.md) (30 min) - Guided feature development
-3. [Understanding Skills vs Agents](./docs/concepts/skills-agents.md) (20 min) - Core concepts explained
-
-### 🌿 Intermediate (2-8 hours)
-**Goal:** Customize skills and understand agent coordination
-
-4. [Building Custom Skills](./docs/guides/custom-skills.md) (2 hours) - Create your own skills
-5. [Multi-Agent Teams](./docs/guides/teams.md) (1 hour) - Coordinate specialized agents
-6. [Agent Caching Strategies](./docs/guides/caching.md) (30 min) - Optimize for token efficiency
-7. [Security Scanning Deep Dive](./docs/guides/security-scan.md) (1 hour) - Advanced security workflows
-
-### 🌳 Advanced (8+ hours)
-**Goal:** Extend the framework and contribute core features
-
-8. [Creating New Agent Types](./docs/advanced/agents.md) (3 hours) - Build specialized agents
-9. [System Integration](./docs/advanced/integration.md) (2 hours) - Integrate with external tools
-10. [Performance Optimization](./docs/advanced/performance.md) (2 hours) - Tune for large codebases
-11. [Contributing Core Features](./CONTRIBUTING.md) (ongoing) - Join the development team
-
----
-
-## 📖 Skills Reference
-
-### 🌐 Web Development
-- **`/feature-new`** - Guided feature development (spec → design → code → test) ![Stable](https://img.shields.io/badge/status-stable-green)
-- **`/api-design`** - OpenAPI contract generation with validation ![Stable](https://img.shields.io/badge/status-stable-green)
-- **`/remote-control-builder`** - System orchestration workflows ![Beta](https://img.shields.io/badge/status-beta-yellow)
-
-### 🔒 Security
-- **`/security-scan`** - Automated vulnerability detection ![v1.0.0](https://img.shields.io/badge/version-v1.0.0-blue)
-- **`/security-test`** - Penetration testing scenarios ![Beta](https://img.shields.io/badge/status-beta-yellow)
-
-### 🧪 Testing
-- **`/test-new`** - Test generation with coverage analysis ![Stable](https://img.shields.io/badge/status-stable-green)
-- **`/test-review`** - Test quality assessment ![Stable](https://img.shields.io/badge/status-stable-green)
-
-### 📝 Documentation
-- **`/doc-new`** - Technical documentation generation ![Stable](https://img.shields.io/badge/status-stable-green)
-- **`/api-doc`** - API documentation with examples ![Stable](https://img.shields.io/badge/status-stable-green)
-
-### 🔧 Code Quality
-- **`/review-code`** - Automated code review ![Stable](https://img.shields.io/badge/status-stable-green)
-- **`/refactor`** - Guided refactoring workflows ![Beta](https://img.shields.io/badge/status-beta-yellow)
-
-**[Full Skills Catalog →](./docs/SKILLS.md)** | **[Create Your Own Skill →](./docs/guides/custom-skills.md)**
-
----
-
-## 🤖 Agents Reference
-
-### Core Agents (Self-Checking ✅)
-These agents include built-in quality gates and self-verification:
-
-- **`spec-writer`** - Requirements documentation with completeness checks ✅
-- **`api-designer`** - OpenAPI contract design with validation ✅
-- **`security-auditor`** - Vulnerability detection with OWASP verification ✅
-- **`python-tester`** - Test generation with coverage requirements ✅
-- **`python-reviewer`** - Code quality gates (complexity, maintainability) ✅
-- **`technical-writer`** - Documentation with readability scoring ✅
-
-### Specialized Agents
-Domain-specific agents for targeted tasks:
-
-- **`python-fastapi-expert`** - FastAPI development (REST APIs, async, validation)
-- **`python-django-expert`** - Django development (ORM, views, templates)
-- **`frontend-react-expert`** - React development (components, hooks, state)
-- **`database-expert`** - Database design and optimization
-- **`devops-expert`** - Deployment and infrastructure
-- **`qa-tester`** - Quality assurance and test planning
-- And 5 more specialized agents...
-
-**[View All 17 Agents →](./docs/AGENTS.md)** | **[Create Custom Agent →](./docs/advanced/agents.md)**
-
----
-
-## 🛠️ API Reference
-
-For custom skill development and system integration:
-
-- **[Skills API Reference](./docs/api/skills.md)** - Skill creation, registration, and execution
-- **[Agent API Reference](./docs/api/agents.md)** - Agent configuration and coordination
-- **[Team API Reference](./docs/api/teams.md)** - Multi-agent team orchestration
-- **[Integration Patterns](./docs/api/patterns.md)** - Common integration recipes
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! There are many ways to help:
-
-- 🐛 **[Report bugs](https://github.com/yourusername/claude-skills-framework/issues)** - Help us identify and fix issues
-- ✨ **[Propose new skills](https://github.com/yourusername/claude-skills-framework/discussions)** - Share your workflow ideas
-- 📚 **[Improve documentation](./docs/CONTRIBUTING.md)** - Clarify, expand, or correct docs
-- 🔧 **[Submit pull requests](./CONTRIBUTING.md)** - Contribute code, tests, or features
-
-**[Full Contributing Guide →](./CONTRIBUTING.md)**
-
-By contributing, you agree to our [Code of Conduct](./CODE_OF_CONDUCT.md).
-
----
-
-## 📜 License
-
-MIT License - see [LICENSE](./LICENSE) for details.
-
-## Maintainers
-
-- **Core Team:** [@yourusername](https://github.com/yourusername)
-- **Contributors:** [All Contributors →](./CONTRIBUTORS.md)
-
-## Acknowledgments
-
-- Built for [Claude Code](https://claude.ai/code) by Anthropic
-- Inspired by [Anthropic's Agent SDK](https://github.com/anthropics/anthropic-sdk-python)
-- Security patterns from [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-
----
-
-## 🔗 Resources
+### Code Quality
+- `/security-quality-assess` -- OWASP Top 10 vulnerability scanning (v1.0.0)
+- `/code-duplication` -- Deep duplication analysis with refactoring suggestions
+- `/architecture-quality-assess` -- Architecture assessment
 
 ### Documentation
-- 📖 [Full Documentation](./docs/) - Complete guides and references
-- 🎓 [Tutorials](./docs/tutorials/) - Step-by-step learning paths
-- 📚 [Concepts](./docs/concepts/) - Architecture and design principles
-- 🔧 [API Docs](./docs/api/) - Developer reference
+- `/memory-bank-read` / `/memory-bank-update` / `/memory-bank-sync` -- Project context management
+- `/document-hub-initialize` / `/document-hub-update` -- Documentation hub management
+- `/spec-plan` -- Feature specification planning
+- `/spec-review` -- Specification validation
 
-### Community
-- 💬 [Discord Community](https://discord.gg/yourinvite) - Get help and share projects
-- 🐦 [Twitter Updates](https://twitter.com/yourhandle) - Latest features and announcements
-- 📰 [Changelog](./CHANGELOG.md) - Version history and release notes
-- 🎥 [Video Tutorials](https://youtube.com/yourchannel) - Visual learning resources
+### Mastra Framework (10 skills)
+- `/mastra-dev` -- CLI toolkit for agent orchestration and workflow design
+- `/mastra-agents` -- Agent creation, tools, memory, guardrails
+- `/mastra-workflows` -- DAG composition, suspend/resume, HITL
+- `/mastra-rag` -- Document processing, chunking, embedding, retrieval
+- `/mastra-memory` -- Storage backends, semantic recall, thread management
+- `/mastra-streaming` -- Agent/workflow streams, SSE, AI SDK integration
+- `/mastra-mcp-tools` -- MCP client/server, tool creation, publishing
+- `/mastra-deploy` -- Server adapters, auth, middleware, cloud providers
+- `/mastra-evals` -- Scorers, datasets, experiments, CI integration
+- `/mastra-workspace` -- Filesystem, sandbox execution, search/indexing
 
-### Related Projects
-- [Claude Code](https://claude.ai/code) - AI-powered coding assistant
-- [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-python) - Official Anthropic SDK
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+### Project Management
+- `/pm-db` -- SQLite-based project tracking (specs, jobs, tasks, reviews)
+- `/skill-creator` -- Create, modify, and benchmark skills
 
----
+## Safety Features
 
-**Ready to supercharge your Claude Code workflow?** Start with `/feature-new` and experience the power of specialized AI skills!
+### Shadow Git Snapshots
+A `PreToolUse` hook automatically creates a git branch checkpoint before every Write/Edit operation. Instant rollback:
+
+```bash
+# List snapshots
+git branch --list 'shadow/*'
+
+# Restore a file
+git checkout shadow/20260309_143022 -- path/to/file
+
+# Auto-cleanup runs on branches older than 24h
+```
+
+### Working Memory
+Teams share a `working-memory/{team-name}.md` scratchpad. Agents write decisions, discoveries, and handoff notes. Next agent reads them -- no more starting from zero.
+
+### Health Check
+```bash
+~/.claude/scripts/health-check.sh
+```
+Validates: projects.db exists, tables initialized, hooks executable, Memory Bank files present.
+
+## Memory Bank
+
+Six files providing hierarchical project context:
+
+```
+projectbrief.md      -> High-level goals and scope
+productContext.md     -> User-facing features and UX
+techContext.md        -> Technical stack and setup
+systemPatterns.md     -> Architecture patterns and decisions
+activeContext.md      -> Current focus and active work
+progress.md           -> Status updates and metrics
+```
+
+Agents read these before starting work. Updated via `/memory-bank-update`.
+
+## Installation
+
+### Requirements
+- Python 3.8+ (for utility scripts)
+- Claude Code CLI
+- Git
+
+### Install
+```bash
+# Fresh install
+git clone https://github.com/artsmc/claude-dev-agents.git ~/.claude
+
+# Or merge with existing ~/.claude
+cd ~/.claude
+git remote add origin https://github.com/artsmc/claude-dev-agents.git
+git fetch && git merge origin/main --allow-unrelated-histories
+```
+
+### Verify
+```bash
+~/.claude/scripts/health-check.sh    # Should pass all checks
+ls ~/.claude/agents/ | wc -l         # Should show 19
+ls ~/.claude/skills/ | wc -l         # Should show 34
+```
+
+## Research & Enhancements
+
+The framework was recently overhauled based on analysis of the OpenDev paper ([arxiv:2603.05344v1](https://arxiv.org/html/2603.05344v1)). Key improvements:
+
+- Standardized all 19 agent definitions (frontmatter, model routing, tool restrictions)
+- Modularized 3 bloated agents (41KB -> 9KB core + modules)
+- Added shadow git snapshots for instant rollback
+- Added working memory for cross-agent context sharing
+- Fixed foundation (PM-DB path, hook documentation, health check)
+- Refreshed Memory Bank (27 days stale -> current)
+
+Details: [`enhancements/research.md`](./enhancements/research.md) | [`enhancements/index.md`](./enhancements/index.md)
+
+## License
+
+MIT
