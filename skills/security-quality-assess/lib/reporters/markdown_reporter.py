@@ -9,8 +9,10 @@ Report sections (in order):
     2. Executive Summary -- risk score, severity breakdown, posture statement.
     3. Risk Breakdown -- severity distribution table with visual bar chart.
     4. OWASP Top 10 Coverage -- per-category finding counts.
-    5. Detailed Findings -- full finding list grouped by severity.
-    6. Footer -- suppressed count, analyzer versions, generation time.
+    5. DISA STIG Compliance -- STIG V-number mapping and NIST control families.
+    6. Detailed Findings -- full finding list grouped by severity.
+    7. File Hotspots -- files with the most findings.
+    8. Footer -- suppressed count, analyzer versions, generation time.
 
 Classes:
     SecurityMarkdownReporter: Stateless reporter that accepts an
@@ -24,11 +26,25 @@ Usage:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, List
 
 from lib.models.assessment import AssessmentResult
 from lib.models.finding import Finding, OWASPCategory, Severity
+
+# Optional compliance mapping -- another agent is creating this module.
+# The reporter must work even when the module does not yet exist.
+try:
+    from lib.utils.compliance_map import get_compliance_info
+
+    _HAS_COMPLIANCE_MAP = True
+except ImportError:
+    _HAS_COMPLIANCE_MAP = False
+
+    def get_compliance_info(cwe_id: str) -> dict:  # type: ignore[misc]
+        """Stub that returns empty compliance data when the module is missing."""
+        return {"stig_ids": [], "nist_controls": [], "stig_title": ""}
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +81,20 @@ _OWASP_NAMES: Dict[str, str] = {
     "A10": "A10: Server-Side Request Forgery",
 }
 """Human-readable names for each OWASP Top 10 (2021) category."""
+
+_OWASP_URLS: Dict[str, str] = {
+    "A01": "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+    "A02": "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/",
+    "A03": "https://owasp.org/Top10/A03_2021-Injection/",
+    "A04": "https://owasp.org/Top10/A04_2021-Insecure_Design/",
+    "A05": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/",
+    "A06": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/",
+    "A07": "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/",
+    "A08": "https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/",
+    "A09": "https://owasp.org/Top10/A09_2021-Security_Logging_and_Monitoring_Failures/",
+    "A10": "https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery/",
+}
+"""URLs for each OWASP Top 10 (2021) category page."""
 
 _BAR_CHAR_FILLED = "\u2588"
 """Unicode full block character used to draw filled portions of bar charts."""
@@ -134,7 +164,9 @@ class SecurityMarkdownReporter:
             self._executive_summary(result),
             self._risk_breakdown(result),
             self._owasp_coverage(result),
+            self._stig_compliance(result),
             self._detailed_findings(result),
+            self._file_hotspots(result),
         ]
 
         # Include the error summary section only when errors were collected.
@@ -335,6 +367,146 @@ class SecurityMarkdownReporter:
         return "\n".join(lines)
 
     # -----------------------------------------------------------------------
+    # Section: DISA STIG Compliance
+    # -----------------------------------------------------------------------
+
+    def _stig_compliance(self, result: AssessmentResult) -> str:
+        """Render the DISA STIG compliance mapping section.
+
+        For each finding that has a ``cwe_id``, looks up associated STIG
+        V-numbers and NIST 800-53 controls using the compliance map utility.
+        Aggregates results into two summary tables: one keyed by STIG ID and
+        one keyed by NIST control family.
+
+        If the compliance map module is not installed or no findings have CWE
+        IDs, a short informational note is rendered instead.
+
+        Args:
+            result: Assessment result with findings.
+
+        Returns:
+            Markdown string for the STIG compliance section.
+        """
+        lines: List[str] = [
+            "---",
+            "",
+            "## DISA STIG Compliance (ASD STIG V6R1)",
+            "",
+        ]
+
+        if not _HAS_COMPLIANCE_MAP:
+            lines.append(
+                "*Compliance mapping module not available. "
+                "Install `lib.utils.compliance_map` to enable STIG mapping.*"
+            )
+            return "\n".join(lines)
+
+        if not result.findings:
+            lines.append("No findings to map against STIG requirements.")
+            return "\n".join(lines)
+
+        # Aggregate STIG data from all findings with CWE IDs.
+        # stig_data: {stig_id: {"title": str, "nist": str, "findings": int,
+        #                        "max_severity": str}}
+        stig_data: Dict[str, Dict] = {}
+        # nist_data: {control: {"description": str (first stig_title seen),
+        #                        "count": int}}
+        nist_data: Dict[str, Dict] = {}
+        mapped_count = 0
+        total_count = len(result.findings)
+
+        severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+
+        for finding in result.findings:
+            if not finding.cwe_id:
+                continue
+
+            info = get_compliance_info(finding.cwe_id)
+            stig_ids = info.get("stig_ids", [])
+            nist_controls = info.get("nist_controls", [])
+            stig_title = info.get("stig_title", "")
+
+            if not stig_ids and not nist_controls:
+                continue
+
+            mapped_count += 1
+            finding_severity = finding.severity.value
+
+            for stig_id in stig_ids:
+                if stig_id not in stig_data:
+                    # Use the first NIST control associated with this STIG
+                    # entry as the representative control.
+                    nist_ctrl = nist_controls[0] if nist_controls else "N/A"
+                    stig_data[stig_id] = {
+                        "title": stig_title,
+                        "nist": nist_ctrl,
+                        "findings": 0,
+                        "max_severity": finding_severity,
+                    }
+                entry = stig_data[stig_id]
+                entry["findings"] += 1
+                # Track highest severity seen for this STIG ID.
+                if severity_rank.get(finding_severity, 99) < severity_rank.get(
+                    entry["max_severity"], 99
+                ):
+                    entry["max_severity"] = finding_severity
+
+            for ctrl in nist_controls:
+                if ctrl not in nist_data:
+                    nist_data[ctrl] = {
+                        "description": stig_title,
+                        "count": 0,
+                    }
+                nist_data[ctrl]["count"] += 1
+
+        if mapped_count == 0:
+            lines.append(
+                "**Findings mapped to STIG requirements**: 0 of "
+                f"{total_count} total findings"
+            )
+            lines.append("")
+            lines.append(
+                "*No findings with CWE IDs matched known STIG requirements.*"
+            )
+            return "\n".join(lines)
+
+        lines.append(
+            f"**Findings mapped to STIG requirements**: {mapped_count} of "
+            f"{total_count} total findings"
+        )
+        lines.append("")
+
+        # STIG V-number table, sorted by finding count descending.
+        lines.append("| STIG ID | Title | NIST Control | Findings | Max Severity |")
+        lines.append("|---------|-------|-------------|----------|-------------|")
+        for stig_id in sorted(
+            stig_data, key=lambda s: stig_data[s]["findings"], reverse=True
+        ):
+            entry = stig_data[stig_id]
+            lines.append(
+                f"| {stig_id} | {entry['title']} | {entry['nist']} | "
+                f"{entry['findings']} | {entry['max_severity']} |"
+            )
+
+        # NIST 800-53 control families sub-section.
+        lines.extend([
+            "",
+            "### NIST 800-53 Control Families Affected",
+            "",
+            "| Control | Description | Finding Count |",
+            "|---------|-------------|---------------|",
+        ])
+        for ctrl in sorted(
+            nist_data, key=lambda c: nist_data[c]["count"], reverse=True
+        ):
+            entry = nist_data[ctrl]
+            lines.append(
+                f"| {ctrl} | {entry['description']} | {entry['count']} |"
+            )
+
+        return "\n".join(lines)
+
+    # -----------------------------------------------------------------------
     # Section: Detailed Findings
     # -----------------------------------------------------------------------
 
@@ -449,7 +621,79 @@ class SecurityMarkdownReporter:
         lines.append(f"**Remediation**: {finding.remediation}")
         lines.append("")
 
+        # External references
+        refs = self._build_finding_references(finding)
+        if refs:
+            lines.append(f"**References**: {refs}")
+            lines.append("")
+
         return lines
+
+    # -----------------------------------------------------------------------
+    # Section: File Hotspots
+    # -----------------------------------------------------------------------
+
+    def _file_hotspots(self, result: AssessmentResult) -> str:
+        """Render the file hotspot summary table.
+
+        Identifies files with the highest concentration of findings and
+        presents them in a table broken down by severity. Only files with
+        2 or more findings are included. The table is sorted by total
+        finding count (descending) and capped at 15 rows.
+
+        Args:
+            result: Assessment result with findings.
+
+        Returns:
+            Markdown string for the file hotspots section.
+        """
+        lines: List[str] = [
+            "---",
+            "",
+            "## File Hotspots",
+            "",
+        ]
+
+        if not result.findings:
+            lines.append("No findings detected -- no file hotspots to report.")
+            return "\n".join(lines)
+
+        # Aggregate per-file counts by severity.
+        file_stats: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: {"total": 0, "CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        )
+        for finding in result.findings:
+            entry = file_stats[finding.file_path]
+            entry["total"] += 1
+            sev = finding.severity.value
+            if sev in entry:
+                entry[sev] += 1
+
+        # Filter to files with 2+ findings, sort descending, cap at 15.
+        hotspots = [
+            (path, stats)
+            for path, stats in file_stats.items()
+            if stats["total"] >= 2
+        ]
+        hotspots.sort(key=lambda item: item[1]["total"], reverse=True)
+        hotspots = hotspots[:15]
+
+        if not hotspots:
+            lines.append(
+                "No files have 2 or more findings. "
+                "Findings are distributed across the codebase."
+            )
+            return "\n".join(lines)
+
+        lines.append("| File | Findings | Critical | High | Medium | Low |")
+        lines.append("|------|---------|---------|------|--------|-----|")
+        for path, stats in hotspots:
+            lines.append(
+                f"| {path} | {stats['total']} | {stats['CRITICAL']} "
+                f"| {stats['HIGH']} | {stats['MEDIUM']} | {stats['LOW']} |"
+            )
+
+        return "\n".join(lines)
 
     # -----------------------------------------------------------------------
     # Section: Error Summary
@@ -687,6 +931,47 @@ class SecurityMarkdownReporter:
         if lower.endswith(".toml"):
             return "toml"
         return ""
+
+    @staticmethod
+    def _build_finding_references(finding: Finding) -> str:
+        """Build a formatted external references string for a finding.
+
+        Produces a pipe-separated list of links to CWE, OWASP, and STIG
+        resources based on the finding's metadata. Returns an empty string
+        if no reference links can be constructed.
+
+        Args:
+            finding: The ``Finding`` object to build references for.
+
+        Returns:
+            A formatted string like
+            "[CWE-89](https://...) | [OWASP A03](https://...) | STIG V-222608",
+            or an empty string if no references apply.
+        """
+        parts: List[str] = []
+
+        # CWE reference link
+        if finding.cwe_id:
+            # Extract numeric ID from "CWE-NNN" format.
+            cwe_num = finding.cwe_id.replace("CWE-", "")
+            parts.append(
+                f"[{finding.cwe_id}]"
+                f"(https://cwe.mitre.org/data/definitions/{cwe_num}.html)"
+            )
+
+        # OWASP reference link
+        owasp_code = finding.category.value
+        owasp_url = _OWASP_URLS.get(owasp_code)
+        if owasp_url:
+            parts.append(f"[OWASP {owasp_code}]({owasp_url})")
+
+        # STIG references (from compliance map)
+        if finding.cwe_id and _HAS_COMPLIANCE_MAP:
+            info = get_compliance_info(finding.cwe_id)
+            for stig_id in info.get("stig_ids", []):
+                parts.append(f"STIG {stig_id}")
+
+        return " | ".join(parts)
 
     @staticmethod
     def _group_by_severity(findings: List[Finding]) -> Dict[str, List[Finding]]:

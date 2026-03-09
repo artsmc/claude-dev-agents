@@ -1,9 +1,10 @@
-"""Security misconfiguration analyzer.
+"""Security misconfiguration and access control analyzer.
 
 Detects CORS misconfigurations, debug mode left enabled, missing security
-headers, and verbose error disclosure in Python and JavaScript/TypeScript
-source code. This analyzer maps to OWASP A05:2021 (Security
-Misconfiguration).
+headers, verbose error disclosure, path traversal, unsafe file permissions,
+prototype pollution, and privilege escalation in Python and
+JavaScript/TypeScript source code. This analyzer maps to OWASP A05:2021
+(Security Misconfiguration) and OWASP A01:2021 (Broken Access Control).
 
 Detection strategies:
     1. **CORS misconfiguration** -- regex-based detection of wildcard CORS
@@ -32,13 +33,33 @@ Detection strategies:
        and Express error handler middleware that may leak implementation
        details.
 
+    5. **Path traversal** -- detects ``open()`` calls where the path
+       includes user-controlled variables (f-strings, concatenation),
+       enabling directory traversal attacks (CWE-22).
+
+    6. **Unsafe file permissions** -- detects ``os.chmod()`` calls with
+       overly permissive modes like 0o777 or 0o666 (CWE-732).
+
+    7. **Prototype pollution** -- detects ``Object.assign()`` with
+       user input and direct property assignment from request body
+       in JavaScript/TypeScript (CWE-1321).
+
+    8. **Excessive privileges** -- detects ``subprocess.run(["sudo", ...])``,
+       ``os.setuid(0)``, and similar privilege escalation patterns (CWE-250).
+
 All detections produce :class:`Finding` objects categorized under
-:attr:`OWASPCategory.A05_SECURITY_MISCONFIGURATION` with appropriate CWE
+:attr:`OWASPCategory.A05_SECURITY_MISCONFIGURATION` or
+:attr:`OWASPCategory.A01_ACCESS_CONTROL` or
+:attr:`OWASPCategory.A08_INTEGRITY_FAILURES` with appropriate CWE
 references:
     - CWE-942: Overly Permissive Cross-domain Whitelist (CORS)
     - CWE-489: Active Debug Code (debug mode)
     - CWE-16: Configuration (missing security headers)
     - CWE-209: Generation of Error Message Containing Sensitive Information
+    - CWE-22: Improper Limitation of a Pathname (path traversal)
+    - CWE-732: Incorrect Permission Assignment for Critical Resource
+    - CWE-1321: Improperly Controlled Modification of Object Prototype
+    - CWE-250: Execution with Unnecessary Privileges
 
 This module uses only the Python standard library and has no external
 dependencies.
@@ -48,11 +69,17 @@ Classes:
 
 References:
     - FRS FR-10: ConfigAnalyzer
+    - OWASP A01:2021 Broken Access Control
     - OWASP A05:2021 Security Misconfiguration
+    - OWASP A08:2021 Software and Data Integrity Failures
     - CWE-16: Configuration
+    - CWE-22: Improper Limitation of a Pathname
     - CWE-209: Generation of Error Message Containing Sensitive Information
+    - CWE-250: Execution with Unnecessary Privileges
     - CWE-489: Active Debug Code
+    - CWE-732: Incorrect Permission Assignment for Critical Resource
     - CWE-942: Overly Permissive Cross-domain Whitelist
+    - CWE-1321: Improperly Controlled Modification of Object Prototype
 """
 
 import logging
@@ -287,6 +314,79 @@ _VERBOSE_SHOW_ERROR_DETAIL_PATTERN = re.compile(
 
 
 # ---------------------------------------------------------------------------
+# Path traversal patterns (CWE-22, OWASP A01)
+# ---------------------------------------------------------------------------
+
+# Python: open(f".../{variable}") or open("..." + variable)
+# Detects f-string paths with embedded variables in open() calls.
+_PATH_TRAVERSAL_FSTRING_PATTERN = re.compile(
+    r"""\bopen\s*\(\s*f['"].*\{[^}]+\}""",
+)
+
+# Python: open(path + variable) or open(os.path.join(base, user_input))
+_PATH_TRAVERSAL_CONCAT_PATTERN = re.compile(
+    r"""\bopen\s*\([^)]*\+[^)]*\)""",
+)
+
+# Python: open(request.args...) or open(filename) where filename comes from request
+_PATH_TRAVERSAL_REQUEST_PATTERN = re.compile(
+    r"""\bopen\s*\([^)]*(?:request\.|filename|user_input|path)""",
+    re.IGNORECASE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Unsafe file permissions patterns (CWE-732)
+# ---------------------------------------------------------------------------
+
+# Python: os.chmod(path, 0o777) or os.chmod(path, 0o666)
+_UNSAFE_CHMOD_PATTERN = re.compile(
+    r"""\bos\.chmod\s*\([^)]*\b0o(?:777|666)\b""",
+)
+
+
+# ---------------------------------------------------------------------------
+# Prototype pollution patterns (CWE-1321, OWASP A08)
+# ---------------------------------------------------------------------------
+
+# JavaScript: Object.assign(obj, req.body) or Object.assign(target, request.body)
+# Also matches common aliases like Object.assign(obj, updates) when preceded
+# by an assignment from req.body.
+_PROTOTYPE_POLLUTION_ASSIGN_PATTERN = re.compile(
+    r"""\bObject\.assign\s*\([^,]+,\s*(?:req|request)\.body""",
+    re.IGNORECASE,
+)
+
+# Broader Object.assign pattern: catches Object.assign with any second argument
+# that is not a literal object. Lower confidence.
+_PROTOTYPE_POLLUTION_ASSIGN_BROAD_PATTERN = re.compile(
+    r"""\bObject\.assign\s*\(\s*\w+\s*,\s*(?:updates|input|data|body|payload|params)\s*\)""",
+    re.IGNORECASE,
+)
+
+# JavaScript: obj[key] = value in a for...in loop over user input
+_PROTOTYPE_POLLUTION_LOOP_PATTERN = re.compile(
+    r"""\bfor\s*\(\s*(?:const|let|var)\s+\w+\s+in\s+(?:updates|req\.body|request\.body|input|data|body)""",
+    re.IGNORECASE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Excessive privileges patterns (CWE-250)
+# ---------------------------------------------------------------------------
+
+# Python: subprocess.run(["sudo", ...]) or subprocess.call(["sudo", ...])
+_SUDO_SUBPROCESS_PATTERN = re.compile(
+    r"""\bsubprocess\.(?:run|call|Popen|check_call|check_output)\s*\(\s*\[?\s*['"]sudo['"]""",
+)
+
+# Python: os.setuid(0) -- set process to root
+_SETUID_ROOT_PATTERN = re.compile(
+    r"""\bos\.setuid\s*\(\s*0\s*\)""",
+)
+
+
+# ---------------------------------------------------------------------------
 # Config file detection heuristics
 # ---------------------------------------------------------------------------
 
@@ -368,11 +468,11 @@ class _FindingIDGenerator:
 
 
 class ConfigAnalyzer:
-    """Detect security misconfigurations in application code.
+    """Detect security misconfigurations and access control issues.
 
-    This analyzer implements four complementary detection strategies that
+    This analyzer implements eight complementary detection strategies that
     together provide broad coverage of common security misconfiguration
-    patterns:
+    and access control patterns:
 
     1. **CORS misconfiguration** (``_detect_cors_misconfiguration``): Scans
        raw source code for wildcard CORS origin configurations across
@@ -395,6 +495,23 @@ class ConfigAnalyzer:
        configurations and code patterns that expose stack traces or detailed
        error information to clients. Produces LOW findings under CWE-209.
 
+    5. **Path traversal** (``_detect_path_traversal``): Detects ``open()``
+       calls with user-controlled path variables that enable directory
+       traversal attacks. Produces HIGH findings under CWE-22.
+
+    6. **Unsafe file permissions** (``_detect_unsafe_permissions``): Detects
+       ``os.chmod()`` with overly permissive modes (0o777, 0o666).
+       Produces MEDIUM findings under CWE-732.
+
+    7. **Prototype pollution** (``_detect_prototype_pollution``): Detects
+       ``Object.assign()`` with request body input and direct property
+       assignment from user input in loops. Produces HIGH/MEDIUM findings
+       under CWE-1321.
+
+    8. **Excessive privileges** (``_detect_excessive_privileges``): Detects
+       ``subprocess.run(["sudo", ...])`` and ``os.setuid(0)`` patterns.
+       Produces MEDIUM/HIGH findings under CWE-250.
+
     Attributes:
         VERSION: Analyzer version string for AssessmentResult tracking.
 
@@ -412,6 +529,8 @@ class ConfigAnalyzer:
         - ``skip_missing_headers`` (bool): Disable missing security headers
           detection.
         - ``skip_verbose_errors`` (bool): Disable verbose error detection.
+        - ``skip_access_control`` (bool): Disable access control detection
+          (path traversal, permissions, prototype pollution, privileges).
     """
 
     VERSION: str = "1.0.0"
@@ -421,12 +540,13 @@ class ConfigAnalyzer:
         parsed_files: List[ParseResult],
         config: Dict[str, Any],
     ) -> List[Finding]:
-        """Run all configuration detection strategies on the parsed files.
+        """Run all configuration and access control detection strategies.
 
         Iterates over each parsed file and applies CORS misconfiguration,
-        debug mode, missing security headers, and verbose error detection.
-        Results from all four strategies are combined into a single list
-        of findings.
+        debug mode, missing security headers, verbose error detection,
+        path traversal, unsafe file permissions, prototype pollution, and
+        excessive privileges detection. Results from all eight strategies
+        are combined into a single list of findings.
 
         Args:
             parsed_files: List of ParseResult objects from the parsing
@@ -436,7 +556,8 @@ class ConfigAnalyzer:
                 ``skip_cors`` (bool),
                 ``skip_debug_mode`` (bool),
                 ``skip_missing_headers`` (bool),
-                ``skip_verbose_errors`` (bool).
+                ``skip_verbose_errors`` (bool),
+                ``skip_access_control`` (bool).
 
         Returns:
             List of Finding objects, one per detected issue. Findings are
@@ -450,6 +571,7 @@ class ConfigAnalyzer:
         skip_debug = config.get("skip_debug_mode", False)
         skip_headers = config.get("skip_missing_headers", False)
         skip_errors = config.get("skip_verbose_errors", False)
+        skip_access = config.get("skip_access_control", False)
 
         for parsed_file in parsed_files:
             # Skip lockfiles -- they do not contain app configuration.
@@ -480,6 +602,30 @@ class ConfigAnalyzer:
             if not skip_errors:
                 findings.extend(
                     self._detect_verbose_errors(parsed_file, id_gen)
+                )
+
+            # 5. Path traversal detection
+            if not skip_access:
+                findings.extend(
+                    self._detect_path_traversal(parsed_file, id_gen)
+                )
+
+            # 6. Unsafe file permissions detection
+            if not skip_access:
+                findings.extend(
+                    self._detect_unsafe_permissions(parsed_file, id_gen)
+                )
+
+            # 7. Prototype pollution detection (JavaScript only)
+            if not skip_access:
+                findings.extend(
+                    self._detect_prototype_pollution(parsed_file, id_gen)
+                )
+
+            # 8. Excessive privileges detection
+            if not skip_access:
+                findings.extend(
+                    self._detect_excessive_privileges(parsed_file, id_gen)
                 )
 
         return findings
@@ -1026,6 +1172,458 @@ class ConfigAnalyzer:
                         ),
                         cwe_id="CWE-209",
                         confidence=0.75,
+                        metadata={
+                            "detection_type": detection_type,
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 5: Path traversal detection
+    # -----------------------------------------------------------------
+
+    def _detect_path_traversal(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect path traversal vulnerabilities in file access operations.
+
+        Scans raw source code for ``open()`` calls where the file path
+        includes user-controlled variables (via f-strings, string
+        concatenation, or direct request parameter usage). Path traversal
+        allows attackers to access files outside the intended directory
+        using sequences like ``../../etc/passwd``.
+
+        Applies only to Python files where ``open()`` with dynamic paths
+        is the primary pattern.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each path traversal pattern found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Only scan Python files for this pattern.
+        if parsed_file.language != "python":
+            return findings
+
+        # Track (rule_id, line_number) to avoid duplicates.
+        seen: Set[Tuple[str, int]] = set()
+
+        traversal_patterns: List[Tuple[re.Pattern, str]] = [  # type: ignore[type-arg]
+            (_PATH_TRAVERSAL_FSTRING_PATTERN, "fstring_path"),
+            (_PATH_TRAVERSAL_CONCAT_PATTERN, "concatenated_path"),
+            (_PATH_TRAVERSAL_REQUEST_PATTERN, "request_path"),
+        ]
+
+        for pattern, detection_type in traversal_patterns:
+            for match in pattern.finditer(parsed_file.raw_source):
+                line_number = (
+                    parsed_file.raw_source[: match.start()].count("\n") + 1
+                )
+
+                key = ("path-traversal", line_number)
+                if key in seen:
+                    continue
+
+                full_line = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if self._is_comment_line(full_line):
+                    continue
+
+                seen.add(key)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="path-traversal",
+                        category=OWASPCategory.A01_ACCESS_CONTROL,
+                        severity=Severity.HIGH,
+                        title="Potential path traversal in file access",
+                        description=(
+                            "A file open operation uses a path that includes "
+                            "user-controlled input (via f-string, string "
+                            "concatenation, or request parameter). An "
+                            "attacker can supply path traversal sequences "
+                            "like '../../etc/passwd' to read or write "
+                            "arbitrary files on the server. This is a "
+                            "critical vulnerability that can lead to "
+                            "information disclosure, configuration theft, "
+                            "or even remote code execution."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Validate and sanitize all user-supplied file "
+                            "paths. Use os.path.realpath() to resolve the "
+                            "canonical path and verify it starts with the "
+                            "intended base directory. Use allowlists for "
+                            "permitted filenames. Consider using "
+                            "pathlib.Path.resolve() with strict=True and "
+                            "checking is_relative_to(). Never pass raw "
+                            "user input to open()."
+                        ),
+                        cwe_id="CWE-22",
+                        confidence=0.80,
+                        metadata={
+                            "detection_type": detection_type,
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 6: Unsafe file permissions detection
+    # -----------------------------------------------------------------
+
+    def _detect_unsafe_permissions(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect overly permissive file permission settings.
+
+        Scans raw source for ``os.chmod()`` calls with permission modes
+        0o777 (world-readable, writable, executable) or 0o666
+        (world-readable, writable). These permissions allow any user on
+        the system to read, modify, or execute the file.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each unsafe permission pattern found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Only scan Python files for this pattern.
+        if parsed_file.language != "python":
+            return findings
+
+        # Track (rule_id, line_number) to avoid duplicates.
+        seen: Set[Tuple[str, int]] = set()
+
+        for match in _UNSAFE_CHMOD_PATTERN.finditer(parsed_file.raw_source):
+            line_number = (
+                parsed_file.raw_source[: match.start()].count("\n") + 1
+            )
+
+            key = ("unsafe-file-permissions", line_number)
+            if key in seen:
+                continue
+
+            full_line = self._get_source_line(
+                parsed_file.source_lines, line_number
+            )
+            if self._is_comment_line(full_line):
+                continue
+
+            seen.add(key)
+
+            code_sample = self._build_code_sample(
+                parsed_file.source_lines, line_number
+            )
+
+            # Determine which mode was used for the description.
+            matched_text = match.group(0)
+            mode = "0o777" if "777" in matched_text else "0o666"
+
+            findings.append(
+                Finding(
+                    id=id_gen.next_id(),
+                    rule_id="unsafe-file-permissions",
+                    category=OWASPCategory.A01_ACCESS_CONTROL,
+                    severity=Severity.MEDIUM,
+                    title=f"Unsafe file permissions: {mode}",
+                    description=(
+                        f"The file permissions are set to {mode}, which "
+                        "grants excessive access to all users on the system. "
+                        "World-writable files can be modified by any local "
+                        "user or compromised process, potentially leading "
+                        "to privilege escalation, data tampering, or "
+                        "injection of malicious content."
+                    ),
+                    file_path=parsed_file.file_path,
+                    line_number=line_number,
+                    code_sample=code_sample,
+                    remediation=(
+                        "Use the most restrictive permissions necessary. "
+                        "For files that only the owner needs to read/write: "
+                        "os.chmod(path, 0o600). For files that the owner "
+                        "and group need: os.chmod(path, 0o640). Avoid "
+                        "world-writable permissions (0o777, 0o666) in "
+                        "production. Use stat module constants for clarity: "
+                        "stat.S_IRUSR | stat.S_IWUSR."
+                    ),
+                    cwe_id="CWE-732",
+                    confidence=0.90,
+                    metadata={
+                        "permission_mode": mode,
+                        "language": parsed_file.language,
+                    },
+                )
+            )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 7: Prototype pollution detection
+    # -----------------------------------------------------------------
+
+    def _detect_prototype_pollution(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect prototype pollution patterns in JavaScript/TypeScript.
+
+        Scans for ``Object.assign(obj, req.body)`` and direct property
+        assignment from user input in ``for...in`` loops. Prototype
+        pollution allows an attacker to inject properties into JavaScript
+        object prototypes by sending specially crafted JSON payloads
+        containing ``__proto__`` or ``constructor`` keys.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each prototype pollution pattern.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Only scan JavaScript/TypeScript files.
+        if parsed_file.language != "javascript":
+            return findings
+
+        # Track (rule_id, line_number) to avoid duplicates.
+        seen: Set[Tuple[str, int]] = set()
+
+        pollution_patterns: List[Tuple[re.Pattern, str, Severity]] = [  # type: ignore[type-arg]
+            (
+                _PROTOTYPE_POLLUTION_ASSIGN_PATTERN,
+                "object_assign_user_input",
+                Severity.HIGH,
+            ),
+            (
+                _PROTOTYPE_POLLUTION_ASSIGN_BROAD_PATTERN,
+                "object_assign_indirect_user_input",
+                Severity.HIGH,
+            ),
+            (
+                _PROTOTYPE_POLLUTION_LOOP_PATTERN,
+                "for_in_user_input",
+                Severity.MEDIUM,
+            ),
+        ]
+
+        for pattern, detection_type, severity in pollution_patterns:
+            for match in pattern.finditer(parsed_file.raw_source):
+                line_number = (
+                    parsed_file.raw_source[: match.start()].count("\n") + 1
+                )
+
+                key = ("prototype-pollution", line_number)
+                if key in seen:
+                    continue
+
+                full_line = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if self._is_comment_line(full_line):
+                    continue
+
+                seen.add(key)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="prototype-pollution",
+                        category=OWASPCategory.A08_INTEGRITY_FAILURES,
+                        severity=severity,
+                        title="Prototype pollution risk from user input",
+                        description=(
+                            "User-controlled input (req.body) is directly "
+                            "merged into an object without sanitization. "
+                            "An attacker can send a JSON payload containing "
+                            "'__proto__' or 'constructor.prototype' keys to "
+                            "inject properties into the Object prototype, "
+                            "potentially affecting all objects in the "
+                            "application. This can lead to denial of "
+                            "service, authentication bypass, or remote "
+                            "code execution depending on downstream usage."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Validate and sanitize all user input before "
+                            "merging into objects. Use Object.create(null) "
+                            "for target objects to prevent prototype chain "
+                            "access. Filter out dangerous keys: "
+                            "delete input.__proto__; "
+                            "delete input.constructor; "
+                            "delete input.prototype; "
+                            "Or use a safe merge library like lodash.merge "
+                            "with prototype pollution protection enabled. "
+                            "Consider using a schema validator (Zod, Joi) "
+                            "to accept only expected fields."
+                        ),
+                        cwe_id="CWE-1321",
+                        confidence=0.80,
+                        metadata={
+                            "detection_type": detection_type,
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 8: Excessive privileges detection
+    # -----------------------------------------------------------------
+
+    def _detect_excessive_privileges(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect privilege escalation patterns in Python code.
+
+        Scans for ``subprocess.run(["sudo", ...])`` and ``os.setuid(0)``
+        which indicate the application escalates to root privileges.
+        Running with unnecessary privileges violates the principle of
+        least privilege and increases the blast radius of any
+        vulnerability.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each privilege escalation pattern.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Only scan Python files for these patterns.
+        if parsed_file.language != "python":
+            return findings
+
+        # Track (rule_id, line_number) to avoid duplicates.
+        seen: Set[Tuple[str, int]] = set()
+
+        privilege_patterns: List[Tuple[re.Pattern, str, Severity, str]] = [  # type: ignore[type-arg]
+            (
+                _SUDO_SUBPROCESS_PATTERN,
+                "sudo_subprocess",
+                Severity.MEDIUM,
+                (
+                    "A subprocess call invokes 'sudo' to escalate "
+                    "privileges. If any part of the command is constructed "
+                    "from user input, this enables arbitrary command "
+                    "execution as root. Even without user input, running "
+                    "commands as root unnecessarily violates the principle "
+                    "of least privilege."
+                ),
+            ),
+            (
+                _SETUID_ROOT_PATTERN,
+                "setuid_root",
+                Severity.HIGH,
+                (
+                    "The application calls os.setuid(0) to escalate the "
+                    "process to root (UID 0). This grants the process "
+                    "unrestricted access to the entire system, making any "
+                    "vulnerability in the application a full system "
+                    "compromise."
+                ),
+            ),
+        ]
+
+        for pattern, detection_type, severity, specific_description in privilege_patterns:
+            for match in pattern.finditer(parsed_file.raw_source):
+                line_number = (
+                    parsed_file.raw_source[: match.start()].count("\n") + 1
+                )
+
+                key = ("excessive-privileges", line_number)
+                if key in seen:
+                    continue
+
+                full_line = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if self._is_comment_line(full_line):
+                    continue
+
+                seen.add(key)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="excessive-privileges",
+                        category=OWASPCategory.A01_ACCESS_CONTROL,
+                        severity=severity,
+                        title="Excessive privileges: privilege escalation detected",
+                        description=specific_description,
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Follow the principle of least privilege. "
+                            "Avoid running commands with sudo; instead, "
+                            "configure proper file permissions and group "
+                            "ownership so the application can access "
+                            "required resources without elevated privileges. "
+                            "Never call os.setuid(0). If elevated privileges "
+                            "are temporarily needed, drop them as soon as "
+                            "the operation completes using os.setuid() back "
+                            "to the original UID. Use capabilities (CAP_*) "
+                            "instead of full root access where possible."
+                        ),
+                        cwe_id="CWE-250",
+                        confidence=0.85,
                         metadata={
                             "detection_type": detection_type,
                             "language": parsed_file.language,

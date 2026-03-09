@@ -63,12 +63,14 @@ from lib.models.parse_result import ParseResult
 
 # Analyzers
 from lib.analyzers import (
+    AdvancedAnalyzer,
     AuthAnalyzer,
     ConfigAnalyzer,
     DependencyAnalyzer,
     InjectionAnalyzer,
     SecretsAnalyzer,
     SensitiveDataAnalyzer,
+    SSRFAnalyzer,
 )
 
 # Utilities
@@ -127,6 +129,8 @@ ANALYZER_VERSIONS: Dict[str, str] = {
     "dependency": "1.0",
     "config": "1.0",
     "sensitive_data": "1.0",
+    "ssrf": "1.0",
+    "advanced": "1.0",
 }
 """Version strings for each analyzer, included in the assessment report."""
 
@@ -648,6 +652,8 @@ def run_analyzers(
         ("Auth", AuthAnalyzer),
         ("Config", ConfigAnalyzer),
         ("SensitiveData", SensitiveDataAnalyzer),
+        ("SSRF", SSRFAnalyzer),
+        ("Advanced", AdvancedAnalyzer),
     ]
 
     for name, analyzer_cls in analyzer_classes:

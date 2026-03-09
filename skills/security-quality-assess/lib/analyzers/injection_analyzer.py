@@ -1,8 +1,11 @@
 """Injection vulnerability analyzer.
 
-Detects SQL injection, command injection, and code injection (including XSS)
-vulnerabilities in Python and JavaScript/TypeScript source code. This analyzer
-maps primarily to OWASP A03:2021 (Injection).
+Detects SQL injection, command injection, code injection (including XSS),
+NoSQL injection, JavaScript child_process command injection, unsafe YAML
+deserialization, and XML External Entity (XXE) vulnerabilities in Python
+and JavaScript/TypeScript source code. This analyzer maps primarily to
+OWASP A03:2021 (Injection) and A08:2021 (Software and Data Integrity
+Failures).
 
 Detection strategies:
     1. **SQL injection** -- uses SQLQuery and JSDBQuery objects extracted by
@@ -23,12 +26,35 @@ Detection strategies:
        ``document.write()`` in JavaScript/TypeScript. The JavaScript DOM
        manipulation patterns additionally produce XSS findings.
 
+    4. **JavaScript command injection** -- regex-based detection of
+       ``child_process.exec()`` and ``child_process.execSync()`` with
+       string concatenation or template literal interpolation. CWE-78.
+
+    5. **NoSQL injection** -- regex-based detection of MongoDB/Mongoose
+       query methods (``findOne``, ``find``, ``updateOne``, etc.) receiving
+       direct ``req.body``/``req.query`` values, and ``JSON.parse(req.query.*)``
+       passed to database queries. CWE-943.
+
+    6. **Unsafe YAML loading** -- regex-based detection of ``yaml.load()``
+       without a safe Loader argument. ``yaml.safe_load()`` and
+       ``yaml.load(data, Loader=yaml.SafeLoader)`` are excluded. CWE-502,
+       OWASP A08.
+
+    7. **XXE (XML External Entity)** -- regex-based detection of Python
+       ``ET.fromstring()``/``ET.parse()`` with user input, ``lxml.etree``
+       with ``resolve_entities=True``, and ``xml.sax`` without feature
+       disabling. CWE-611, OWASP A03.
+
 All detections produce :class:`Finding` objects categorized under
-:attr:`OWASPCategory.A03_INJECTION` with appropriate CWE references:
+:attr:`OWASPCategory.A03_INJECTION` or :attr:`OWASPCategory.A08_INTEGRITY_FAILURES`
+with appropriate CWE references:
     - CWE-78: OS Command Injection
     - CWE-79: Improper Neutralization of Input (XSS)
     - CWE-89: SQL Injection
     - CWE-94: Improper Control of Generation of Code (Code Injection)
+    - CWE-502: Deserialization of Untrusted Data (yaml.load)
+    - CWE-611: Improper Restriction of XML External Entity Reference (XXE)
+    - CWE-943: Improper Neutralization of Special Elements in Data Query Logic (NoSQL)
 
 This module uses only the Python standard library and has no external
 dependencies.
@@ -39,10 +65,14 @@ Classes:
 References:
     - TR.md Section 4.3: InjectionAnalyzer
     - OWASP A03:2021 Injection
+    - OWASP A08:2021 Software and Data Integrity Failures
     - CWE-78: Improper Neutralization of Special Elements in OS Command
     - CWE-79: Improper Neutralization of Input During Web Page Generation
     - CWE-89: Improper Neutralization of Special Elements in SQL Command
     - CWE-94: Improper Control of Generation of Code
+    - CWE-502: Deserialization of Untrusted Data
+    - CWE-611: Improper Restriction of XML External Entity Reference
+    - CWE-943: Improper Neutralization of Special Elements in Data Query Logic
 """
 
 import logging
@@ -133,6 +163,100 @@ _CODE_INJECTION_PATTERN_TYPES = frozenset({
 
 
 # ---------------------------------------------------------------------------
+# JavaScript child_process command injection patterns
+# ---------------------------------------------------------------------------
+
+# Matches: exec(`command ${var}`) or exec("cmd " + var)
+_JS_EXEC_TEMPLATE_LITERAL = re.compile(
+    r"""\bexec(?:Sync)?\s*\(\s*`[^`]*\$\{""",
+)
+
+# Matches: exec("string" + var) or exec(var + "string")
+_JS_EXEC_CONCATENATION = re.compile(
+    r"""\bexec(?:Sync)?\s*\([^)]*(?:['"][^'"]*['"]\s*\+|\+\s*['"][^'"]*['"])""",
+)
+
+# Matches: exec(variable) where variable is not a string literal
+_JS_EXEC_VARIABLE = re.compile(
+    r"""\bexec(?:Sync)?\s*\(\s*(?!['"`])([a-zA-Z_$][a-zA-Z0-9_$]*)""",
+)
+
+
+# ---------------------------------------------------------------------------
+# NoSQL injection patterns (MongoDB/Mongoose)
+# ---------------------------------------------------------------------------
+
+# Mongoose query methods receiving direct req.body/req.query values.
+_NOSQL_MONGOOSE_DIRECT_INPUT = re.compile(
+    r"""\.(?:findOne|find|updateOne|updateMany|deleteOne|deleteMany|"""
+    r"""findOneAndUpdate|findOneAndDelete|findOneAndReplace|"""
+    r"""countDocuments|aggregate)\s*\(""",
+)
+
+# JSON.parse(req.query.*) -- commonly used to inject query operators.
+_NOSQL_JSON_PARSE_REQ = re.compile(
+    r"""JSON\.parse\s*\(\s*req\.(?:query|body|params)\b""",
+)
+
+# Direct req.body/req.query usage near a mongoose query (within context).
+_NOSQL_REQ_INPUT_PATTERN = re.compile(
+    r"""req\.(?:body|query|params)""",
+)
+
+
+# ---------------------------------------------------------------------------
+# Unsafe YAML loading patterns (Python)
+# ---------------------------------------------------------------------------
+
+# yaml.load(data) without explicit Loader argument -- CWE-502.
+# yaml.load(data, Loader=yaml.SafeLoader) or yaml.safe_load() are safe.
+_UNSAFE_YAML_LOAD = re.compile(
+    r"""\byaml\.load\s*\(""",
+)
+
+# Safe yaml.load with explicit Loader keyword.
+_SAFE_YAML_LOADER = re.compile(
+    r"""\byaml\.load\s*\([^)]*Loader\s*=""",
+)
+
+# yaml.safe_load is always safe.
+_YAML_SAFE_LOAD = re.compile(
+    r"""\byaml\.safe_load\s*\(""",
+)
+
+
+# ---------------------------------------------------------------------------
+# XXE (XML External Entity) patterns
+# ---------------------------------------------------------------------------
+
+# Python stdlib: ET.fromstring() or ET.parse() -- default parser allows
+# external entities in older Python versions.
+_XXE_ET_FROMSTRING = re.compile(
+    r"""\bET\.(?:fromstring|parse)\s*\(""",
+)
+
+# lxml etree.fromstring/parse with resolve_entities=True (explicit XXE).
+_XXE_LXML_RESOLVE_ENTITIES = re.compile(
+    r"""resolve_entities\s*=\s*True""",
+)
+
+# lxml etree.fromstring or etree.parse calls.
+_XXE_LXML_PARSE = re.compile(
+    r"""\betree\.(?:fromstring|parse|XML)\s*\(""",
+)
+
+# Python xml.sax usage (potentially vulnerable without feature disabling).
+_XXE_XML_SAX = re.compile(
+    r"""\bxml\.sax\.(?:parse|parseString|make_parser)\s*\(""",
+)
+
+# Safe defusing: defusedxml usage means XXE is mitigated.
+_XXE_DEFUSED = re.compile(
+    r"""\bdefusedxml\b|\bdefused\b""",
+)
+
+
+# ---------------------------------------------------------------------------
 # Finding ID generator
 # ---------------------------------------------------------------------------
 
@@ -212,8 +336,9 @@ class InjectionAnalyzer:
         """Run all injection detection strategies on the parsed files.
 
         Iterates over each parsed file and applies SQL injection, command
-        injection, and code injection detection. Results from all three
-        strategies are combined into a single list of findings.
+        injection, code injection, JS child_process command injection,
+        NoSQL injection, unsafe YAML loading, and XXE detection. Results
+        from all strategies are combined into a single list of findings.
 
         Args:
             parsed_files: List of ParseResult objects from the parsing phase.
@@ -221,7 +346,9 @@ class InjectionAnalyzer:
                 dangerous calls, and dangerous patterns.
             config: Optional configuration overrides. Supported keys:
                 ``skip_sql_injection`` (bool), ``skip_command_injection``
-                (bool), ``skip_code_injection`` (bool).
+                (bool), ``skip_code_injection`` (bool),
+                ``skip_nosql_injection`` (bool), ``skip_yaml_injection``
+                (bool), ``skip_xxe`` (bool).
 
         Returns:
             List of Finding objects, one per detected issue. Findings are
@@ -233,6 +360,9 @@ class InjectionAnalyzer:
         skip_sql = config.get("skip_sql_injection", False)
         skip_command = config.get("skip_command_injection", False)
         skip_code = config.get("skip_code_injection", False)
+        skip_nosql = config.get("skip_nosql_injection", False)
+        skip_yaml = config.get("skip_yaml_injection", False)
+        skip_xxe = config.get("skip_xxe", False)
 
         for parsed_file in parsed_files:
             # Skip lockfiles -- they do not contain executable code.
@@ -245,7 +375,7 @@ class InjectionAnalyzer:
                     self._detect_sql_injection(parsed_file, id_gen)
                 )
 
-            # 2. Command injection detection
+            # 2. Command injection detection (Python subprocess/os)
             if not skip_command:
                 findings.extend(
                     self._detect_command_injection(parsed_file, id_gen)
@@ -255,6 +385,30 @@ class InjectionAnalyzer:
             if not skip_code:
                 findings.extend(
                     self._detect_code_injection(parsed_file, id_gen)
+                )
+
+            # 4. JavaScript child_process command injection
+            if not skip_command and parsed_file.language == "javascript":
+                findings.extend(
+                    self._detect_js_command_injection(parsed_file, id_gen)
+                )
+
+            # 5. NoSQL injection (MongoDB/Mongoose)
+            if not skip_nosql and parsed_file.language == "javascript":
+                findings.extend(
+                    self._detect_nosql_injection(parsed_file, id_gen)
+                )
+
+            # 6. Unsafe YAML loading (Python)
+            if not skip_yaml and parsed_file.language == "python":
+                findings.extend(
+                    self._detect_unsafe_yaml(parsed_file, id_gen)
+                )
+
+            # 7. XXE (XML External Entity) detection (Python)
+            if not skip_xxe and parsed_file.language == "python":
+                findings.extend(
+                    self._detect_xxe(parsed_file, id_gen)
                 )
 
         return findings
@@ -706,6 +860,646 @@ class InjectionAnalyzer:
         return findings
 
     # -----------------------------------------------------------------
+    # Strategy 4: JavaScript child_process command injection
+    # -----------------------------------------------------------------
+
+    def _detect_js_command_injection(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect command injection via child_process exec/execSync in JavaScript.
+
+        Scans raw source code for ``exec()`` and ``execSync()`` from the
+        Node.js ``child_process`` module used with string concatenation or
+        template literal interpolation. These patterns allow arbitrary
+        command injection when user input is embedded in the command string.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each JS command injection found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        seen_lines: set[int] = set()
+
+        # Check if child_process is imported/required in this file.
+        has_child_process = (
+            "child_process" in parsed_file.raw_source
+            or "exec(" in parsed_file.raw_source
+            or "execSync(" in parsed_file.raw_source
+        )
+        if not has_child_process:
+            return findings
+
+        js_cmd_patterns: List[Tuple[re.Pattern, str, float]] = [
+            (
+                _JS_EXEC_TEMPLATE_LITERAL,
+                "Template literal interpolation in exec/execSync command",
+                0.95,
+            ),
+            (
+                _JS_EXEC_CONCATENATION,
+                "String concatenation in exec/execSync command",
+                0.90,
+            ),
+            (
+                _JS_EXEC_VARIABLE,
+                "Variable passed directly to exec/execSync",
+                0.80,
+            ),
+        ]
+
+        for pattern, detail, confidence in js_cmd_patterns:
+            for match in pattern.finditer(parsed_file.raw_source):
+                line_number = (
+                    parsed_file.raw_source[: match.start()].count("\n") + 1
+                )
+
+                if line_number in seen_lines:
+                    continue
+
+                # Skip comment lines.
+                line_text = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if line_text.strip().startswith("//"):
+                    continue
+
+                seen_lines.add(line_number)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="command-injection",
+                        category=OWASPCategory.A03_INJECTION,
+                        severity=Severity.CRITICAL,
+                        title=(
+                            "Command injection risk: child_process exec/execSync "
+                            "with dynamic input"
+                        ),
+                        description=(
+                            f"{detail}. The child_process exec() and execSync() "
+                            "functions execute commands through the system shell. "
+                            "When user input is embedded in the command string via "
+                            "template literals or string concatenation, an attacker "
+                            "can inject arbitrary shell commands using metacharacters "
+                            "such as ; | && ` $() and backticks. This is one of the "
+                            "most dangerous injection vectors in Node.js applications."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Replace exec/execSync with execFile/execFileSync or "
+                            "spawn, which do not invoke a shell and pass arguments "
+                            "as an array: const { execFile } = require('child_process'); "
+                            "execFile('ping', ['-c', '4', host], callback). If shell "
+                            "features are required, validate input against a strict "
+                            "allowlist of permitted values. Never embed user input "
+                            "directly in command strings."
+                        ),
+                        cwe_id="CWE-78",
+                        confidence=confidence,
+                        metadata={
+                            "detection_type": "js_child_process",
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 5: NoSQL injection detection
+    # -----------------------------------------------------------------
+
+    def _detect_nosql_injection(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect NoSQL injection in MongoDB/Mongoose queries.
+
+        Scans raw source for Mongoose query methods (``findOne``, ``find``,
+        ``updateOne``, etc.) that receive direct ``req.body`` or ``req.query``
+        values, and ``JSON.parse(req.query.*)`` patterns passed to database
+        queries. These allow attackers to inject query operators like
+        ``{"$gt": ""}`` to bypass authentication or extract data.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each NoSQL injection found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        seen_lines: set[int] = set()
+        source_lines = parsed_file.source_lines
+
+        # Strategy A: JSON.parse(req.query/body/params) used near DB queries.
+        for match in _NOSQL_JSON_PARSE_REQ.finditer(parsed_file.raw_source):
+            line_number = (
+                parsed_file.raw_source[: match.start()].count("\n") + 1
+            )
+
+            if line_number in seen_lines:
+                continue
+
+            # Check if there is a Mongoose query method within ~10 lines.
+            context_start = max(0, line_number - 1)
+            context_end = min(len(source_lines), line_number + 10)
+            context_block = "\n".join(source_lines[context_start:context_end])
+
+            if _NOSQL_MONGOOSE_DIRECT_INPUT.search(context_block):
+                seen_lines.add(line_number)
+
+                code_sample = self._build_code_sample(
+                    source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="nosql-injection",
+                        category=OWASPCategory.A03_INJECTION,
+                        severity=Severity.HIGH,
+                        title=(
+                            "NoSQL injection: JSON.parse(req.*) used in "
+                            "database query"
+                        ),
+                        description=(
+                            "User input from req.query/req.body/req.params is "
+                            "parsed with JSON.parse() and passed to a MongoDB/"
+                            "Mongoose query method. An attacker can send JSON "
+                            "query operators like {\"$gt\": \"\"}, {\"$ne\": null}, "
+                            "or {\"$regex\": \".*\"} to manipulate the query logic, "
+                            "bypass authentication, or extract arbitrary data from "
+                            "the database."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Never pass raw JSON.parse() output from user input "
+                            "to database queries. Validate and sanitize input "
+                            "against an expected schema using a library like Joi "
+                            "or Zod. Use explicit field extraction: "
+                            "{ field: String(req.query.field) }. Consider using "
+                            "mongo-sanitize to strip $-prefixed operators from "
+                            "user input: const sanitize = require('mongo-sanitize'); "
+                            "const clean = sanitize(req.body);"
+                        ),
+                        cwe_id="CWE-943",
+                        confidence=0.90,
+                        metadata={
+                            "detection_type": "json_parse_nosql",
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        # Strategy B: Mongoose query methods with direct req.body/req.query
+        # usage in the surrounding context.
+        for match in _NOSQL_MONGOOSE_DIRECT_INPUT.finditer(
+            parsed_file.raw_source
+        ):
+            line_number = (
+                parsed_file.raw_source[: match.start()].count("\n") + 1
+            )
+
+            if line_number in seen_lines:
+                continue
+
+            # Check if req.body/req.query/req.params appears within
+            # ~5 lines before or after the query call.
+            context_start = max(0, line_number - 6)
+            context_end = min(len(source_lines), line_number + 5)
+            context_block = "\n".join(source_lines[context_start:context_end])
+
+            if not _NOSQL_REQ_INPUT_PATTERN.search(context_block):
+                continue
+
+            seen_lines.add(line_number)
+
+            code_sample = self._build_code_sample(
+                source_lines, line_number
+            )
+
+            findings.append(
+                Finding(
+                    id=id_gen.next_id(),
+                    rule_id="nosql-injection",
+                    category=OWASPCategory.A03_INJECTION,
+                    severity=Severity.HIGH,
+                    title=(
+                        "NoSQL injection: user input passed directly to "
+                        "MongoDB/Mongoose query"
+                    ),
+                    description=(
+                        "A MongoDB/Mongoose query method receives values "
+                        "directly from req.body, req.query, or req.params "
+                        "without sanitization. An attacker can send query "
+                        "operator objects like {\"$gt\": \"\"} or "
+                        "{\"$regex\": \".*\"} to manipulate the query, bypass "
+                        "authentication checks, or extract data. For example, "
+                        "sending {\"password\": {\"$gt\": \"\"}} to a login "
+                        "endpoint would match any non-empty password."
+                    ),
+                    file_path=parsed_file.file_path,
+                    line_number=line_number,
+                    code_sample=code_sample,
+                    remediation=(
+                        "Sanitize user input before passing it to MongoDB "
+                        "queries. Use explicit type casting: "
+                        "{ username: String(req.body.username) }. Install "
+                        "mongo-sanitize: npm install mongo-sanitize, then "
+                        "sanitize(req.body) to strip $ operators. Validate "
+                        "input schema with Joi, Zod, or express-validator. "
+                        "For authentication queries, always hash passwords "
+                        "before comparing."
+                    ),
+                    cwe_id="CWE-943",
+                    confidence=0.85,
+                    metadata={
+                        "detection_type": "mongoose_direct_input",
+                        "language": parsed_file.language,
+                    },
+                )
+            )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 6: Unsafe YAML loading detection (Python)
+    # -----------------------------------------------------------------
+
+    def _detect_unsafe_yaml(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect unsafe yaml.load() usage without a safe Loader.
+
+        Scans Python source for ``yaml.load(data)`` calls that do not
+        specify a Loader argument. Without an explicit safe Loader,
+        ``yaml.load()`` can execute arbitrary Python code via YAML tags
+        (e.g., ``!!python/object/apply:os.system``).
+
+        Safe patterns that are excluded:
+            - ``yaml.load(data, Loader=yaml.SafeLoader)``
+            - ``yaml.load(data, Loader=yaml.FullLoader)``
+            - ``yaml.safe_load(data)``
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each unsafe yaml.load() found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Quick check: skip files that don't use yaml at all.
+        if "yaml" not in parsed_file.raw_source:
+            return findings
+
+        seen_lines: set[int] = set()
+
+        for match in _UNSAFE_YAML_LOAD.finditer(parsed_file.raw_source):
+            line_number = (
+                parsed_file.raw_source[: match.start()].count("\n") + 1
+            )
+
+            if line_number in seen_lines:
+                continue
+
+            # Get the full line to check for safe Loader argument.
+            line_text = self._get_source_line(
+                parsed_file.source_lines, line_number
+            )
+
+            # Skip comment lines.
+            if line_text.strip().startswith("#"):
+                continue
+
+            # Check if yaml.safe_load is used (not yaml.load).
+            if _YAML_SAFE_LOAD.search(line_text):
+                continue
+
+            # Check if Loader= keyword is present (safe usage).
+            if _SAFE_YAML_LOADER.search(line_text):
+                continue
+
+            # Also check the next line in case of multi-line call.
+            next_line = self._get_source_line(
+                parsed_file.source_lines, line_number + 1
+            )
+            if "Loader=" in next_line:
+                continue
+
+            seen_lines.add(line_number)
+
+            code_sample = self._build_code_sample(
+                parsed_file.source_lines, line_number
+            )
+
+            findings.append(
+                Finding(
+                    id=id_gen.next_id(),
+                    rule_id="unsafe-yaml-load",
+                    category=OWASPCategory.A08_INTEGRITY_FAILURES,
+                    severity=Severity.HIGH,
+                    title=(
+                        "Unsafe deserialization: yaml.load() without safe "
+                        "Loader allows code execution"
+                    ),
+                    description=(
+                        "The yaml.load() function is called without specifying "
+                        "a safe Loader argument. By default, yaml.load() can "
+                        "instantiate arbitrary Python objects via YAML tags "
+                        "such as !!python/object/apply:os.system, enabling "
+                        "remote code execution if the YAML data comes from an "
+                        "untrusted source. This is a well-known deserialization "
+                        "vulnerability in PyYAML."
+                    ),
+                    file_path=parsed_file.file_path,
+                    line_number=line_number,
+                    code_sample=code_sample,
+                    remediation=(
+                        "Replace yaml.load() with yaml.safe_load() which only "
+                        "supports basic YAML types (strings, numbers, lists, "
+                        "dicts). If you need yaml.load(), always specify a safe "
+                        "Loader: yaml.load(data, Loader=yaml.SafeLoader) or "
+                        "yaml.load(data, Loader=yaml.FullLoader). FullLoader is "
+                        "safe from arbitrary code execution but supports more "
+                        "YAML features than SafeLoader."
+                    ),
+                    cwe_id="CWE-502",
+                    confidence=0.90,
+                    metadata={
+                        "detection_type": "unsafe_yaml_load",
+                        "language": parsed_file.language,
+                    },
+                )
+            )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 7: XXE (XML External Entity) detection
+    # -----------------------------------------------------------------
+
+    def _detect_xxe(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect XML External Entity (XXE) vulnerabilities in Python.
+
+        Scans Python source for XML parsing calls that may be vulnerable
+        to XXE attacks:
+
+        **MEDIUM:**
+            - ``ET.fromstring()`` / ``ET.parse()`` from the stdlib
+              ``xml.etree.ElementTree`` module. The default parser in older
+              Python versions resolves external entities.
+            - ``xml.sax.parse()`` / ``xml.sax.parseString()`` without
+              explicit feature disabling.
+
+        **HIGH:**
+            - ``lxml.etree.fromstring()`` with ``resolve_entities=True``
+              explicitly set on the parser.
+
+        Files using ``defusedxml`` are excluded since that library mitigates
+        XXE by default.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each XXE vulnerability found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Quick check: skip files that don't use XML at all.
+        raw = parsed_file.raw_source
+        if "xml" not in raw.lower() and "ET." not in raw and "etree" not in raw:
+            return findings
+
+        # Skip files that use defusedxml (safe by default).
+        if _XXE_DEFUSED.search(raw):
+            return findings
+
+        seen_lines: set[int] = set()
+
+        # --- Strategy A: lxml etree with resolve_entities=True (HIGH) ---
+        if "resolve_entities" in raw:
+            for match in _XXE_LXML_RESOLVE_ENTITIES.finditer(raw):
+                line_number = raw[: match.start()].count("\n") + 1
+
+                if line_number in seen_lines:
+                    continue
+
+                line_text = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if line_text.strip().startswith("#"):
+                    continue
+
+                seen_lines.add(line_number)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="xxe-vulnerability",
+                        category=OWASPCategory.A03_INJECTION,
+                        severity=Severity.HIGH,
+                        title=(
+                            "XXE risk: lxml parser with resolve_entities=True "
+                            "allows external entity expansion"
+                        ),
+                        description=(
+                            "The lxml XMLParser is configured with "
+                            "resolve_entities=True, which explicitly enables "
+                            "external entity resolution. An attacker can craft "
+                            "XML input with external entity declarations to "
+                            "read arbitrary files from the server (e.g., "
+                            "/etc/passwd), perform SSRF attacks against internal "
+                            "services, or cause denial of service via recursive "
+                            "entity expansion (billion laughs attack)."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Set resolve_entities=False on the lxml XMLParser: "
+                            "parser = etree.XMLParser(resolve_entities=False). "
+                            "Alternatively, use defusedxml which disables "
+                            "dangerous XML features by default: "
+                            "from defusedxml.lxml import fromstring. Also set "
+                            "no_network=True and huge_tree=False on the parser "
+                            "for defense in depth."
+                        ),
+                        cwe_id="CWE-611",
+                        confidence=0.90,
+                        metadata={
+                            "detection_type": "lxml_resolve_entities",
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        # --- Strategy B: stdlib ET.fromstring/ET.parse (MEDIUM) ---
+        if "ET." in raw:
+            for match in _XXE_ET_FROMSTRING.finditer(raw):
+                line_number = raw[: match.start()].count("\n") + 1
+
+                if line_number in seen_lines:
+                    continue
+
+                line_text = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if line_text.strip().startswith("#"):
+                    continue
+
+                seen_lines.add(line_number)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="xxe-vulnerability",
+                        category=OWASPCategory.A03_INJECTION,
+                        severity=Severity.MEDIUM,
+                        title=(
+                            "XXE risk: xml.etree.ElementTree parsing may "
+                            "allow external entity expansion"
+                        ),
+                        description=(
+                            "The xml.etree.ElementTree module is used to parse "
+                            "XML data. While Python 3.8+ disables external "
+                            "entities by default, older versions may resolve "
+                            "them. If the XML data comes from untrusted input, "
+                            "an attacker can craft XML with external entity "
+                            "declarations to read local files, perform SSRF, "
+                            "or cause denial of service."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Use defusedxml instead of the stdlib XML parsers: "
+                            "from defusedxml.ElementTree import fromstring, parse. "
+                            "defusedxml disables external entity resolution, DTD "
+                            "processing, and other dangerous features by default. "
+                            "Install with: pip install defusedxml."
+                        ),
+                        cwe_id="CWE-611",
+                        confidence=0.75,
+                        metadata={
+                            "detection_type": "stdlib_et_parse",
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        # --- Strategy C: xml.sax without feature disabling (MEDIUM) ---
+        if "xml.sax" in raw:
+            for match in _XXE_XML_SAX.finditer(raw):
+                line_number = raw[: match.start()].count("\n") + 1
+
+                if line_number in seen_lines:
+                    continue
+
+                line_text = self._get_source_line(
+                    parsed_file.source_lines, line_number
+                )
+                if line_text.strip().startswith("#"):
+                    continue
+
+                seen_lines.add(line_number)
+
+                code_sample = self._build_code_sample(
+                    parsed_file.source_lines, line_number
+                )
+
+                findings.append(
+                    Finding(
+                        id=id_gen.next_id(),
+                        rule_id="xxe-vulnerability",
+                        category=OWASPCategory.A03_INJECTION,
+                        severity=Severity.MEDIUM,
+                        title=(
+                            "XXE risk: xml.sax parser may allow external "
+                            "entity expansion"
+                        ),
+                        description=(
+                            "The xml.sax module is used to parse XML data. "
+                            "Without explicitly disabling external entity "
+                            "resolution features, the SAX parser may resolve "
+                            "external entities, enabling XXE attacks that can "
+                            "read local files, perform SSRF, or cause denial "
+                            "of service."
+                        ),
+                        file_path=parsed_file.file_path,
+                        line_number=line_number,
+                        code_sample=code_sample,
+                        remediation=(
+                            "Use defusedxml.sax instead of the stdlib xml.sax: "
+                            "from defusedxml import sax; sax.parse(...). If you "
+                            "must use xml.sax, disable external entities: "
+                            "parser = xml.sax.make_parser(); "
+                            "parser.setFeature(xml.sax.handler.feature_external_ges, "
+                            "False); parser.setFeature(xml.sax.handler.feature_external_pes, "
+                            "False)."
+                        ),
+                        cwe_id="CWE-611",
+                        confidence=0.75,
+                        metadata={
+                            "detection_type": "xml_sax",
+                            "language": parsed_file.language,
+                        },
+                    )
+                )
+
+        return findings
+
+    # -----------------------------------------------------------------
     # Finding factory methods
     # -----------------------------------------------------------------
 
@@ -1012,6 +1806,22 @@ class InjectionAnalyzer:
             return "<source unavailable>"
 
         return "\n".join(source_lines[start:end])
+
+    @staticmethod
+    def _get_source_line(source_lines: List[str], line_number: int) -> str:
+        """Get a single source line by 1-based line number.
+
+        Args:
+            source_lines: The source file split into lines.
+            line_number: 1-based line number.
+
+        Returns:
+            The source line content, or an empty string if out of range.
+        """
+        idx = line_number - 1
+        if 0 <= idx < len(source_lines):
+            return source_lines[idx]
+        return ""
 
     @staticmethod
     def _is_orm_safe_pattern(query_pattern: str) -> bool:

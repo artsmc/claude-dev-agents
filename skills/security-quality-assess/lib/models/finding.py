@@ -14,7 +14,7 @@ Classes:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class Severity(str, Enum):
@@ -95,6 +95,12 @@ class Finding:
         remediation: Actionable guidance on how to fix the vulnerability.
         cwe_id: Optional CWE identifier (e.g., "CWE-798") linking to the
             Common Weakness Enumeration database.
+        stig_ids: DISA STIG V-number references associated with this finding
+            (e.g., ["V-222608", "V-222612"]). Populated from CWE-to-STIG
+            compliance mapping. Defaults to empty list.
+        nist_controls: NIST 800-53 control references associated with this
+            finding (e.g., ["SI-10", "AC-3"]). Populated from CWE-to-NIST
+            compliance mapping. Defaults to empty list.
         confidence: Detection confidence score from 0.0 (lowest) to 1.0
             (highest). Defaults to 1.0 for deterministic pattern matches.
         metadata: Optional dictionary for additional analyzer-specific data
@@ -129,6 +135,8 @@ class Finding:
     code_sample: str
     remediation: str
     cwe_id: Optional[str] = None
+    stig_ids: List[str] = field(default_factory=list)
+    nist_controls: List[str] = field(default_factory=list)
     confidence: float = 1.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -154,6 +162,8 @@ class Finding:
             "code_sample": self.code_sample,
             "remediation": self.remediation,
             "cwe_id": self.cwe_id,
+            "stig_ids": self.stig_ids,
+            "nist_controls": self.nist_controls,
             "confidence": self.confidence,
             "metadata": self.metadata,
         }

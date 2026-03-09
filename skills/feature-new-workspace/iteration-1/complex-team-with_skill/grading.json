@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Recognizes --team flag and sets mode to team",
+      "passed": true,
+      "evidence": "Section 1 'Argument Parsing and Mode Detection' shows explicit parsing: '--team flag is not a named argument in the frontmatter — it appears inline in the feature_description string.' Result: 'mode = \"team\"', 'USE_TEAM_MODE = true'."
+    },
+    {
+      "text": "Passes --team flag through to spec-plan invocation",
+      "passed": true,
+      "evidence": "Section 3 (Step 1) shows: 'Skill: spec-plan, Args: \"Build a complete notification system with real-time WebSocket events, email digests, and in-app notification center --team\"'. The --team flag is explicitly re-appended per SKILL.md Step 1 instructions."
+    },
+    {
+      "text": "Uses start-phase-execute-team (not start-phase-execute) for execution",
+      "passed": true,
+      "evidence": "Section 7 (Step 5) states: 'Because mode == \"team\", the orchestrator routes to start-phase-execute-team, NOT start-phase-execute.' Invocation shows 'Skill: start-phase-execute-team'. Summary table (Section 8) confirms routing."
+    },
+    {
+      "text": "Still follows the 5-step sequence even in team mode",
+      "passed": true,
+      "evidence": "Sections 3-7 maintain exact order: spec-plan (1) → spec-review (2) → start-phase-plan (3) → pm-db (4) → start-phase-execute-team (5). Section 12 explicitly states: 'Team mode does not reorder or skip steps.'"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "All assertions pass with detailed evidence. Team mode routing is clearly documented."
+  }
+}

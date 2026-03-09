@@ -1,0 +1,35 @@
+{
+  "skill_name": "security-quality-assess",
+  "evals": [
+    {
+      "id": 1,
+      "name": "stig-synthetic-fixtures",
+      "prompt": "Run a security assessment on the synthetic STIG vulnerability fixtures",
+      "target_path": "/home/artsmc/.claude/skills/security-quality-assess-workspace/fixtures/stig-vulns",
+      "expected_output": "Should detect: weak crypto (MD5, DES, RC4, Blowfish, ECB mode), SSRF patterns, XXE, insecure deserialization (pickle, yaml.load), missing audit logging, PII in logs, command injection (child_process.exec), NoSQL injection, path traversal, IDOR, missing auth, prototype pollution, insecure cookies. Should map findings to OWASP categories and ideally STIG V-numbers.",
+      "files": [
+        "fixtures/stig-vulns/weak_crypto.py",
+        "fixtures/stig-vulns/ssrf_xxe.py",
+        "fixtures/stig-vulns/logging_failures.py",
+        "fixtures/stig-vulns/injection_advanced.js",
+        "fixtures/stig-vulns/auth_access_control.py"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "api-express-app",
+      "prompt": "Scan my Express API for security vulnerabilities",
+      "target_path": "/home/artsmc/applications/low-code/apps/api",
+      "expected_output": "Should find real-world issues in a production Express 5.x + Prisma + JWT app. Expect findings around JWT config, CORS, error handling, auth patterns. Report should be actionable with clear remediation.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "mastra-workflow-engine",
+      "prompt": "Run a security assessment on the Mastra workflow engine",
+      "target_path": "/home/artsmc/applications/low-code/apps/mastra",
+      "expected_output": "Should find issues in Drizzle ORM + PGBoss + Express app. Expect dependency findings, config issues, potential injection patterns. Report should handle a larger codebase without errors.",
+      "files": []
+    }
+  ]
+}

@@ -1,301 +1,233 @@
 ---
 name: feature-new
-description: Complete feature workflow - from planning to execution with PM-DB tracking
+description: "Complete feature workflow - from planning to execution with PM-DB tracking. Use this skill when the user wants to build a new feature end-to-end, saying things like 'build this feature', 'implement this', 'new feature', 'add this capability', or '/feature-new'. Orchestrates spec-plan → spec-review → start-phase-plan → pm-db → start-phase-execute into one workflow with human checkpoints. Even if the user doesn't explicitly mention this skill, use it whenever someone describes a new feature they want built from scratch."
 args:
   feature_description:
     type: string
     description: Brief description of the feature to develop
     required: true
+  mode:
+    type: string
+    description: "Execution mode: auto (default), team, sequential. Team mode passes --team to sub-skills for parallel execution. Auto lets each sub-skill decide."
+    required: false
+    default: "auto"
 ---
 
-# Feature New - Complete Workflow Orchestration
+# Feature New — End-to-End Feature Orchestration
 
-Execute the complete end-to-end feature development workflow with automatic PM-DB tracking.
+Chain five skills into one workflow: **spec → review → plan → track → execute**.
 
-## Your Task
+## Purpose
 
-You are orchestrating a complete feature development workflow. Follow these steps in order, handling errors and user approvals as specified.
+Building a feature from scratch involves multiple skills in sequence, with state (file paths, project names) threading between them. This orchestrator handles sequencing, state-passing, and error recovery so you focus on the feature itself.
 
----
+Each sub-skill handles its own output, user interaction, and formatting. This skill only manages the flow between them.
 
-## Step 1: Initialize Documentation Systems (if needed)
-
-First, check if Memory Bank and Document Hub are initialized by reading the memory-bank directory.
-
-```bash
-Use Read tool to check: memory-bank/systemPatterns.md
-```
-
-**If the file doesn't exist:**
-- Use the Skill tool to invoke "documentation-start"
-- Wait for completion
-- Display: "✅ Step 1/6: Documentation initialized"
-
-**If the file exists:**
-- Display: "✅ Step 1/6: Documentation already initialized"
-
-**If initialization fails:**
-- Display error and STOP the workflow
-- Show: "❌ Failed at Step 1/6: Could not initialize documentation systems"
-
----
-
-## Step 2: Generate Feature Specification
-
-Use the Skill tool to invoke "spec-plan" with the feature_description argument:
+## Flow
 
 ```
-Skill tool:
-  skill: "spec-plan"
-  args: "{{feature_description}}"
+spec-plan → spec-review → start-phase-plan → pm-db import → execute
+    |            |              |                  |             |
+ generates    validates     user approves     best-effort    builds it
+ spec docs    quality       execution plan    tracking
 ```
 
-**What to expect:**
-- The spec-plan skill will:
-  1. Research and gather context
-  2. Launch spec-writer agent
-  3. Generate FRD, FRS, GS, TR, and task-list.md files
-  4. Save to: `./job-queue/feature-{name}/docs/`
+**Human checkpoints:** after spec-review (if issues), after phase-plan (always).
 
-**After it completes:**
-- Display: "✅ Step 2/6: Specification created"
-- Show the location: `./job-queue/feature-{name}/docs/`
+## Argument Parsing
 
-**If it fails:**
-- Display: "❌ Failed at Step 2/6: Spec planning failed"
-- Show which steps were completed vs skipped
-- STOP the workflow
+The user may pass flags inline in the description string (e.g., `"add auth --team"`). Before doing anything:
 
----
+1. **Scan `feature_description` for `--team` or `--sequential`** flags
+2. If found, **strip the flag** from the description and set `mode` accordingly
+3. Pass the **cleaned description** (without flags) to sub-skills
+4. Re-append `--team` to spec-plan args only if mode is "team" (spec-plan expects it as a flag)
 
-## Step 3: Review Specification Quality
+Example: `"add auth --team"` → `feature_description = "add auth"`, `mode = "team"`
 
-Use the Skill tool to invoke "spec-review":
+## State Tracking
 
+Track these values across steps — each is derived from the previous step's output:
+
+- **feature_name** — directory name created by spec-plan (e.g., `feature-dark-mode`)
+- **spec_dir** — where spec-plan saved files (e.g., `./job-queue/feature-dark-mode/docs/`)
+- **task_list_path** — path to the generated task-list.md
+- **pm_db_ids** — project/phase/plan IDs from pm-db (may be null if import was skipped)
+
+If a path isn't clear from sub-skill output, use Glob:
 ```
-Skill tool:
-  skill: "spec-review"
-```
-
-**What to expect:**
-- The spec-review skill will validate the generated specs
-- It may find issues or pass cleanly
-
-**After it completes:**
-- Display: "✅ Step 3/6: Specification reviewed"
-- If there were warnings, show them to the user
-
-**If validation fails:**
-- Ask the user: "⚠️ Spec review found issues. Continue anyway?"
-- Use AskUserQuestion with options:
-  - "Yes, continue" (proceed to Step 4)
-  - "No, stop here" (STOP the workflow)
-
-**If user chooses to stop:**
-- Display: "ℹ️ Workflow stopped at user request"
-- Show: "Specification saved at: ./job-queue/feature-{name}/"
-- STOP the workflow
-
----
-
-## Step 4: Create Strategic Execution Plan
-
-Find the task-list.md file from the spec generation:
-
-```bash
-Use Glob tool: "**/feature-*/task-list.md"
-```
-
-Then use the Skill tool to invoke "start-phase-plan" with the task list path:
-
-```
-Skill tool:
-  skill: "start-phase-plan"
-  args: "{path_to_task_list}"
-```
-
-**What to expect:**
-- The start-phase-plan skill will:
-  1. Analyze task complexity
-  2. Identify parallel execution opportunities
-  3. Create wave structure
-  4. Generate phase plan
-  5. **ASK USER FOR APPROVAL** (built into start-phase-plan)
-
-**After user approves:**
-- Display: "✅ Step 4/6: Strategic plan approved"
-
-**If user rejects the plan:**
-- Display: "ℹ️ Plan rejected by user"
-- Show: "Specification saved at: ./job-queue/feature-{name}/"
-- Show: "You can re-plan later with: /start-phase plan {path}"
-- STOP the workflow
-
----
-
-## Step 5: Import to PM-DB
-
-Use the Skill tool to invoke "pm-db" with import command:
-
-```
-Skill tool:
-  skill: "pm-db"
-  args: "import --project feature-{name}"
-```
-
-**What to expect:**
-- Creates project record in PM-DB
-- Creates phase record
-- Creates phase_plan record
-- Links all tasks to the plan
-- Returns project ID, phase ID, plan ID
-
-**After it completes:**
-- Display: "✅ Step 5/6: Imported to PM-DB"
-- Show the IDs returned
-- Show task count
-
-**If import fails:**
-- Display: "⚠️ PM-DB import failed"
-- Show manual import instructions
-- Ask user: "Continue to execution anyway?"
-  - If no: STOP
-  - If yes: proceed to Step 6 (with warning)
-
----
-
-## Step 6: Execute Phase with Quality Gates
-
-Use the Skill tool to invoke "start-phase-execute" with the task list path:
-
-```
-Skill tool:
-  skill: "start-phase-execute"
-  args: "{path_to_task_list}"
-```
-
-**What to expect:**
-- The start-phase-execute skill will:
-  1. Call on-phase-run-start hook (gets phase_run_id)
-  2. Execute Part 1-5 of the execution workflow
-  3. For each task:
-     - Call on-task-run-start hook
-     - Execute task with appropriate agent
-     - Call on-task-run-complete hook
-     - Run quality gates
-     - Create task update
-     - Git commit
-  4. Call on-phase-run-complete hook
-  5. Display execution metrics
-
-**After it completes:**
-- Display: "✅ Step 6/6: Phase execution complete"
-- Show final metrics
-- Show completion message
-
-**If execution fails:**
-- Display which task failed
-- Show: "Use /feature-continue to resume"
-
----
-
-## Final Output
-
-When all steps complete successfully, display:
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎉 FEATURE COMPLETE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Feature: {{feature_description}}
-Location: ./job-queue/feature-{name}/
-
-Completed Steps:
-  ✅ [1/6] Documentation initialized
-  ✅ [2/6] Specification created
-  ✅ [3/6] Specification reviewed
-  ✅ [4/6] Strategic plan approved
-  ✅ [5/6] Imported to PM-DB
-  ✅ [6/6] Phase executed
-
-Next steps:
-  - View metrics: /pm-db dashboard
-  - Update Memory Bank: /memory-bank-sync
-  - View phase summary: ./job-queue/feature-{name}/planning/phase-structure/phase-summary.md
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Glob: "**/feature-*/task-list.md" or "**/feature-*/docs/task-list.md"
 ```
 
 ---
 
-## Error Handling Guidelines
+## Step 1: Generate Feature Specification
 
-**At any step failure:**
-1. Display which step failed with [X/6] notation
-2. List which steps were completed (✓)
-3. List which steps were skipped (⏭)
-4. Provide recovery instructions
-5. STOP the workflow (don't continue to next step)
+Invoke spec-plan. It auto-detects tier (quick/standard/full) and generates the right documentation depth.
 
-**Example error output:**
 ```
-❌ Workflow Failed at Step 3/6: Spec Review
-
-Steps completed:
-  ✓ [1/6] Documentation initialized
-  ✓ [2/6] Specification created
-  ✗ [3/6] Specification review FAILED
-
-Steps skipped:
-  ⏭ [4/6] Strategic plan
-  ⏭ [5/6] PM-DB import
-  ⏭ [6/6] Phase execution
-
-Error: Validation found critical issues in FRD.md
-
-Recovery options:
-  1. Fix issues manually and run: /spec-review
-  2. Regenerate spec: /spec-plan "{{feature_description}}"
-  3. Resume with: /feature-continue
+Skill: spec-plan
+Args: "{{feature_description}}"
+      (append " --team" if mode is "team")
 ```
 
----
+After completion, extract the **spec_dir** and **task_list_path** from spec-plan's output. These are needed for all remaining steps.
 
-## Human-in-the-Loop Checkpoints
-
-This workflow has **2 required approval steps** (handled by the sub-skills):
-
-1. **After spec review** (Step 3): If validation fails, ask user to continue or stop
-2. **After phase plan** (Step 4): User must approve the execution plan (built into start-phase-plan)
-
-These checkpoints prevent:
-- Executing poorly-defined specifications
-- Running inefficient task plans
-- Wasting tokens on flawed approaches
+**If it fails:** Stop. Tell the user what went wrong and that they can retry directly with `/spec-plan "{{feature_description}}"`.
 
 ---
 
-## Notes for Execution
+## Step 2: Review Specification Quality
 
-- **Sequential execution**: Each step must complete before starting the next
-- **Use Skill tool**: All sub-skills must be invoked using the Skill tool, not mentioned as text
-- **Wait for completion**: Don't proceed to next step until current step finishes
-- **Check exit codes**: If a sub-skill fails, handle the error and stop
-- **Display progress**: Show step numbers [X/6] throughout
-- **Path management**: Track the feature folder path for use in later steps
-- **Error recovery**: Provide clear instructions for manual recovery if needed
+Invoke spec-review to validate the generated specs. This catches structural issues before you commit to planning and execution.
+
+```
+Skill: spec-review
+```
+
+- **Clean pass or warnings only:** Continue.
+- **Errors found:** Ask the user via AskUserQuestion:
+  - "Continue anyway" → proceed to Step 3
+  - "Stop and fix" → stop workflow, tell user specs are saved at spec_dir
+
+This step prevents executing a flawed spec. It's a safety net, not a gate — the user decides whether issues are blocking.
 
 ---
 
-## Total Expected Duration
+## Step 3: Create Execution Plan
 
-- Step 1: ~1 min (or skip if exists)
-- Step 2: ~3-5 min (AI generation)
-- Step 3: ~1-2 min (validation)
-- Step 4: ~2-4 min (planning + user approval)
-- Step 5: ~5 sec (database import)
-- Step 6: ~varies (depends on task complexity)
+Invoke start-phase-plan with the task list from Step 1.
 
-**Planning phase (Steps 1-5):** ~6-12 minutes
-**Execution phase (Step 6):** Varies by feature scope
+```
+Skill: start-phase-plan
+Args: "{task_list_path}"
+```
+
+start-phase-plan has a **built-in user approval checkpoint**. It analyzes dependencies, proposes wave structure and agent assignments, then asks the user to approve.
+
+- **User approves:** Continue.
+- **User rejects:** Stop. Tell them specs are saved and they can re-plan with `/start-phase plan {task_list_path}`.
+
+---
+
+## Step 4: Import to PM-DB (best-effort)
+
+Import the feature into PM-DB for tracking. This is helpful but **not blocking** — if it fails, warn and continue.
+
+```
+Skill: pm-db
+Args: "import --project {feature_name} --auto-confirm"
+```
+
+- **Success:** Note the returned IDs for reference.
+- **Failure:** Warn the user, then proceed to Step 5. They can import later with `/pm-db import`.
+
+---
+
+## Step 5: Execute Tasks
+
+Choose the execution skill based on mode:
+
+**If mode is "team":**
+```
+Skill: start-phase-execute-team
+Args: "{task_list_path}"
+```
+
+**If mode is "sequential" or "auto":**
+```
+Skill: start-phase-execute
+Args: "{task_list_path}"
+```
+
+The execution skill handles everything: wave decomposition, agent delegation, quality gates, git commits, and PM-DB tracking hooks.
+
+**If it fails mid-execution:** Tell the user which task failed and that they can resume with `/feature-continue` or `/start-phase execute {task_list_path}`.
+
+---
+
+## Completion
+
+When all steps finish, show a brief summary:
+
+```
+Feature: {feature_description}
+Specs: {spec_dir}
+Tasks completed: (from execution output)
+
+Next:
+  /pm-db dashboard    — view project metrics
+  /memory-bank-sync   — update project memory
+```
+
+Keep it short. The sub-skills already showed detailed output during their runs.
+
+---
+
+## Error Handling
+
+**Principle: fail fast, explain clearly, give a recovery command.**
+
+At any failure (except Step 4 which is best-effort):
+1. Name the failed step
+2. List what completed before it
+3. Give the exact command to retry or resume
+
+**Recovery commands by step:**
+
+| Failed Step | Recovery Command |
+|-------------|-----------------|
+| Step 1 | `/spec-plan "{{feature_description}}"` |
+| Step 2 | `/spec-review` |
+| Step 3 | `/start-phase plan {task_list_path}` |
+| Step 4 | `/pm-db import --project {feature_name}` (or skip) |
+| Step 5 | `/feature-continue` or `/start-phase execute {task_list_path}` |
+
+---
+
+## Skip Logic
+
+Before starting Step 1, run Glob to check for existing artifacts. If found, confirm with the user before skipping.
+
+**Pre-flight checks:**
+
+1. **Check for task-list.md:**
+   ```
+   Glob: "**/feature-*/task-list.md" or "**/feature-*/docs/task-list.md"
+   ```
+   If found → specs exist. Check if user also said they reviewed them.
+
+2. **Check for phase-summary.md:**
+   ```
+   Glob: "**/feature-*/planning/phase-structure/phase-summary.md"
+   ```
+   If found → planning already done.
+
+**Confirmation is mandatory before skipping.** Even if the user's message clearly implies steps are done, present what you found and ask:
+
+```
+AskUserQuestion:
+  "I found existing specs at: {path}
+   Skip spec generation and review, and go straight to planning?"
+  Options: "Yes, skip to planning" / "No, regenerate from scratch"
+```
+
+This prevents silently skipping safety steps (especially spec-review) without the user's explicit awareness.
+
+**Skip matrix:**
+
+| Found | User said reviewed | Skip Steps |
+|-------|-------------------|------------|
+| task-list.md | Yes | 1 + 2 |
+| task-list.md | No | 1 only (still run review) |
+| phase-summary.md | N/A | 3 |
+| PM-DB has feature | N/A | 4 |
+
+---
+
+## Notes
+
+- Each sub-skill manages its own output — don't duplicate their displays
+- The workflow is sequential because each step depends on the previous one
+- Mode "auto" defers to each sub-skill's own auto-detection (spec-plan picks tier, execute picks parallelism)
+- Mode "team" passes team flags through to sub-skills that support them

@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "eval_name": "complex-team",
+  "prompt": "Build a complete notification system with real-time WebSocket events, email digests, and in-app notification center --team",
+  "assertions": [
+    {"name": "team-flag-detected", "type": "contains", "description": "Recognizes --team flag and sets mode to team"},
+    {"name": "spec-plan-team-arg", "type": "contains", "description": "Passes --team flag through to spec-plan invocation"},
+    {"name": "team-execute-routing", "type": "contains", "description": "Uses start-phase-execute-team (not start-phase-execute) for execution"},
+    {"name": "correct-step-order", "type": "ordering", "description": "Still follows the 5-step sequence even in team mode"}
+  ]
+}

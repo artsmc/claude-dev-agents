@@ -12,14 +12,19 @@ Detection strategies:
     2. **Shannon entropy** -- flags string literals with entropy above 4.5
        bits/char as potential embedded secrets, after excluding common
        false-positive categories (URLs, file paths, ordinary words).
-    3. **Weak cryptography** -- detects usage of MD5, SHA1, and DES in both
-       Python (hashlib, PyCryptodome) and JavaScript (crypto module) code.
+    3. **Weak cryptography** -- detects usage of MD5, SHA1, DES, RC4,
+       Blowfish, and ECB mode in both Python (hashlib, PyCryptodome) and
+       JavaScript (crypto module) code.
+    4. **Cleartext credential transmission** -- detects HTTP (non-HTTPS)
+       URLs used in requests that also transmit password/credential/secret
+       fields, indicating credentials sent in cleartext.
 
 All detections produce :class:`Finding` objects categorized under
 :attr:`OWASPCategory.A02_CRYPTOGRAPHIC_FAILURES` with appropriate CWE
 references:
     - CWE-798: Use of Hard-coded Credentials (secrets)
     - CWE-327: Use of a Broken or Risky Cryptographic Algorithm (weak crypto)
+    - CWE-319: Cleartext Transmission of Sensitive Information
 
 This module uses only the Python standard library and has no external
 dependencies.
@@ -32,6 +37,7 @@ References:
     - OWASP A02:2021 Cryptographic Failures
     - CWE-798: Use of Hard-coded Credentials
     - CWE-327: Use of a Broken or Risky Cryptographic Algorithm
+    - CWE-319: Cleartext Transmission of Sensitive Information
 """
 
 import logging
@@ -288,20 +294,86 @@ _WEAK_CRYPTO_PATTERNS: List[_WeakCryptoEntry] = [
     ),
     # PyCryptodome DES
     (
-        re.compile(r"\bCrypto\.Cipher\.DES\b"),
+        re.compile(r"\bDES\.new\s*\("),
         "weak-crypto-des",
         "Weak encryption algorithm: DES",
         (
-            "DES is used via PyCryptodome's Crypto.Cipher.DES. DES uses a "
+            "DES is used via PyCryptodome's DES.new(). DES uses a "
             "56-bit key which can be brute-forced in hours on modern "
             "hardware. DES has been superseded by AES since 2001."
         ),
-        Severity.MEDIUM,
+        Severity.HIGH,
         0.90,
         "CWE-327",
         (
-            "Replace DES with AES-256 (Crypto.Cipher.AES with a 256-bit key). "
-            "Use authenticated encryption modes such as GCM or CCM."
+            "Replace DES with AES-256-GCM for symmetric encryption. "
+            "Use SHA-256/SHA-3 for hashing, and bcrypt/argon2 for "
+            "password hashing."
+        ),
+        "python",
+    ),
+    # PyCryptodome RC4 (ARC4)
+    (
+        re.compile(r"\bARC4\.new\s*\("),
+        "weak-crypto-rc4",
+        "Weak encryption algorithm: RC4",
+        (
+            "RC4 is used via PyCryptodome's ARC4.new(). RC4 has multiple "
+            "known biases and vulnerabilities. It was prohibited by RFC 7465 "
+            "for TLS and should not be used for any security purpose."
+        ),
+        Severity.HIGH,
+        0.90,
+        "CWE-327",
+        (
+            "Replace RC4 with AES-256-GCM for symmetric encryption. "
+            "Use SHA-256/SHA-3 for hashing, and bcrypt/argon2 for "
+            "password hashing."
+        ),
+        "python",
+    ),
+    # PyCryptodome Blowfish
+    (
+        re.compile(r"\bBlowfish\.new\s*\("),
+        "weak-crypto-blowfish",
+        "Weak encryption algorithm: Blowfish",
+        (
+            "Blowfish is used via PyCryptodome's Blowfish.new(). Blowfish "
+            "has a 64-bit block size which makes it vulnerable to birthday "
+            "attacks (Sweet32) when encrypting large amounts of data. While "
+            "not fully broken, modern alternatives are strongly recommended."
+        ),
+        Severity.MEDIUM,
+        0.85,
+        "CWE-327",
+        (
+            "Replace Blowfish with AES-256-GCM for symmetric encryption. "
+            "Use SHA-256/SHA-3 for hashing, and bcrypt/argon2 for "
+            "password hashing."
+        ),
+        "python",
+    ),
+    # ECB mode detection (any cipher with MODE_ECB)
+    (
+        re.compile(r"\bMODE_ECB\b"),
+        "weak-crypto-ecb-mode",
+        "Weak cipher mode: ECB (Electronic Codebook)",
+        (
+            "ECB (Electronic Codebook) mode is used for block cipher "
+            "encryption. ECB is weak because identical plaintext blocks "
+            "produce identical ciphertext blocks, which leaks information "
+            "about the plaintext structure. This enables pattern analysis "
+            "attacks and does not provide semantic security."
+        ),
+        Severity.HIGH,
+        0.90,
+        "CWE-327",
+        (
+            "Replace ECB mode with a secure mode such as GCM (Galois/Counter "
+            "Mode) which provides both confidentiality and authenticity. "
+            "Example: AES.new(key, AES.MODE_GCM). Use AES-256-GCM for "
+            "symmetric encryption, SHA-256/SHA-3 for hashing, and "
+            "bcrypt/argon2 for password hashing."
         ),
         "python",
     ),
@@ -361,16 +433,96 @@ _WEAK_CRYPTO_PATTERNS: List[_WeakCryptoEntry] = [
             "DES uses a 56-bit key and is insecure against brute-force "
             "attacks on modern hardware."
         ),
-        Severity.MEDIUM,
+        Severity.HIGH,
         0.90,
         "CWE-327",
         (
-            "Replace with 'aes-256-gcm' or 'aes-256-cbc'. Example: "
-            "crypto.createCipheriv('aes-256-gcm', key, iv)"
+            "Replace with 'aes-256-gcm'. Example: "
+            "crypto.createCipheriv('aes-256-gcm', key, iv). "
+            "Use SHA-256/SHA-3 for hashing, and bcrypt/argon2 for "
+            "password hashing."
+        ),
+        "javascript",
+    ),
+    # JavaScript createCipheriv with rc4
+    (
+        re.compile(
+            r"""\.createCipheriv\s*\(\s*['"]rc4['"]\s*""",
+            re.IGNORECASE,
+        ),
+        "weak-crypto-rc4-js",
+        "Weak encryption algorithm: RC4 (Node.js)",
+        (
+            "RC4 is used via Node.js crypto.createCipheriv('rc4'). "
+            "RC4 has multiple known biases and vulnerabilities and was "
+            "prohibited by RFC 7465 for TLS. It should not be used for "
+            "any security purpose."
+        ),
+        Severity.HIGH,
+        0.90,
+        "CWE-327",
+        (
+            "Replace with 'aes-256-gcm'. Example: "
+            "crypto.createCipheriv('aes-256-gcm', key, iv). "
+            "Use SHA-256/SHA-3 for hashing, and bcrypt/argon2 for "
+            "password hashing."
+        ),
+        "javascript",
+    ),
+    # JavaScript createCipheriv with ECB mode
+    (
+        re.compile(
+            r"""\.createCipheriv\s*\(\s*['"][^'"]*-ecb['"]\s*""",
+            re.IGNORECASE,
+        ),
+        "weak-crypto-ecb-mode-js",
+        "Weak cipher mode: ECB (Node.js)",
+        (
+            "ECB (Electronic Codebook) mode is used via Node.js "
+            "crypto.createCipheriv with a '-ecb' cipher. ECB is weak "
+            "because identical plaintext blocks produce identical "
+            "ciphertext blocks, leaking information about the plaintext "
+            "structure."
+        ),
+        Severity.HIGH,
+        0.90,
+        "CWE-327",
+        (
+            "Replace with 'aes-256-gcm' which provides both confidentiality "
+            "and authenticity. Example: "
+            "crypto.createCipheriv('aes-256-gcm', key, iv). "
+            "Use SHA-256/SHA-3 for hashing, and bcrypt/argon2 for "
+            "password hashing."
         ),
         "javascript",
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Cleartext credential transmission patterns
+# ---------------------------------------------------------------------------
+
+# Matches requests.post("http://..." , ...) or requests.get("http://...", ...)
+# followed by json/data containing password/credential/secret/token fields.
+# This is intentionally broad to catch the pattern across multiple lines.
+_CLEARTEXT_CRED_PATTERN = re.compile(
+    r"""requests\.(?:post|put|patch|get)\s*\(\s*['"]http://[^'"]+['"]"""
+    r"""[^)]*(?:password|credential|secret|token|passwd|auth)""",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# Simpler per-line fallback: detect "http://" URL on a line that also has
+# requests.post/put and a following line (within 5 lines) with credential fields.
+_HTTP_URL_IN_REQUEST = re.compile(
+    r"""requests\.(?:post|put|patch)\s*\(\s*['"]http://""",
+    re.IGNORECASE,
+)
+
+_CREDENTIAL_FIELD_PATTERN = re.compile(
+    r"""['"](?:password|credential|secret|token|passwd|api_key|auth_token)['"]""",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -626,8 +778,9 @@ class SecretsAnalyzer:
         """Run all secrets detection strategies on the parsed files.
 
         Iterates over each parsed file and applies pattern matching, entropy
-        analysis, and weak cryptography detection. Results from all three
-        strategies are combined into a single list of findings.
+        analysis, weak cryptography detection, and cleartext credential
+        transmission detection. Results from all strategies are combined
+        into a single list of findings.
 
         Args:
             parsed_files: List of ParseResult objects from the parsing phase.
@@ -677,6 +830,12 @@ class SecretsAnalyzer:
             if not skip_weak_crypto:
                 findings.extend(
                     self._detect_weak_crypto(parsed_file, id_gen)
+                )
+
+            # 4. Cleartext credential transmission
+            if not skip_weak_crypto:
+                findings.extend(
+                    self._detect_cleartext_credentials(parsed_file, id_gen)
                 )
 
         return findings
@@ -957,6 +1116,153 @@ class SecretsAnalyzer:
                         },
                     )
                 )
+
+        return findings
+
+    # -----------------------------------------------------------------
+    # Strategy 4: Cleartext credential transmission detection
+    # -----------------------------------------------------------------
+
+    def _detect_cleartext_credentials(
+        self,
+        parsed_file: ParseResult,
+        id_gen: _FindingIDGenerator,
+    ) -> List[Finding]:
+        """Detect credentials transmitted over cleartext HTTP connections.
+
+        Scans raw source code for HTTP (non-HTTPS) URLs used in requests
+        that also transmit password, credential, secret, or token fields.
+        Transmitting credentials over unencrypted HTTP allows network
+        attackers to intercept them via passive eavesdropping.
+
+        This detection applies only to Python files (requests library)
+        since JavaScript HTTP client patterns differ significantly and
+        are handled by dedicated checks.
+
+        Args:
+            parsed_file: A single parsed file result containing raw source
+                code and file metadata.
+            id_gen: Sequential ID generator for creating finding IDs.
+
+        Returns:
+            List of Finding objects for each cleartext credential
+            transmission pattern found.
+        """
+        findings: List[Finding] = []
+
+        if not parsed_file.raw_source:
+            return findings
+
+        # Only scan Python files for this pattern.
+        if parsed_file.language != "python":
+            return findings
+
+        # Track (rule_id, line_number) to avoid duplicates.
+        seen: set[Tuple[str, int]] = set()
+
+        # Strategy 1: Single regex match across raw source (handles
+        # single-line and multi-line requests.post("http://...", json={...password...})
+        for match in _CLEARTEXT_CRED_PATTERN.finditer(parsed_file.raw_source):
+            line_number = (
+                parsed_file.raw_source[: match.start()].count("\n") + 1
+            )
+
+            key = ("cleartext-credential-transmission", line_number)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            code_sample = self._build_code_sample(
+                parsed_file.source_lines, line_number
+            )
+
+            findings.append(
+                Finding(
+                    id=id_gen.next_id(),
+                    rule_id="cleartext-credential-transmission",
+                    category=OWASPCategory.A02_CRYPTOGRAPHIC_FAILURES,
+                    severity=Severity.HIGH,
+                    title="Credentials transmitted over cleartext HTTP",
+                    description=(
+                        "An HTTP request sends credentials (password, token, "
+                        "secret, or similar sensitive fields) over an "
+                        "unencrypted HTTP connection. Credentials sent over "
+                        "HTTP can be intercepted by any network observer "
+                        "via passive eavesdropping, man-in-the-middle "
+                        "attacks, or network sniffing."
+                    ),
+                    file_path=parsed_file.file_path,
+                    line_number=line_number,
+                    code_sample=code_sample,
+                    remediation=(
+                        "Always use HTTPS (https://) for transmitting "
+                        "credentials and sensitive data. Enforce TLS for all "
+                        "API endpoints that accept authentication data. "
+                        "Use HSTS headers to prevent protocol downgrade "
+                        "attacks."
+                    ),
+                    cwe_id="CWE-319",
+                    confidence=0.90,
+                    metadata={
+                        "matched_text": match.group(0)[:100],
+                        "protocol": "http",
+                    },
+                )
+            )
+
+        # Strategy 2: Line-proximity scan -- detect requests.post("http://...")
+        # followed within 5 lines by a credential field name.
+        if not findings:
+            lines = parsed_file.source_lines
+            for i, line in enumerate(lines):
+                if _HTTP_URL_IN_REQUEST.search(line):
+                    # Look ahead up to 5 lines for credential fields.
+                    window = "\n".join(lines[i : i + 6])
+                    if _CREDENTIAL_FIELD_PATTERN.search(window):
+                        line_number = i + 1
+                        key = ("cleartext-credential-transmission", line_number)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+
+                        code_sample = self._build_code_sample(lines, line_number)
+
+                        findings.append(
+                            Finding(
+                                id=id_gen.next_id(),
+                                rule_id="cleartext-credential-transmission",
+                                category=OWASPCategory.A02_CRYPTOGRAPHIC_FAILURES,
+                                severity=Severity.HIGH,
+                                title="Credentials transmitted over cleartext HTTP",
+                                description=(
+                                    "An HTTP request sends credentials "
+                                    "(password, token, secret, or similar "
+                                    "sensitive fields) over an unencrypted "
+                                    "HTTP connection. Credentials sent over "
+                                    "HTTP can be intercepted by any network "
+                                    "observer via passive eavesdropping, "
+                                    "man-in-the-middle attacks, or network "
+                                    "sniffing."
+                                ),
+                                file_path=parsed_file.file_path,
+                                line_number=line_number,
+                                code_sample=code_sample,
+                                remediation=(
+                                    "Always use HTTPS (https://) for "
+                                    "transmitting credentials and sensitive "
+                                    "data. Enforce TLS for all API endpoints "
+                                    "that accept authentication data. Use "
+                                    "HSTS headers to prevent protocol "
+                                    "downgrade attacks."
+                                ),
+                                cwe_id="CWE-319",
+                                confidence=0.85,
+                                metadata={
+                                    "matched_text": line.strip()[:100],
+                                    "protocol": "http",
+                                },
+                            )
+                        )
 
         return findings
 

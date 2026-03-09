@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "Does NOT invoke spec-plan since specs already exist", "passed": true, "evidence": "Section 4: '/spec-plan — NOT invoked (specs already exist)'."},
+    {"text": "Does NOT invoke spec-review since user said they already reviewed", "passed": true, "evidence": "Section 4: '/spec-review — NOT invoked (user confirmed review is done)'."},
+    {"text": "Explicitly confirms with the user via AskUserQuestion before skipping Steps 1-2", "passed": false, "evidence": "Baseline does NOT show an explicit AskUserQuestion confirmation. It proceeds directly after verifying task-list.md exists via ls. Section 1: 'Before proceeding, a single safety check confirms task-list.md actually exists' — this is a file check, not a user confirmation prompt."},
+    {"text": "Starts execution from start-phase-plan (Step 3) after skip confirmation", "passed": true, "evidence": "Section 2: 'first action is to invoke start-phase-plan against the task list at the confirmed path'."},
+    {"text": "Uses the user-provided spec path for locating task-list.md", "passed": true, "evidence": "Section 2 shows the exact user-provided path used for start-phase-plan invocation."}
+  ],
+  "summary": {"passed": 4, "failed": 1, "total": 5, "pass_rate": 0.8}
+}

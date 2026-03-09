@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "skip-detection",
+  "prompt": "I want to execute the file upload feature. Specs are already at /home/artsmc/applications/low-code/job-queue/feature-file-upload/docs/ and I've already reviewed them.",
+  "assertions": [
+    {"name": "skip-spec-plan", "type": "contains", "description": "Does NOT invoke spec-plan since specs already exist"},
+    {"name": "skip-spec-review", "type": "contains", "description": "Does NOT invoke spec-review since user said they already reviewed"},
+    {"name": "starts-at-plan", "type": "contains", "description": "Starts from start-phase-plan or confirms skip with user before proceeding"},
+    {"name": "uses-provided-path", "type": "contains", "description": "Uses the user-provided spec path for locating task-list.md"}
+  ]
+}

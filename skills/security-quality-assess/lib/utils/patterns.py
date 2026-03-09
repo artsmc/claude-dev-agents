@@ -24,6 +24,14 @@ Pattern categories:
     - **JavaScript**: DOM XSS vectors (eval, innerHTML, document.write).
     - **Weak cryptography**: MD5, SHA-1, DES in Python and JavaScript.
     - **Configuration**: Debug mode, CORS wildcard, missing headers.
+    - **SSRF**: Server-side request forgery (Python and JavaScript).
+    - **XXE**: XML external entity injection (ElementTree, lxml, SAX, minidom).
+    - **NoSQL injection**: MongoDB operator injection, unsanitized query input.
+    - **Deserialization**: Unsafe YAML, marshal, shelve deserialization.
+    - **JS command injection**: child_process exec, execSync, execFile, spawn.
+    - **Extended weak crypto**: DES, Blowfish, RC4, 3DES, ECB mode.
+    - **Access control**: Path traversal, insecure permissions, prototype pollution.
+    - **Insecure transport**: Credentials over unencrypted HTTP.
 
 All patterns in this module use only the Python standard library (``re``,
 ``typing``). There are no external dependencies.
@@ -270,6 +278,70 @@ class SecurityPatterns:
     can execute arbitrary Python code via YAML tags. Use
     yaml.safe_load() instead."""
 
+    # --- NoSQL Injection ---
+
+    NOSQL_MONGOOSE_QUERY: str = (
+        r"""\.(?:findOne|find|updateOne|updateMany|deleteOne|deleteMany"""
+        r"""|findOneAndUpdate|findOneAndDelete|countDocuments|aggregate)\s*\("""
+    )
+    """MongoDB/Mongoose query method call. When receiving unsanitized
+    user input (req.body, req.query), vulnerable to NoSQL operator
+    injection (e.g., {"$gt": ""})."""
+
+    NOSQL_JSON_PARSE_REQ: str = r"""JSON\.parse\s*\(\s*req\.(?:query|body|params)\b"""
+    """JSON.parse() of user request data. When the parsed result is
+    passed to a MongoDB query, enables arbitrary query operator
+    injection."""
+
+    # --- JavaScript Command Injection (child_process) ---
+
+    JS_EXEC_TEMPLATE: str = r"""\bexec(?:Sync)?\s*\(\s*`[^`]*\$\{"""
+    """Node.js child_process exec/execSync with template literal
+    interpolation. Allows command injection when user input is
+    embedded in the command string."""
+
+    JS_EXEC_CONCAT: str = (
+        r"""\bexec(?:Sync)?\s*\([^)]*(?:['"][^'"]*['"]\s*\+|\+\s*['"][^'"]*['"])"""
+    )
+    """Node.js child_process exec/execSync with string concatenation.
+    Allows command injection via shell metacharacters."""
+
+    # --- XXE (XML External Entity) ---
+
+    XXE_ET_PARSE: str = r"""\bET\.(?:fromstring|parse)\s*\("""
+    """Python xml.etree.ElementTree parsing. Default parser may
+    resolve external entities in older Python versions."""
+
+    XXE_LXML_RESOLVE: str = r"""resolve_entities\s*=\s*True"""
+    """lxml XMLParser with resolve_entities=True. Explicitly enables
+    external entity resolution, allowing XXE attacks."""
+
+    XXE_XML_SAX: str = r"""\bxml\.sax\.(?:parse|parseString|make_parser)\s*\("""
+    """Python xml.sax usage. Without explicit feature disabling,
+    may resolve external entities."""
+
+    # --- SSRF (Server-Side Request Forgery) ---
+
+    SSRF_PY_URLLIB: str = r"""\burllib\.request\.urlopen\s*\("""
+    """Python urllib.request.urlopen(). When called with a
+    user-controlled URL, enables SSRF attacks."""
+
+    SSRF_PY_REQUESTS: str = r"""\brequests\.(?:get|post|put|delete|patch|head)\s*\("""
+    """Python requests library HTTP call. When the URL argument
+    is user-controlled, enables SSRF attacks."""
+
+    SSRF_PY_HTTPX: str = r"""\bhttpx\.(?:get|post|put|delete|patch|head)\s*\("""
+    """Python httpx HTTP call. When the URL argument is
+    user-controlled, enables SSRF attacks."""
+
+    SSRF_JS_FETCH: str = r"""\bfetch\s*\("""
+    """JavaScript fetch() call. When the URL argument is derived
+    from user input (req.query, req.body), enables SSRF."""
+
+    SSRF_JS_AXIOS: str = r"""\baxios\.(?:get|post|put|delete|patch|head|request)\s*\("""
+    """JavaScript axios HTTP call. When the URL argument is
+    user-controlled, enables SSRF attacks."""
+
     # ===================================================================
     # JAVASCRIPT PATTERNS
     # ===================================================================
@@ -357,6 +429,52 @@ class SecurityPatterns:
     JS_CRYPTO_DES: str = r"""\.createCipheriv\s*\(\s*['"]des[^'"]*['"]\s*"""
     """Node.js DES cipher usage. DES is insecure; use AES-256-GCM."""
 
+    JS_CRYPTO_RC4: str = r"""\.createCipheriv\s*\(\s*['"]rc4['"]\s*"""
+    """Node.js RC4 cipher usage. RC4 is insecure; use AES-256-GCM."""
+
+    JS_CRYPTO_ECB: str = r"""\.createCipheriv\s*\(\s*['"][^'"]*-ecb['"]\s*"""
+    """Node.js ECB mode cipher usage. ECB is weak; use GCM mode."""
+
+    PYTHON_RC4: str = r"""\bARC4\.new\s*\("""
+    """PyCryptodome RC4 (ARC4) cipher. RC4 has multiple known biases
+    and was prohibited by RFC 7465. Use AES-256-GCM instead."""
+
+    PYTHON_BLOWFISH: str = r"""\bBlowfish\.new\s*\("""
+    """PyCryptodome Blowfish cipher. Blowfish has a 64-bit block size
+    vulnerable to birthday attacks (Sweet32). Use AES-256-GCM instead."""
+
+    PYTHON_ECB_MODE: str = r"""\bMODE_ECB\b"""
+    """ECB (Electronic Codebook) mode. Identical plaintext blocks produce
+    identical ciphertext, leaking plaintext structure. Use GCM mode."""
+
+    # ===================================================================
+    # ACCESS CONTROL PATTERNS
+    # ===================================================================
+    # Patterns for detecting access control vulnerabilities. Maps to
+    # OWASP A01:2021 Broken Access Control.
+
+    PATH_TRAVERSAL_FSTRING: str = r"""\bopen\s*\(\s*f['"].*\{[^}]+\}"""
+    """Python open() with f-string containing user variable. Enables
+    path traversal via ../../ sequences."""
+
+    PATH_TRAVERSAL_CONCAT: str = r"""\bopen\s*\([^)]*\+[^)]*\)"""
+    """Python open() with string concatenation. Enables path traversal
+    if one operand is user-controlled."""
+
+    UNSAFE_CHMOD_777: str = r"""\bos\.chmod\s*\([^)]*\b0o(?:777|666)\b"""
+    """os.chmod() with world-writable permissions (0o777 or 0o666).
+    Grants excessive access to all system users."""
+
+    PROTOTYPE_POLLUTION: str = r"""\bObject\.assign\s*\([^,]+,\s*(?:req|request)\.body"""
+    """JavaScript Object.assign() with request body. Enables prototype
+    pollution via __proto__ or constructor keys."""
+
+    SUDO_SUBPROCESS: str = r"""\bsubprocess\.(?:run|call|Popen|check_call|check_output)\s*\(\s*\[?\s*['"]sudo['"]"""
+    """Python subprocess call with sudo. Escalates to root privileges."""
+
+    SETUID_ROOT: str = r"""\bos\.setuid\s*\(\s*0\s*\)"""
+    """Python os.setuid(0). Sets process to root UID."""
+
     # ===================================================================
     # CONFIGURATION PATTERNS
     # ===================================================================
@@ -428,6 +546,146 @@ class SecurityPatterns:
     """Sensitive data stored in browser localStorage or sessionStorage.
     These storage mechanisms are accessible to any JavaScript on the
     same origin, including XSS payloads."""
+
+    # ===================================================================
+    # SSRF PATTERNS (List-based)
+    # ===================================================================
+    # Patterns for detecting Server-Side Request Forgery vulnerabilities.
+    # Maps to CWE-918: Server-Side Request Forgery (SSRF).
+
+    SSRF_PATTERNS: List[dict] = [
+        # Python SSRF
+        {"pattern": r"urllib\.request\.urlopen\s*\(", "rule_id": "ssrf-urllib", "description": "SSRF risk: urllib.request.urlopen() with potentially user-controlled URL", "cwe": "CWE-918"},
+        {"pattern": r"requests\.(get|post|put|delete|patch|head)\s*\([^)]*\b(url|target|endpoint|callback|webhook|redirect)\b", "rule_id": "ssrf-requests", "description": "SSRF risk: requests library call with potentially user-controlled URL parameter", "cwe": "CWE-918"},
+        {"pattern": r"http\.client\.HTTP[S]?Connection\s*\(", "rule_id": "ssrf-http-client", "description": "SSRF risk: http.client connection with potentially user-controlled host", "cwe": "CWE-918"},
+    ]
+    """List-based SSRF patterns for Python code. Each entry is a dict with
+    pattern, rule_id, description, and cwe keys. Supplements the individual
+    SSRF_PY_* class attributes with more targeted detection."""
+
+    JS_SSRF_PATTERNS: List[dict] = [
+        {"pattern": r"(?:fetch|axios(?:\.(?:get|post|put|delete|patch))?\s*)\s*\(\s*(?:req\.|request\.|params\.|query\.|body\.)", "rule_id": "ssrf-fetch", "description": "SSRF risk: fetch/axios with user-controlled URL from request parameters", "cwe": "CWE-918"},
+        {"pattern": r"(?:http|https)\.(?:get|request)\s*\(\s*(?:req\.|request\.|params\.|query\.|body\.)", "rule_id": "ssrf-http-module", "description": "SSRF risk: Node.js http module with user-controlled URL", "cwe": "CWE-918"},
+    ]
+    """List-based SSRF patterns for JavaScript/Node.js code. Detects
+    fetch/axios and http module calls with user-controlled URL inputs."""
+
+    # ===================================================================
+    # XXE PATTERNS (List-based)
+    # ===================================================================
+    # Patterns for detecting XML External Entity vulnerabilities.
+    # Maps to CWE-611: Improper Restriction of XML External Entity Reference.
+
+    XXE_PATTERNS: List[dict] = [
+        {"pattern": r"ET\.fromstring\s*\(|ET\.parse\s*\(|xml\.etree\.ElementTree", "rule_id": "xxe-etree", "description": "XXE risk: xml.etree.ElementTree default parser allows entity expansion", "cwe": "CWE-611"},
+        {"pattern": r"etree\.fromstring\s*\(|etree\.parse\s*\(|lxml\.etree", "rule_id": "xxe-lxml", "description": "XXE risk: lxml parser may allow external entity resolution", "cwe": "CWE-611"},
+        {"pattern": r"xml\.sax\.parseString\s*\(|xml\.sax\.parse\s*\(", "rule_id": "xxe-sax", "description": "XXE risk: SAX parser may allow external entity resolution", "cwe": "CWE-611"},
+        {"pattern": r"xml\.dom\.minidom\.parseString\s*\(|xml\.dom\.minidom\.parse\s*\(", "rule_id": "xxe-minidom", "description": "XXE risk: minidom parser may allow external entity resolution", "cwe": "CWE-611"},
+        {"pattern": r"resolve_entities\s*=\s*True", "rule_id": "xxe-resolve-entities", "description": "XXE: External entity resolution explicitly enabled", "cwe": "CWE-611"},
+    ]
+    """List-based XXE patterns for Python XML parsing libraries. Covers
+    ElementTree, lxml, SAX, and minidom parsers."""
+
+    # ===================================================================
+    # NOSQL INJECTION PATTERNS (List-based)
+    # ===================================================================
+    # Patterns for detecting NoSQL injection vulnerabilities.
+    # Maps to CWE-943: Improper Neutralization of Special Elements in
+    # Data Query Logic.
+
+    NOSQL_INJECTION_PATTERNS: List[dict] = [
+        {"pattern": r"\.(?:find|findOne|findOneAndUpdate|findOneAndDelete|updateOne|updateMany|deleteOne|deleteMany|aggregate|countDocuments)\s*\(\s*(?:req\.body|req\.query|req\.params|request\.json|request\.form|request\.args)", "rule_id": "nosql-injection-direct", "description": "NoSQL injection: MongoDB query using unsanitized user input directly", "cwe": "CWE-943"},
+        {"pattern": r"JSON\.parse\s*\(.*(?:req\.query|req\.params|request\.args)", "rule_id": "nosql-injection-parsed", "description": "NoSQL injection: User input parsed as JSON and potentially used in query", "cwe": "CWE-943"},
+        {"pattern": r"\$(?:gt|gte|lt|lte|ne|in|nin|regex|where|exists)\b", "rule_id": "nosql-operator-in-input", "description": "NoSQL operator in code that may accept user-controlled values", "cwe": "CWE-943"},
+    ]
+    """List-based NoSQL injection patterns. Detects direct use of
+    unsanitized user input in MongoDB queries and NoSQL operator usage."""
+
+    # ===================================================================
+    # DESERIALIZATION PATTERNS (List-based)
+    # ===================================================================
+    # Patterns for detecting insecure deserialization vulnerabilities.
+    # Maps to CWE-502: Deserialization of Untrusted Data.
+
+    DESERIALIZATION_PATTERNS: List[dict] = [
+        {"pattern": r"yaml\.load\s*\([^)]*\)(?!\s*,\s*Loader\s*=\s*yaml\.SafeLoader)", "rule_id": "yaml-unsafe-load", "description": "Insecure deserialization: yaml.load() without SafeLoader can execute arbitrary code", "cwe": "CWE-502"},
+        {"pattern": r"yaml\.unsafe_load\s*\(", "rule_id": "yaml-unsafe-load-explicit", "description": "Insecure deserialization: yaml.unsafe_load() explicitly allows arbitrary code execution", "cwe": "CWE-502"},
+        {"pattern": r"marshal\.loads?\s*\(", "rule_id": "marshal-deserialize", "description": "Insecure deserialization: marshal module can execute arbitrary code", "cwe": "CWE-502"},
+        {"pattern": r"shelve\.open\s*\(", "rule_id": "shelve-deserialize", "description": "Insecure deserialization: shelve uses pickle internally", "cwe": "CWE-502"},
+    ]
+    """List-based deserialization patterns for Python. Detects unsafe
+    YAML loading, marshal, and shelve usage."""
+
+    # ===================================================================
+    # JS COMMAND INJECTION PATTERNS (List-based)
+    # ===================================================================
+    # Patterns for detecting JavaScript command injection vulnerabilities.
+    # Maps to CWE-78: Improper Neutralization of Special Elements used
+    # in an OS Command ('OS Command Injection').
+
+    JS_COMMAND_INJECTION_PATTERNS: List[dict] = [
+        {"pattern": r"(?:child_process\.)?exec\s*\(", "rule_id": "cmd-injection-exec", "description": "Command injection: child_process.exec() passes input through shell", "cwe": "CWE-78"},
+        {"pattern": r"(?:child_process\.)?execSync\s*\(", "rule_id": "cmd-injection-execsync", "description": "Command injection: child_process.execSync() passes input through shell", "cwe": "CWE-78"},
+        {"pattern": r"(?:child_process\.)?execFile\s*\(", "rule_id": "cmd-injection-execfile", "description": "Command execution: child_process.execFile() runs external program", "cwe": "CWE-78"},
+        {"pattern": r"child_process\.spawn\s*\([^)]*shell\s*:\s*true", "rule_id": "cmd-injection-spawn-shell", "description": "Command injection: spawn() with shell:true passes input through shell", "cwe": "CWE-78"},
+    ]
+    """List-based command injection patterns for JavaScript/Node.js.
+    Detects child_process exec, execSync, execFile, and spawn with shell."""
+
+    # ===================================================================
+    # EXTENDED WEAK CRYPTO PATTERNS (List-based)
+    # ===================================================================
+    # Extended patterns for detecting weak cryptographic algorithm usage.
+    # Maps to CWE-327: Use of a Broken or Risky Cryptographic Algorithm.
+
+    EXTENDED_WEAK_CRYPTO_PATTERNS: List[dict] = [
+        {"pattern": r"(?:Crypto\.Cipher\.)?DES\.new\s*\(|from\s+Crypto\.Cipher\s+import\s+DES", "rule_id": "weak-crypto-des", "description": "Weak encryption: DES has 56-bit key, easily brute-forced", "cwe": "CWE-327"},
+        {"pattern": r"(?:Crypto\.Cipher\.)?Blowfish\.new\s*\(|from\s+Crypto\.Cipher\s+import\s+Blowfish", "rule_id": "weak-crypto-blowfish", "description": "Weak encryption: Blowfish has known weaknesses for large data", "cwe": "CWE-327"},
+        {"pattern": r"(?:Crypto\.Cipher\.)?ARC4\.new\s*\(|from\s+Crypto\.Cipher\s+import\s+ARC4", "rule_id": "weak-crypto-rc4", "description": "Weak encryption: RC4 has critical biases in keystream", "cwe": "CWE-327"},
+        {"pattern": r"(?:Crypto\.Cipher\.)?DES3\.new\s*\(|from\s+Crypto\.Cipher\s+import\s+DES3", "rule_id": "weak-crypto-3des", "description": "Weak encryption: 3DES is deprecated, use AES instead", "cwe": "CWE-327"},
+        {"pattern": r"\.MODE_ECB\b|mode\s*=\s*['\"]ECB['\"]|mode\s*=\s*['\"]ecb['\"]", "rule_id": "weak-crypto-ecb", "description": "Weak encryption mode: ECB mode does not provide semantic security", "cwe": "CWE-327"},
+        {"pattern": r"createCipheriv?\s*\(\s*['\"](?:des|rc4|blowfish|bf)['\"]", "rule_id": "weak-crypto-node-legacy", "description": "Weak encryption: Legacy cipher algorithm in Node.js crypto", "cwe": "CWE-327"},
+        {"pattern": r"createCipheriv?\s*\(\s*['\"][^'\"]*-ecb['\"]", "rule_id": "weak-crypto-node-ecb", "description": "Weak encryption mode: ECB mode in Node.js crypto", "cwe": "CWE-327"},
+    ]
+    """List-based extended weak cryptography patterns. Covers DES, Blowfish,
+    RC4, 3DES, ECB mode in both Python and Node.js."""
+
+    # ===================================================================
+    # ACCESS CONTROL PATTERNS (List-based)
+    # ===================================================================
+    # Extended patterns for detecting access control vulnerabilities.
+    # Maps to CWE-22 (Path Traversal), CWE-732 (Incorrect Permission),
+    # CWE-250 (Execution with Unnecessary Privileges).
+
+    ACCESS_CONTROL_PATTERNS: List[dict] = [
+        {"pattern": r"open\s*\(\s*(?:f['\"]|['\"].*\{).*(?:filename|filepath|file_path|path|fname)", "rule_id": "path-traversal", "description": "Path traversal risk: file opened with potentially user-controlled path", "cwe": "CWE-22"},
+        {"pattern": r"os\.chmod\s*\([^)]*0o?777\b", "rule_id": "world-writable-permissions", "description": "World-writable file permissions (0777) allow any user to modify the file", "cwe": "CWE-732"},
+        {"pattern": r"os\.chmod\s*\([^)]*0o?666\b", "rule_id": "world-readable-writable", "description": "World-readable-writable permissions (0666) expose file contents", "cwe": "CWE-732"},
+        {"pattern": r"\bsudo\b.*(?:subprocess|os\.system|os\.popen|exec)", "rule_id": "privilege-escalation-sudo", "description": "Privilege escalation: sudo used in subprocess call", "cwe": "CWE-250"},
+        {"pattern": r"subprocess\.(?:run|call|Popen|check_output)\s*\(\s*\[?\s*['\"]sudo['\"]", "rule_id": "privilege-escalation-subprocess", "description": "Privilege escalation: subprocess invoked with sudo", "cwe": "CWE-250"},
+    ]
+    """List-based access control patterns for Python. Detects path traversal,
+    insecure file permissions, and privilege escalation via sudo."""
+
+    JS_ACCESS_CONTROL_PATTERNS: List[dict] = [
+        {"pattern": r"Object\.assign\s*\([^,]+,\s*(?:req\.body|req\.query|request\.body)", "rule_id": "prototype-pollution-assign", "description": "Prototype pollution: Object.assign with user-controlled input", "cwe": "CWE-1321"},
+        {"pattern": r"_\.merge\s*\([^,]+,\s*(?:req\.body|req\.query|request\.body)", "rule_id": "prototype-pollution-merge", "description": "Prototype pollution: lodash merge with user-controlled input", "cwe": "CWE-1321"},
+    ]
+    """List-based access control patterns for JavaScript. Detects prototype
+    pollution via Object.assign and lodash merge with user input."""
+
+    # ===================================================================
+    # INSECURE TRANSPORT PATTERNS (List-based)
+    # ===================================================================
+    # Patterns for detecting credentials transmitted over unencrypted HTTP.
+    # Maps to CWE-319: Cleartext Transmission of Sensitive Information.
+
+    INSECURE_TRANSPORT_PATTERNS: List[dict] = [
+        {"pattern": r"['\"]http://[^'\"]*(?:login|auth|token|password|credential|api[_-]?key)", "rule_id": "http-credential-url", "description": "Credentials transmitted over unencrypted HTTP", "cwe": "CWE-319"},
+        {"pattern": r"requests\.(?:get|post)\s*\(\s*['\"]http://", "rule_id": "http-requests-call", "description": "HTTP request without TLS encryption", "cwe": "CWE-319"},
+    ]
+    """List-based insecure transport patterns. Detects credential URLs
+    and requests made over unencrypted HTTP connections."""
 
     # ===================================================================
     # FALSE POSITIVE REDUCTION PATTERNS
@@ -502,6 +760,33 @@ class SecurityPatterns:
         # Auth
         patterns.update(cls._auth_patterns())
 
+        # SSRF
+        patterns.update(cls._ssrf_patterns())
+
+        # SSRF (list-based extended)
+        patterns.update(cls._ssrf_list_patterns())
+
+        # XXE (list-based extended)
+        patterns.update(cls._xxe_list_patterns())
+
+        # NoSQL Injection (list-based extended)
+        patterns.update(cls._nosql_injection_list_patterns())
+
+        # Deserialization (list-based extended)
+        patterns.update(cls._deserialization_list_patterns())
+
+        # JS Command Injection (list-based extended)
+        patterns.update(cls._js_command_injection_list_patterns())
+
+        # Extended Weak Crypto (list-based)
+        patterns.update(cls._extended_weak_crypto_list_patterns())
+
+        # Access Control (list-based extended)
+        patterns.update(cls._access_control_list_patterns())
+
+        # Insecure Transport (list-based)
+        patterns.update(cls._insecure_transport_list_patterns())
+
         return patterns
 
     @classmethod
@@ -573,6 +858,96 @@ class SecurityPatterns:
             tuples for auth patterns only.
         """
         return cls._auth_patterns()
+
+    @classmethod
+    def get_ssrf_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get all SSRF detection patterns with metadata.
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for SSRF patterns only.
+        """
+        return cls._ssrf_patterns()
+
+    @classmethod
+    def get_ssrf_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get extended SSRF detection patterns (list-based) with metadata.
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for extended SSRF patterns (Python and JS).
+        """
+        return cls._ssrf_list_patterns()
+
+    @classmethod
+    def get_xxe_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get extended XXE detection patterns (list-based) with metadata.
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for XXE patterns.
+        """
+        return cls._xxe_list_patterns()
+
+    @classmethod
+    def get_nosql_injection_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get extended NoSQL injection detection patterns (list-based).
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for NoSQL injection patterns.
+        """
+        return cls._nosql_injection_list_patterns()
+
+    @classmethod
+    def get_deserialization_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get deserialization detection patterns (list-based) with metadata.
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for deserialization patterns.
+        """
+        return cls._deserialization_list_patterns()
+
+    @classmethod
+    def get_js_command_injection_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get JS command injection detection patterns (list-based).
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for JS command injection patterns.
+        """
+        return cls._js_command_injection_list_patterns()
+
+    @classmethod
+    def get_extended_weak_crypto_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get extended weak crypto detection patterns (list-based).
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for extended weak crypto patterns.
+        """
+        return cls._extended_weak_crypto_list_patterns()
+
+    @classmethod
+    def get_access_control_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get extended access control detection patterns (list-based).
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for access control patterns (Python and JS).
+        """
+        return cls._access_control_list_patterns()
+
+    @classmethod
+    def get_insecure_transport_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Get insecure transport detection patterns (list-based).
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id)
+            tuples for insecure transport patterns.
+        """
+        return cls._insecure_transport_list_patterns()
 
     # ===================================================================
     # COMPILED PATTERN METHODS
@@ -686,11 +1061,160 @@ class SecurityPatterns:
         raw = cls._weak_crypto_patterns()
         compiled: Dict[str, CompiledPatternEntry] = {}
 
-        case_insensitive = {"weak-crypto-des-js"}
+        case_insensitive = {"weak-crypto-des-js", "weak-crypto-rc4-js", "weak-crypto-ecb-mode-js"}
 
         for rule_id, (regex, description, cwe_id) in raw.items():
             flags = re.IGNORECASE if rule_id in case_insensitive else 0
             compiled[rule_id] = (re.compile(regex, flags), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_ssrf_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for extended SSRF detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._ssrf_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_xxe_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for extended XXE detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._xxe_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_nosql_injection_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for extended NoSQL injection detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._nosql_injection_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_deserialization_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for deserialization detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._deserialization_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_js_command_injection_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for JS command injection detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._js_command_injection_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_extended_weak_crypto_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for extended weak crypto detection.
+
+        Node.js legacy cipher patterns are compiled with ``re.IGNORECASE``.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._extended_weak_crypto_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        case_insensitive = {"weak-crypto-node-legacy", "weak-crypto-node-ecb"}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            flags = re.IGNORECASE if rule_id in case_insensitive else 0
+            compiled[rule_id] = (re.compile(regex, flags), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_access_control_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for extended access control detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._access_control_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
+
+        return compiled
+
+    @classmethod
+    def get_compiled_insecure_transport_list_patterns(
+        cls,
+    ) -> Dict[str, CompiledPatternEntry]:
+        """Get pre-compiled regex objects for insecure transport detection.
+
+        Returns:
+            Dictionary mapping rule IDs to
+            (compiled_regex, description, cwe_id) tuples.
+        """
+        raw = cls._insecure_transport_list_patterns()
+        compiled: Dict[str, CompiledPatternEntry] = {}
+
+        for rule_id, (regex, description, cwe_id) in raw.items():
+            compiled[rule_id] = (re.compile(regex), description, cwe_id)
 
         return compiled
 
@@ -714,6 +1238,15 @@ class SecurityPatterns:
             "weak_crypto",
             "configuration",
             "auth",
+            "ssrf",
+            "ssrf_list",
+            "xxe_list",
+            "nosql_injection_list",
+            "deserialization_list",
+            "js_command_injection_list",
+            "extended_weak_crypto_list",
+            "access_control_list",
+            "insecure_transport_list",
         ]
 
     @classmethod
@@ -903,6 +1436,72 @@ class SecurityPatterns:
                 "Unsafe YAML loading can execute arbitrary code",
                 "CWE-502",
             ),
+            "nosql-mongoose-query": (
+                cls.NOSQL_MONGOOSE_QUERY,
+                "MongoDB/Mongoose query may receive unsanitized user input",
+                "CWE-943",
+            ),
+            "nosql-json-parse-req": (
+                cls.NOSQL_JSON_PARSE_REQ,
+                "JSON.parse(req.*) result may be used in NoSQL query",
+                "CWE-943",
+            ),
+            "js-command-injection-exec-template": (
+                cls.JS_EXEC_TEMPLATE,
+                "child_process exec/execSync with template literal interpolation",
+                "CWE-78",
+            ),
+            "js-command-injection-exec-concat": (
+                cls.JS_EXEC_CONCAT,
+                "child_process exec/execSync with string concatenation",
+                "CWE-78",
+            ),
+            "xxe-et-parse": (
+                cls.XXE_ET_PARSE,
+                "xml.etree.ElementTree parsing may allow XXE",
+                "CWE-611",
+            ),
+            "xxe-lxml-resolve-entities": (
+                cls.XXE_LXML_RESOLVE,
+                "lxml parser with resolve_entities=True enables XXE",
+                "CWE-611",
+            ),
+            "xxe-xml-sax": (
+                cls.XXE_XML_SAX,
+                "xml.sax parsing without feature disabling may allow XXE",
+                "CWE-611",
+            ),
+        }
+
+    @classmethod
+    def _ssrf_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the SSRF pattern dictionary."""
+        return {
+            "ssrf-py-urllib": (
+                cls.SSRF_PY_URLLIB,
+                "urllib.request.urlopen() with user-controlled URL (SSRF)",
+                "CWE-918",
+            ),
+            "ssrf-py-requests": (
+                cls.SSRF_PY_REQUESTS,
+                "requests library HTTP call with user-controlled URL (SSRF)",
+                "CWE-918",
+            ),
+            "ssrf-py-httpx": (
+                cls.SSRF_PY_HTTPX,
+                "httpx HTTP call with user-controlled URL (SSRF)",
+                "CWE-918",
+            ),
+            "ssrf-js-fetch": (
+                cls.SSRF_JS_FETCH,
+                "fetch() with user-controlled URL (SSRF)",
+                "CWE-918",
+            ),
+            "ssrf-js-axios": (
+                cls.SSRF_JS_AXIOS,
+                "axios HTTP call with user-controlled URL (SSRF)",
+                "CWE-918",
+            ),
         }
 
     @classmethod
@@ -970,6 +1569,21 @@ class SecurityPatterns:
                 "Weak encryption algorithm: DES (PyCryptodome)",
                 "CWE-327",
             ),
+            "weak-crypto-rc4": (
+                cls.PYTHON_RC4,
+                "Weak encryption algorithm: RC4 (PyCryptodome)",
+                "CWE-327",
+            ),
+            "weak-crypto-blowfish": (
+                cls.PYTHON_BLOWFISH,
+                "Weak encryption algorithm: Blowfish (PyCryptodome)",
+                "CWE-327",
+            ),
+            "weak-crypto-ecb-mode": (
+                cls.PYTHON_ECB_MODE,
+                "Weak cipher mode: ECB (Electronic Codebook)",
+                "CWE-327",
+            ),
             "weak-crypto-md5-pycrypto": (
                 cls.PYTHON_PYCRYPTO_MD5,
                 "Weak hash algorithm: MD5 (PyCryptodome)",
@@ -993,6 +1607,16 @@ class SecurityPatterns:
             "weak-crypto-des-js": (
                 cls.JS_CRYPTO_DES,
                 "Weak encryption algorithm: DES (Node.js crypto)",
+                "CWE-327",
+            ),
+            "weak-crypto-rc4-js": (
+                cls.JS_CRYPTO_RC4,
+                "Weak encryption algorithm: RC4 (Node.js crypto)",
+                "CWE-327",
+            ),
+            "weak-crypto-ecb-mode-js": (
+                cls.JS_CRYPTO_ECB,
+                "Weak cipher mode: ECB (Node.js crypto)",
                 "CWE-327",
             ),
         }
@@ -1058,3 +1682,78 @@ class SecurityPatterns:
                 "CWE-922",
             ),
         }
+
+    # ===================================================================
+    # PRIVATE CATEGORY BUILDERS (List-based patterns)
+    # ===================================================================
+
+    @classmethod
+    def _list_patterns_to_dict(cls, pattern_list: List[dict]) -> Dict[str, PatternEntry]:
+        """Convert a list of pattern dicts to the standard PatternEntry dict format.
+
+        Helper method that transforms the list-based pattern format
+        (list of dicts with 'pattern', 'rule_id', 'description', 'cwe' keys)
+        into the canonical ``Dict[str, PatternEntry]`` format used by
+        all retrieval methods.
+
+        Args:
+            pattern_list: List of pattern dictionaries, each with keys
+                'pattern', 'rule_id', 'description', 'cwe'.
+
+        Returns:
+            Dictionary mapping rule IDs to (regex, description, cwe_id) tuples.
+        """
+        result: Dict[str, PatternEntry] = {}
+        for entry in pattern_list:
+            result[entry["rule_id"]] = (
+                entry["pattern"],
+                entry["description"],
+                entry["cwe"],
+            )
+        return result
+
+    @classmethod
+    def _ssrf_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the extended SSRF pattern dictionary from list-based attributes."""
+        patterns: Dict[str, PatternEntry] = {}
+        patterns.update(cls._list_patterns_to_dict(cls.SSRF_PATTERNS))
+        patterns.update(cls._list_patterns_to_dict(cls.JS_SSRF_PATTERNS))
+        return patterns
+
+    @classmethod
+    def _xxe_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the extended XXE pattern dictionary from list-based attributes."""
+        return cls._list_patterns_to_dict(cls.XXE_PATTERNS)
+
+    @classmethod
+    def _nosql_injection_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the extended NoSQL injection pattern dictionary from list-based attributes."""
+        return cls._list_patterns_to_dict(cls.NOSQL_INJECTION_PATTERNS)
+
+    @classmethod
+    def _deserialization_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the deserialization pattern dictionary from list-based attributes."""
+        return cls._list_patterns_to_dict(cls.DESERIALIZATION_PATTERNS)
+
+    @classmethod
+    def _js_command_injection_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the JS command injection pattern dictionary from list-based attributes."""
+        return cls._list_patterns_to_dict(cls.JS_COMMAND_INJECTION_PATTERNS)
+
+    @classmethod
+    def _extended_weak_crypto_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the extended weak crypto pattern dictionary from list-based attributes."""
+        return cls._list_patterns_to_dict(cls.EXTENDED_WEAK_CRYPTO_PATTERNS)
+
+    @classmethod
+    def _access_control_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the extended access control pattern dictionary from list-based attributes."""
+        patterns: Dict[str, PatternEntry] = {}
+        patterns.update(cls._list_patterns_to_dict(cls.ACCESS_CONTROL_PATTERNS))
+        patterns.update(cls._list_patterns_to_dict(cls.JS_ACCESS_CONTROL_PATTERNS))
+        return patterns
+
+    @classmethod
+    def _insecure_transport_list_patterns(cls) -> Dict[str, PatternEntry]:
+        """Build the insecure transport pattern dictionary from list-based attributes."""
+        return cls._list_patterns_to_dict(cls.INSECURE_TRANSPORT_PATTERNS)

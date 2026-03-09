@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "First skill invoked should be spec-plan with the feature description",
+      "passed": false,
+      "evidence": "First action is codebase reconnaissance (reading tailwind.config.ts, globals.css, layout.tsx, etc.). Does NOT invoke spec-plan. Mentions spec-plan only in Section 4 as hypothetical: 'If skills were available, the ideal invocation would be: spec-plan skill (quick tier)'. The baseline approaches this as direct implementation, not skill orchestration."
+    },
+    {
+      "text": "Skills invoked in order: spec-plan → spec-review → start-phase-plan → pm-db → start-phase-execute",
+      "passed": false,
+      "evidence": "Does not follow skill chain. Instead proposes 8 direct implementation steps (install next-themes, add CSS variables, update layout, etc.). Skills are mentioned only as what would be used 'if available'. No skill orchestration performed."
+    },
+    {
+      "text": "Uses start-phase-execute (not start-phase-execute-team) since no --team flag",
+      "passed": false,
+      "evidence": "Does not invoke start-phase-execute at all. Mentions it hypothetically in Section 4 but the plan is direct implementation, not skill-based execution."
+    },
+    {
+      "text": "Tracks and passes task_list_path from spec-plan output to start-phase-plan and start-phase-execute",
+      "passed": false,
+      "evidence": "No state threading between skills — the plan uses direct file paths to source files, not spec output paths. No task_list_path tracked because no skills are invoked."
+    },
+    {
+      "text": "Mentions recovery commands if any step fails",
+      "passed": true,
+      "evidence": "Section 5 provides detailed failure scenarios with specific fixes (hydration flash, TypeScript errors, dark mode classes not applying, persistence issues, CUI banner contrast, build failures, test suite breaks). Each has diagnosis, fix, and fallback. Quality is high, though these are implementation-focused recovery, not skill-orchestration recovery."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Mentions recovery commands if any step fails",
+        "reason": "This assertion is non-discriminating — both with-skill and baseline pass it because any well-structured plan includes error handling. Consider narrowing to 'Mentions skill-specific recovery commands (e.g., /spec-plan, /feature-continue)' to make it discriminating."
+      }
+    ],
+    "overall": "4/5 assertions discriminate well between skill-guided and baseline behavior. The error-recovery assertion needs tightening."
+  }
+}
