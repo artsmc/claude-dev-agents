@@ -31,6 +31,12 @@ projects/
 plugins/
 memory-bank/
 cline-docs/
+sessions/
+teams/
+.last-cleanup
+
+# Machine-local docs (may contain credentials / private network info)
+ssh-machines.md
 
 # Python cache
 __pycache__/
