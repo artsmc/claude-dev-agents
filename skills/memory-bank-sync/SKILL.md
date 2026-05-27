@@ -1,6 +1,6 @@
 ---
 name: memorybank-sync
-description: Fast synchronization of activeContext.md and progress.md only. Lightweight alternative to full update for quick post-task documentation. NEW skill unique to memory-bank.
+description: Fast synchronization of activeContext.md and progress.md only. Lightweight alternative to full update for quick post-task documentation. Use this skill whenever the user says things like "quick save", "save my progress", "update where I left off", "just update progress", "mark this as done", or finishes a task and wants to record it without a full memory bank review. If the user only wants to update 1-2 files (not all 6), use this instead of memory-bank-update.
 ---
 
 # Memory Bank: Sync
@@ -21,10 +21,10 @@ Lightweight update that ONLY touches:
 
 ## When to Use
 
-- ✅ After completing individual tasks
-- ✅ Quick documentation before ending session
-- ✅ Minor progress updates
-- ❌ NOT for architecture changes (use `/memorybank update`)
+- After completing individual tasks
+- Quick documentation before ending session
+- Minor progress updates
+- NOT for architecture changes (use `/memory-bank-update` instead)
 
 ## Workflow
 
@@ -39,19 +39,18 @@ What changed:
 ### 2. Run Sync Tool
 
 ```bash
-# Prepare JSON input
-python3 scripts/sync_active.py /path/to/project '{
-  "completed": ["Task that was finished"],
-  "new_focus": "What working on now",
-  "learnings": ["New pattern discovered"],
-  "blockers": ["Issue encountered"]
-}'
+# Update activeContext.md sections
+python3 scripts/sync_active.py /path/to/project \
+  --active '{"Current Focus": "What working on now", "Learnings": "New pattern discovered"}' \
+  --progress '{"What'\''s Working": "- Task that was finished"}' \
+  --append
 ```
 
-Or extract from conversation:
+Use `--append` to add to existing section content rather than replacing it.
+
+Or extract current TODOs first to understand what to update:
 ```bash
 python3 scripts/extract_todos.py /path/to/project
-# Use output to populate sync input
 ```
 
 ### 3. Verify Updates
@@ -59,19 +58,13 @@ python3 scripts/extract_todos.py /path/to/project
 Tool returns what changed:
 ```json
 {
-  "updated": {
-    "activeContext.md": true,
-    "progress.md": true
+  "activeContext": {
+    "updated_sections": ["Current Focus", "Learnings"],
+    "success": true
   },
-  "changes": {
-    "activeContext": {
-      "updated_focus": true,
-      "added_blockers": 1,
-      "added_learnings": 1
-    },
-    "progress": {
-      "moved_to_completed": 1
-    }
+  "progress": {
+    "updated_sections": ["What's Working"],
+    "success": true
   }
 }
 ```
@@ -86,17 +79,16 @@ Tool returns what changed:
 
 ```bash
 # After completing authentication feature
-/memorybank sync
+/memory-bank-sync
 
 # Claude runs:
-python3 scripts/sync_active.py /path/to/project '{
-  "completed": ["Implemented user authentication API"],
-  "new_focus": "Adding password reset flow",
-  "learnings": ["JWT tokens work well with our session management"]
-}'
+python3 scripts/sync_active.py /path/to/project \
+  --active '{"Current Focus": "Adding password reset flow", "Learnings": "- JWT tokens work well with our session management"}' \
+  --progress '{"What'\''s Working": "- Implemented user authentication API"}' \
+  --append
 
 # Result:
-# ✓ activeContext.md updated with new focus
+# ✓ activeContext.md updated with new focus and learnings
 # ✓ progress.md updated with completed task
 ```
 

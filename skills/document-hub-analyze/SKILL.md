@@ -1,6 +1,6 @@
 ---
 name: document-hub-analyze
-description: Deep analysis of codebase vs documentation alignment. Detects drift, identifies undocumented code, extracts missing glossary terms, and provides actionable recommendations without making changes.
+description: Deep analysis of codebase vs documentation alignment (cline-docs/). Detects drift, identifies undocumented code, extracts missing glossary terms, and provides actionable recommendations without making changes. Use this skill when the user asks "are the docs up to date", "check documentation quality", "what's missing from the docs", or wants a read-only audit before deciding what to update. For actually making changes, use document-hub-update instead.
 ---
 
 # Document Hub: Analyze

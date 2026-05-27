@@ -1,6 +1,6 @@
 ---
 name: document-hub-read
-description: Read and summarize the current state of the documentation hub. Provides a quick overview of system architecture, module responsibilities, technology stack, and glossary terms.
+description: Read and summarize the current state of the documentation hub (cline-docs/). Provides a quick overview of system architecture, module responsibilities, technology stack, and glossary terms. Use this skill whenever the user asks about the project's documentation, wants to understand the architecture, asks "what does this project do", "show me the docs", or needs a quick onboarding summary. Also use before starting work to understand project context.
 ---
 
 # Document Hub: Read

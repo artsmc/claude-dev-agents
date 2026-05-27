@@ -1,6 +1,6 @@
 ---
 name: memorybank-update
-description: Comprehensive review and update of all Memory Bank files. Reads all 6 files, proposes targeted updates focusing on activeContext.md and progress.md, and validates results.
+description: Comprehensive review and update of all Memory Bank files. Reads all 6 files, proposes targeted updates focusing on activeContext.md and progress.md, and validates results. Use this skill when the user wants a full memory bank refresh after significant work — architecture changes, new patterns, tech stack updates, or multiple completed features. If the user only needs a quick progress save (1-2 files), use memory-bank-sync instead. Triggers on "update the memory bank", "refresh documentation", "sync all memory bank files", or after major milestones.
 ---
 
 # Memory Bank: Update

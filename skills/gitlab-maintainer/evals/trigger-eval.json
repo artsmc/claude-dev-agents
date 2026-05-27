@@ -1,0 +1,82 @@
+[
+  {
+    "query": "ugh the pipeline on my feat/auth-refactor branch is red again, can you check what's failing and just sort it out? token's already set up",
+    "should_trigger": true
+  },
+  {
+    "query": "what did the reviewer say on MR !4827? i thought i addressed everything but they re-opened a thread on the user serializer changes",
+    "should_trigger": true
+  },
+  {
+    "query": "the build broke on gitlab.acme-corp.com after my last push to feat/redis-upgrade, look at the logs and fix it",
+    "should_trigger": true
+  },
+  {
+    "query": "can you approve !2103 — it's the redis client upgrade i mentioned, pipeline's green and the diff is tiny, just needs a second pair of eyes",
+    "should_trigger": true
+  },
+  {
+    "query": "i've got 3 unresolved comments on my MR from sarah, please go fix what she's asking for and reply on each thread when done",
+    "should_trigger": true
+  },
+  {
+    "query": "is CI green on this branch right now? if not what failed and can you push a fix for it",
+    "should_trigger": true
+  },
+  {
+    "query": "the jest tests are failing in the lint stage on my MR — it's eslint complaints about unused vars i think — push a fix",
+    "should_trigger": true
+  },
+  {
+    "query": "glab ci status says my pipeline is stuck at the deploy stage, the actual jobs are passing tho, whats going on",
+    "should_trigger": true
+  },
+  {
+    "query": "review !991 for me — its the migration script i sent earlier — and either approve or leave change requests on whatever looks off",
+    "should_trigger": true
+  },
+  {
+    "query": "pipeline #142883 has a red lint stage, all eslint stuff, fix it and push",
+    "should_trigger": true
+  },
+  {
+    "query": "can you review this function and tell me if there's any issue with the error handling? const fetchUser = async (id) => { const r = await fetch(`/api/users/${id}`); return r.json(); }",
+    "should_trigger": false
+  },
+  {
+    "query": "i'm trying to set up a CI pipeline from scratch in github actions for a new node project, what's the syntax for matrix builds across node 18, 20, 22?",
+    "should_trigger": false
+  },
+  {
+    "query": "merge conflict in src/app.ts between my branch and main, how do i resolve it without losing the auth changes i added?",
+    "should_trigger": false
+  },
+  {
+    "query": "explain how gitlab runners work conceptually — shared vs group vs project, executor types — i'm writing internal docs for the platform team",
+    "should_trigger": false
+  },
+  {
+    "query": "the production deployment failed last night around 2am, can you look at the kubernetes pod logs in our staging cluster and figure out why it crashlooped?",
+    "should_trigger": false
+  },
+  {
+    "query": "rebase my feature branch onto main and push, there's been a bunch of merges since i branched off three weeks ago",
+    "should_trigger": false
+  },
+  {
+    "query": "github PR #4421 on the anthropics/sdk repo — can you read the review comments and draft responses?",
+    "should_trigger": false
+  },
+  {
+    "query": "i need to write a new pytest test for the user serializer in apps/api/src/serializers/user.py, can you draft it covering null email and missing role cases?",
+    "should_trigger": false
+  },
+  {
+    "query": "show me the diff between the v2.3.0 tag and main, want to see what landed in the last release",
+    "should_trigger": false
+  },
+  {
+    "query": "explain what a merge request actually is in gitlab vs a pull request in github, my team is new to gitlab and i want to write up the differences for the onboarding doc",
+    "should_trigger": false
+  }
+]

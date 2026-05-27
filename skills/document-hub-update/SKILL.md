@@ -1,6 +1,6 @@
 ---
 name: document-hub-update
-description: Comprehensive review and update of the documentation hub. Analyzes recent code changes, detects drift, validates structure, and proposes specific updates to keep documentation synchronized with the codebase.
+description: Comprehensive review and update of the documentation hub (cline-docs/). Analyzes recent code changes, detects drift, validates structure, and proposes specific updates to keep documentation synchronized with the codebase. Use this skill whenever the user says "update the docs", "sync documentation with code", "docs are outdated", or after significant code changes. For read-only analysis without changes, use document-hub-analyze instead.
 ---
 
 # Document Hub: Update

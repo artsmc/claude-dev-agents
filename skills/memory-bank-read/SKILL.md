@@ -1,6 +1,6 @@
 ---
 name: memorybank-read
-description: Quick overview of Memory Bank state. Validates structure, reads all 6 files in hierarchical order, and presents formatted summary with staleness warnings.
+description: Quick overview of Memory Bank state. Validates structure, reads all 6 files in hierarchical order, and presents formatted summary with staleness warnings. Use this skill whenever the user asks "where did I leave off", "what's the project status", "catch me up", "what was I working on", "summarize the memory bank", or returns to a project after time away. Also use when checking if the memory bank needs updating.
 ---
 
 # Memory Bank: Read
