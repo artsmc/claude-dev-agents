@@ -149,7 +149,7 @@ const agent = new Agent({
   id: 'multi-model-agent',
   model: {
     provider: 'anthropic',  // or 'openai', 'groq', 'open-router', etc.
-    model: 'claude-3-5-sonnet-20241022'
+    model: 'claude-sonnet-4-6'
   }
 });
 ```
@@ -162,7 +162,7 @@ const anthropicAgent = new Agent({
   id: 'anthropic-agent',
   model: {
     provider: 'anthropic',
-    model: 'claude-3-5-sonnet-20241022'
+    model: 'claude-sonnet-4-6'
   },
   providerOptions: {
     anthropic: {
@@ -200,7 +200,7 @@ const groqAgent = new Agent({
 ### Supported Providers (40+ via LiteLLM)
 
 **Tier 1 (primary for AIForge platform):**
-- `anthropic` — `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`, `claude-opus-4-6`
+- `anthropic` — `claude-sonnet-4-6`, `claude-opus-4-8`
 - `openai` — `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
 
 **Tier 2 (cost optimization):**
@@ -219,8 +219,8 @@ const groqAgent = new Agent({
 function selectModel(taskComplexity: 'simple' | 'complex' | 'creative') {
   const models = {
     simple: { provider: 'groq', model: 'llama-3.1-70b-versatile' },      // Fast + cheap
-    complex: { provider: 'anthropic', model: 'claude-opus-4-6' },         // Best reasoning
-    creative: { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' }  // Balanced
+    complex: { provider: 'anthropic', model: 'claude-opus-4-8' },         // Best reasoning
+    creative: { provider: 'anthropic', model: 'claude-sonnet-4-6' }  // Balanced
   };
   return models[taskComplexity];
 }

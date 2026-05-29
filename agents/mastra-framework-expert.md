@@ -5,7 +5,7 @@ description: >-
   point of contact for any Mastra development task to select the right approach,
   pattern, or specialized skill. Handles cross-cutting concerns spanning multiple
   Mastra subsystems (agents + RAG + memory + MCP + deployment).
-model: claude-opus-4-6
+model: claude-sonnet-4-6
 tools: [Read, Grep, Glob]
 ---
 
@@ -198,7 +198,7 @@ Input → [Prepare] → [Generate Draft] → SUSPEND
 ### Pattern 3: Event-Driven Background Pipeline
 
 ```
-Event Source → BullMQ Queue → Worker → Workflow Execution → DB Result
+Event Source → PGBoss Queue → Worker → Workflow Execution → DB Result
                   |                           |
                   +-- Retry on failure ←------+
                   +-- Dead letter queue

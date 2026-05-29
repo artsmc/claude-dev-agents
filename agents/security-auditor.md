@@ -5,7 +5,7 @@ description: >-
   application code. Use when reviewing authentication, authorization, input
   validation, dependency security, or API security. Invoke for any change
   touching auth, RBAC, data access, sandbox execution, or PII handling.
-model: claude-opus-4-6
+model: claude-opus-4-8
 tools: [Read, Grep, Glob, Bash]
 ---
 
@@ -236,7 +236,7 @@ export function middleware(request: NextRequest) {
 
 ## Security Audit Report Format
 
-After completing a review, create a report in `../planning/task-updates/security-audit-[area].md`:
+After completing a review, produce a report (if the project uses a `../planning/task-updates/` directory, write it there as `security-audit-[area].md`; otherwise return it inline or in a location the user specifies):
 
 ```markdown
 # Security Audit: [Feature/Area]
@@ -284,7 +284,7 @@ Load the relevant module ONLY when the task explicitly requires it.
 ## Self-Verification Checklist
 
 ### Pre-Audit
-- [ ] Read Memory Bank files (techContext, systemPatterns, activeContext)
+- [ ] Read Memory Bank files if present (techContext, systemPatterns, activeContext)
 - [ ] Confirmed scope with user (full audit vs specific feature)
 - [ ] Stated confidence level
 - [ ] Identified high-risk areas (auth, payments, PII, file uploads)

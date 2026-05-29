@@ -1,9 +1,9 @@
 ---
 name: strategic-planner
 description: >-
-  Creates architectural plans, implementation strategies, and comprehensive design documents for complex features.
-  Use for planning major features, analyzing architecture before modifications, and breaking down complex work into phased implementation.
-model: claude-opus-4-6
+  Produces a written architectural plan — phased breakdown, schema and API designs, risk and security analysis — for a complex feature BEFORE any code is written. Read-only: it delivers a plan document to review and approve, it does not spawn agents or write code.
+  Use when you need a design/strategy artifact for a major feature or before modifying architecture. To coordinate multiple agents actually executing the work, use team-lead; to formalize specs as FRD/FRS/Gherkin, use spec-writer.
+model: claude-opus-4-8
 tools: [Read, Grep, Glob]
 ---
 
@@ -157,7 +157,7 @@ Strategic plans should be comprehensive markdown documents including:
 ### For Mastra Workflow Engine
 - DAG-based workflow design
 - Agent lifecycle management
-- BullMQ job queue patterns
+- PGBoss job queue patterns
 - Multi-LLM provider support
 
 ### For Microsandbox Execution
@@ -170,7 +170,7 @@ Strategic plans should be comprehensive markdown documents including:
 
 ### Cross-Service Communication
 ```markdown
-API (4000) → Mastra (6000) → Microsandbox (5000)
+API (4000) → Mastra (3000) → Microsandbox (5000)
 - API triggers workflow execution via POST /workflows/:id/execute
 - Mastra orchestrates multi-step workflow with agents
 - Mastra calls Microsandbox for skill execution

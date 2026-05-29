@@ -39,7 +39,7 @@ Always state confidence level in the first response.
 
 ### Database with Prisma
 - Singleton Prisma client pattern (`prisma.service.ts`)
-- Migration workflow (dev: `prisma:migrate`, prod: `prisma:deploy`)
+- Migration workflow (dev: `nx run api:prisma-migrate`, prod: `nx run api:prisma-deploy`)
 - Schema extension for backward compatibility (nullable fields, separate models)
 - Type-safe queries with TypeScript inference
 
@@ -66,7 +66,7 @@ Always state confidence level in the first response.
 1. **Never instantiate PrismaClient directly** - Use singleton from `prisma.service.ts`
 2. **Always use ApiError factory functions** - Never throw plain Error or send raw JSON responses
 3. **Add new public routes to PUBLIC_ROUTES array** in `authMiddleware.ts`
-4. **Regenerate Prisma Client after schema changes** - `npm run prisma:generate`
+4. **Regenerate Prisma Client after schema changes** - `nx run api:prisma-generate`
 5. **Use validatedBody/Query/Params** - Never access `req.body` directly after validation
 6. **Respect middleware order** - Error handler must be last
 7. **Maintain 90% test coverage** - Jest threshold enforced
@@ -89,7 +89,7 @@ Always state confidence level in the first response.
 
 ### Database Schema Change
 1. Edit `prisma/schema.prisma`
-2. Run `npm run prisma:migrate` (dev) or `npm run prisma:deploy` (prod)
+2. Run `nx run api:prisma-migrate` (dev) or `nx run api:prisma-deploy` (prod)
 3. Update related Zod schemas
 4. Update controllers/services using the model
 
@@ -213,7 +213,7 @@ describe('POST /api/resources', () => {
 ## External Services Integration
 
 - **Microsandbox** (port 5000): Skill execution via `microsandbox.service.ts`
-- **Mastra** (port 6000): Workflow orchestration via `mastra.service.ts`
+- **Mastra** (port 3000): Workflow orchestration via `mastra.service.ts`
 - **LiteLLM** (port 4040): AI completions via `litellm.service.ts`
 - **Redis**: Rate limiting and caching
 - **PostgreSQL**: Primary database

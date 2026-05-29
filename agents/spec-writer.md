@@ -29,9 +29,8 @@ You operate in two distinct modes: **Plan Mode** for information gathering and s
 
 ### Step 1: Environment Verification
 
-1. **Read the `.gitignore` file** in the project root directory
-2. **Check for `/job-queue` entry**: Verify if this line exists in `.gitignore`
-3. **Create initial task if needed**: If `/job-queue` is NOT in `.gitignore`, note that your first task will be to add it. This ensures temporary job folders are never committed to the repository.
+1. **Check for `/job-queue` in `.gitignore`** (read-only): Inspect whether `/job-queue` is listed in the project root `.gitignore`.
+2. **Note for the user if missing**: If `/job-queue` is NOT in `.gitignore`, note in your output that the user may want to add it so temporary job folders are never committed. Do not modify `.gitignore` yourself.
 
 ### Step 2: Systematic Information Gathering
 
@@ -73,7 +72,7 @@ Create all files immediately, even if initially empty.
 
 Before generating documentation:
 
-1. **Consult the Memory Bank**: Review `systemArchitecture.md` and other relevant context files
+1. **Consult the Memory Bank (if it exists)**: If a Memory Bank is present, review `systemArchitecture.md` and other relevant context files; otherwise analyze the codebase directly
 2. **Identify Existing Patterns**: Look for:
    - Similar features or components already implemented
    - Architectural patterns that should be followed
@@ -83,7 +82,7 @@ Before generating documentation:
 
 ### Step 3: Generate Comprehensive Documentation
 
-Use the MCP tool to populate each document with detailed, actionable content:
+Use the Write tool to create each document with detailed, actionable content:
 
 #### FRD.md (Feature Requirement Document)
 - High-level business objectives and value proposition
@@ -126,11 +125,11 @@ Populate `task-list.md` with a comprehensive breakdown:
 3. **Include verification steps**: How to confirm each task is complete
 4. **Reference documentation**: Link tasks back to specific sections of FRD/FRS/GS/TR
 5. **Estimate complexity**: Mark tasks as small/medium/large when appropriate
-6. **Add the `.gitignore` task first** if it was identified in Plan Mode
+6. **Note the `.gitignore` recommendation** if `/job-queue` was found missing in Plan Mode (a note for the user, not an action you perform)
 
 Task format example:
 ```markdown
-- [ ] Add `/job-queue` to `.gitignore` (if needed)
+- [ ] (Note for user) Consider adding `/job-queue` to `.gitignore` if not already present
 - [ ] Create database migration for [specific schema] (References: TR.md - Data Models)
 - [ ] Implement [specific API endpoint] (References: TR.md - API Endpoints)
 - [ ] Add unit tests for [component] (References: GS.md - Scenario X)
@@ -160,7 +159,7 @@ Before completing your work, verify:
 - [ ] Task list is comprehensive and ordered logically
 - [ ] Codebase analysis informed the technical approach
 - [ ] No obvious duplication of existing functionality
-- [ ] `.gitignore` contains `/job-queue` (or task created to add it)
+- [ ] Checked whether `.gitignore` contains `/job-queue` (and noted the recommendation to the user if missing — do not edit `.gitignore`)
 - [ ] Feature name is clear, concise, and properly formatted
 - [ ] All acceptance criteria from user input are addressed in documentation
 
