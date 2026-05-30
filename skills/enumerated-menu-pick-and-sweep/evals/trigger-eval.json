@@ -1,0 +1,82 @@
+[
+  {
+    "query": "go with B",
+    "should_trigger": true
+  },
+  {
+    "query": "lets go with #2",
+    "should_trigger": true
+  },
+  {
+    "query": "run option B",
+    "should_trigger": true
+  },
+  {
+    "query": "option 1 and update the envs when your done",
+    "should_trigger": true
+  },
+  {
+    "query": "1. yes multi tenant, 2.thats fine, 3 just aws manage everything, 4.whats the mcp server for? 5. minimal",
+    "should_trigger": true
+  },
+  {
+    "query": "lets do 1-3, 4 wont be needed because this is a small app",
+    "should_trigger": true
+  },
+  {
+    "query": "#1 draw a mermaid uml of the schema. #2 same for the api. #4 the OTP from sentient-monorepo is the pattern we should match. #8 instead of linear we will use sentient-monorepo",
+    "should_trigger": true
+  },
+  {
+    "query": "c one big commit",
+    "should_trigger": true
+  },
+  {
+    "query": "give me a few options for how to structure the auth layer and let me pick",
+    "should_trigger": true
+  },
+  {
+    "query": "option 1, and execute it",
+    "should_trigger": true
+  },
+  {
+    "query": "1. yes 2. no 3. skip the cron for now",
+    "should_trigger": true
+  },
+  {
+    "query": "yes go for it",
+    "should_trigger": false
+  },
+  {
+    "query": "no replace the prisma client with the drizzle one",
+    "should_trigger": false
+  },
+  {
+    "query": "still failing to fetch, are the pages even built and connected?",
+    "should_trigger": false
+  },
+  {
+    "query": "is the v1.5.11 deploy actually live on chat.beta.sentienthome.ai?",
+    "should_trigger": false
+  },
+  {
+    "query": "what betachat tickets are still remaining and in what order should we do them?",
+    "should_trigger": false
+  },
+  {
+    "query": "distribute the planning across the fleet with tmux and worktrees",
+    "should_trigger": false
+  },
+  {
+    "query": "draw a mermaid diagram of the order-service schema on my Miro board",
+    "should_trigger": false
+  },
+  {
+    "query": "you have full autonomy, run the 3 goals end to end while im gone, dont stop",
+    "should_trigger": false
+  },
+  {
+    "query": "remember the goal, top of the line we are moving betachat backend to MVP, get back on track",
+    "should_trigger": false
+  }
+]

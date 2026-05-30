@@ -1,0 +1,226 @@
+{
+  "_comment": "Editable trigger table for the reasoning-skill UserPromptSubmit cue. phrases = case-insensitive substring matches; regexes = matched case-insensitively against the lowercased prompt. Keep phrases specific enough that the cue does not fire on every message. New mined skills get appended here.",
+  "skills": [
+    {
+      "slug": "research-gated-build-plan",
+      "nudge": "Mark is opening a sizable build \u2014 inventory what exists, scope the gap, research+persist the approach, set phase gates before any code.",
+      "phrases": [
+        "current gaps",
+        "deep research",
+        "do we already have a harness",
+        "do we have a system for",
+        "examine the foundation",
+        "examining the foundation",
+        "how close are we",
+        "is there a system we can use",
+        "let's start the planning",
+        "lets start the planning",
+        "still remaining",
+        "tickets remaining",
+        "want to do some deep research",
+        "what does complete look like",
+        "what tasks remain",
+        "what tickets",
+        "which parts of this",
+        "work out the full plan"
+      ],
+      "regexes": [
+        "\\bdo we (already )?have\\b.*\\b(harness|system|workflow|skill)\\b",
+        "\\bwhat .{0,25}tickets\\b"
+      ]
+    },
+    {
+      "slug": "diagnose-from-raw-symptom",
+      "nudge": "A raw symptom/artifact \u2014 extract the trigger, probe whether the plumbing exists, contrast known-good vs broken, drive to root cause (not a workaround) before any fix.",
+      "phrases": [
+        "[screenshot]",
+        "cannot read propert",
+        "chunkloaderror",
+        "denied access",
+        "do we have local",
+        "do we have local postgres",
+        "does nothing",
+        "identify the true error",
+        "is not defined",
+        "not rendering",
+        "position is weird",
+        "rendering on",
+        "screenshot",
+        "stack trace",
+        "status code",
+        "still failing",
+        "the true error",
+        "traceback",
+        "was denied",
+        "what is the hold up",
+        "what's the hold up",
+        "whats the hold up"
+      ],
+      "regexes": [
+        "\\b(403|404|422|500|502|503)\\b",
+        "\\b(error|exception):",
+        "\\binvalid .{0,30}invocation\\b",
+        "only \\d+ of \\d+"
+      ]
+    },
+    {
+      "slug": "prove-it-live-before-done",
+      "nudge": "Don't accept done/fixed/passing on a claim \u2014 exercise the real running artifact, confirm the deployed revision is live, verify the side-effect fired, then name any residual defect.",
+      "phrases": [
+        "absolutely confirm",
+        "accounted for",
+        "actually live",
+        "actually run",
+        "are we ready",
+        "before we call this",
+        "check the deploy",
+        "confirm the fix",
+        "deploy status",
+        "did an actual",
+        "did it work",
+        "did we confirm",
+        "if green",
+        "is it actually",
+        "is it deployed",
+        "is it live",
+        "is it up",
+        "is the live url",
+        "live url responding",
+        "merge it if green",
+        "or just the toast",
+        "prove it"
+      ],
+      "regexes": [
+        "\\b(ready|done|working)\\s*\\?",
+        "\\bactually (live|run|ran|deployed|working|sent|send)\\b",
+        "\\bconfirm (nothing|the change)\\b",
+        "^\\s*(ready|done)\\s*\\?*\\s*$"
+      ]
+    },
+    {
+      "slug": "fleet-dispatch-and-watch",
+      "nudge": "Fan this across the fleet \u2014 sync to a known-good baseline, hand each worker a precise state snapshot, then poll on a fixed cadence with liveness proxies and escalation thresholds.",
+      "phrases": [
+        "across the fleet",
+        "are we ready to delegate",
+        "check on the agents",
+        "delegate with tmux",
+        "desktop just orchestrate",
+        "dispatched agent",
+        "distribute among the fleet",
+        "dropping connection",
+        "escalate",
+        "fan it out",
+        "fan them out",
+        "few hours",
+        "how do you know when",
+        "it's been some hours",
+        "its been some hours",
+        "kick it off",
+        "mac mini",
+        "mac-mini",
+        "offload to",
+        "poll the agents",
+        "sshd",
+        "worktrees"
+      ],
+      "regexes": [
+        "\\bdelegat(e|ing)\\b",
+        "\\bfleet\\b",
+        "\\bpoll the .{0,15}agents\\b"
+      ]
+    },
+    {
+      "slug": "steer-and-correct-the-agent",
+      "nudge": "Read Mark's terse steering literally \u2014 honor the pick AND any appended directive, treat autonomy grants as bounded go-ahead, and treat hard overrides ('no, replace X with Y') as the new spec.",
+      "phrases": [
+        "apply it all",
+        "don't stop",
+        "dont stop",
+        "full autonomy",
+        "get back on track",
+        "just use the cli",
+        "keep the save button",
+        "make note of it",
+        "no just cli",
+        "no just use",
+        "nothing can break",
+        "our main objective",
+        "remember the goal",
+        "run 2-3 goals",
+        "that is false",
+        "that's false",
+        "thats false",
+        "this looks wrong",
+        "you have autonomy"
+      ],
+      "regexes": [
+        "\\bnot\\b[^.]{1,40}\\bbut\\b",
+        "^\\s*no just\\b",
+        "^\\s*no[, ].*\\b(remove|replace|instead|not)\\b"
+      ]
+    },
+    {
+      "slug": "enumerated-menu-pick-and-sweep",
+      "nudge": "Mark is picking from / authoring a numbered menu \u2014 map his bare letter/number to the exact item, honor any rider, resolve every point in a multi-item sweep, and treat his because-clause cuts as final.",
+      "phrases": [
+        "a few options",
+        "few options for",
+        "give me a few options",
+        "give me options",
+        "go with #",
+        "go with b",
+        "let's go with",
+        "lets go with",
+        "one big commit",
+        "option a",
+        "option b",
+        "option c",
+        "run option",
+        "what's the mcp",
+        "whats the mcp"
+      ],
+      "regexes": [
+        "\\b(do|lets do|let's do)\\s+\\d\\s*[-\u2013]\\s*\\d\\b",
+        "\\boption\\s*[0-9a-d]\\b",
+        "^\\s*#?\\d+[.)]\\s",
+        "^\\s*#\\d+\\b"
+      ]
+    },
+    {
+      "slug": "reference-as-executable-spec",
+      "nudge": "Mark is speccing by pointing at a real product/URL/screenshot \u2014 go observe the actual reference, pin WHICH property is the target, replicate it to that bar, and don't over-clone beyond what he named.",
+      "phrases": [
+        "boilerplate",
+        "casl",
+        "cognito pool",
+        "feel like",
+        "from sentient-monorepo",
+        "just like",
+        "like a https",
+        "like editor.js",
+        "like editorjs",
+        "like monaco",
+        "like notion",
+        "like that",
+        "make it like",
+        "match the pattern",
+        "modeled after",
+        "same as",
+        "same structure",
+        "similar to",
+        "use the same pattern as",
+        "vercel v0",
+        "work like"
+      ],
+      "regexes": [
+        "\\b(replicate|mirror|match)\\b.*\\bpattern\\b",
+        "\\bfeel like\\b",
+        "\\blike (raycast|vercel|notion|linear|stripe|figma|v0)\\b",
+        "\\blike that\\b",
+        "\\blike\\s+https?://",
+        "\\bas (its |the |our )?\\w* ?source of truth\\b"
+      ]
+    }
+  ]
+}

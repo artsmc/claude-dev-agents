@@ -1,0 +1,62 @@
+[
+  {
+    "query": "before we build anything i want to work out the full plan and do some deep research on the best architecture",
+    "should_trigger": true
+  },
+  {
+    "query": "do we already have a harness for this in the docs, or are we hand-rolling it?",
+    "should_trigger": true
+  },
+  {
+    "query": "what betachat tickets are still remaining, and in what order should we knock them out to hit zero?",
+    "should_trigger": true
+  },
+  {
+    "query": "how close are we to autonomous agents \u2014 what are our current gaps against the target?",
+    "should_trigger": true
+  },
+  {
+    "query": "is there a system we can use for this? i don't think raw sql is the best approach",
+    "should_trigger": true
+  },
+  {
+    "query": "this is a really comprehensive ask, i'm looking for deep research then a markdown plan then linear tickets",
+    "should_trigger": true
+  },
+  {
+    "query": "first just examine the foundation \u2014 do we have inngest workflows already set up?",
+    "should_trigger": true
+  },
+  {
+    "query": "which parts of this work belong to which app before we start splitting it up?",
+    "should_trigger": true
+  },
+  {
+    "query": "execute the task list now, run the implementation waves",
+    "should_trigger": false
+  },
+  {
+    "query": "/spec-plan the OAuth2 login feature with FRD and FRS docs",
+    "should_trigger": false
+  },
+  {
+    "query": "just build this feature end to end, here's the description",
+    "should_trigger": false
+  },
+  {
+    "query": "the build is broken with a 502, find the root cause and fix it",
+    "should_trigger": false
+  },
+  {
+    "query": "update the memory bank with everything we just shipped",
+    "should_trigger": false
+  },
+  {
+    "query": "review these tasks for parallelism and complexity before we run them",
+    "should_trigger": false
+  },
+  {
+    "query": "is the production deploy actually live and serving the new version?",
+    "should_trigger": false
+  }
+]
