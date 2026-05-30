@@ -1,6 +1,6 @@
 # Claude Dev Agents — Claude Code Development Environment
 
-**Version:** 3.0
+**Version:** 0.3.0
 **Last Updated:** 2026-05-30
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 
@@ -1143,7 +1143,7 @@ Private repository for personal use.
 
 ---
 
-**Version:** 3.0
+**Version:** 0.3.0
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 **Status:** ✅ Production Ready
 **Last Updated:** 2026-05-30
