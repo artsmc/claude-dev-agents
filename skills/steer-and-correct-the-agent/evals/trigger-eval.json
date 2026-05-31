@@ -1,0 +1,62 @@
+[
+  {
+    "query": "no remove this inline editor, that was a bad call \u2014 put the rendered template back",
+    "should_trigger": true
+  },
+  {
+    "query": "get back on track, remember the goal: we're moving betachat backend to the MVP API",
+    "should_trigger": true
+  },
+  {
+    "query": "no just use the cli and show me a table here, don't build a whole script for it",
+    "should_trigger": true
+  },
+  {
+    "query": "you have full autonomy, run 2-3 of these goals end to end on your own while i'm gone, just don't destroy my data",
+    "should_trigger": true
+  },
+  {
+    "query": "since you're replacing it, just make sure you keep the save button for the tiptap changes",
+    "should_trigger": true
+  },
+  {
+    "query": "not libs/util/src/__test but __test__/libs/utils/src \u2014 fix the path",
+    "should_trigger": true
+  },
+  {
+    "query": "that is false, i'm looking at the template page right now and the editor is there",
+    "should_trigger": true
+  },
+  {
+    "query": "this looks wrong, our main objectives are all around beta.chat, why are you in the monorepo?",
+    "should_trigger": true
+  },
+  {
+    "query": "the api endpoint is returning a 500, find the root cause",
+    "should_trigger": false
+  },
+  {
+    "query": "plan out the architecture for the new notifications system before we build",
+    "should_trigger": false
+  },
+  {
+    "query": "is the deploy live and did the migration run?",
+    "should_trigger": false
+  },
+  {
+    "query": "build me an admin dashboard to display the sales metrics",
+    "should_trigger": false
+  },
+  {
+    "query": "distribute this refactor across the fleet with tmux and worktrees",
+    "should_trigger": false
+  },
+  {
+    "query": "explain the difference between server components and client components",
+    "should_trigger": false
+  },
+  {
+    "query": "catch me up on where we left off yesterday",
+    "should_trigger": false
+  }
+]

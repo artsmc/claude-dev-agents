@@ -1,0 +1,62 @@
+[
+  {
+    "query": "Invalid `prisma.profiles.create()` invocation: User was denied access on the database `sentienthomes`. whats going on here",
+    "should_trigger": true
+  },
+  {
+    "query": "getting a 403 Forbidden on http://localhost:3000/api/contractors?limit=100 but the admin one works fine, dig into it",
+    "should_trigger": true
+  },
+  {
+    "query": "clicking the left navigation does nothing \u2014 are the pages even built and connected?",
+    "should_trigger": true
+  },
+  {
+    "query": "[screenshot] message position is weird on the chat panel, the bubble is sitting in the wrong place",
+    "should_trigger": true
+  },
+  {
+    "query": "ChunkLoadError: Failed to load chunk app/layout on prod but not local, figure out the real cause",
+    "should_trigger": true
+  },
+  {
+    "query": "still failing to fetch on the api calls, do we even have proper logging (pino/winston) for you to watch?",
+    "should_trigger": true
+  },
+  {
+    "query": "the otp gets rejected within seconds of being created for sahil@ but not for mark@, identify the true error",
+    "should_trigger": true
+  },
+  {
+    "query": "there are only 2 of 6 plan sections rendering on the template page, the rest are missing",
+    "should_trigger": true
+  },
+  {
+    "query": "can you write unit tests for the contractor assignment service, aiming for 90% coverage",
+    "should_trigger": false
+  },
+  {
+    "query": "review this PR diff and tell me if there are any bugs before I merge it",
+    "should_trigger": false
+  },
+  {
+    "query": "the gitlab pipeline on feat/auth-refactor is red, check the job logs and push a fix",
+    "should_trigger": false
+  },
+  {
+    "query": "explain how Next.js chunk loading and code splitting works in general",
+    "should_trigger": false
+  },
+  {
+    "query": "is the chat.beta deploy actually live yet at the v1.5.11 version?",
+    "should_trigger": false
+  },
+  {
+    "query": "let's plan out how we want to restructure the error-handling architecture across the apps",
+    "should_trigger": false
+  },
+  {
+    "query": "add a retry button to the upload UI so users can re-trigger a failed upload",
+    "should_trigger": false
+  }
+]

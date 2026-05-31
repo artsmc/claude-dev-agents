@@ -1,0 +1,62 @@
+[
+  {
+    "query": "you said the email feature is done \u2014 did an actual email send to artsmc88@gmail.com or just the toast?",
+    "should_trigger": true
+  },
+  {
+    "query": "is https://chat.beta.sentienthome.ai/ actually live right now, and is it the new revision?",
+    "should_trigger": true
+  },
+  {
+    "query": "merge it if green, otherwise resolve the checks and re-run before merging",
+    "should_trigger": true
+  },
+  {
+    "query": "i had another runner doing work \u2014 can you absolutely confirm nothing is live before I push the tag?",
+    "should_trigger": true
+  },
+  {
+    "query": "did the database migration actually RUN on deploy, or did we just change the code?",
+    "should_trigger": true
+  },
+  {
+    "query": "before we call this finished, did we confirm the change when we ran the script? paste the real output",
+    "should_trigger": true
+  },
+  {
+    "query": "are all the platform tickets accounted for in linear vs what's actually committed in git?",
+    "should_trigger": true
+  },
+  {
+    "query": "check the v1.6.2 deploy status on the render dashboard, by exact version",
+    "should_trigger": true
+  },
+  {
+    "query": "clicking save does nothing and the console shows a 500, find the root cause",
+    "should_trigger": false
+  },
+  {
+    "query": "run the full jest test suite and show me which tests fail",
+    "should_trigger": false
+  },
+  {
+    "query": "let's scope out the release plan and what tickets are left before we ship",
+    "should_trigger": false
+  },
+  {
+    "query": "catch me up \u2014 where did I leave off on the betachat backend work?",
+    "should_trigger": false
+  },
+  {
+    "query": "write a github actions workflow that deploys to ECS on merge to main",
+    "should_trigger": false
+  },
+  {
+    "query": "approve MR !2103 on gitlab, the pipeline is green and the diff is tiny",
+    "should_trigger": false
+  },
+  {
+    "query": "draft the spec doc for the new notifications feature",
+    "should_trigger": false
+  }
+]

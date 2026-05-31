@@ -1,0 +1,62 @@
+[
+  {
+    "query": "distribute the planning and effort among the fleet, use tmux and worktrees per ticket",
+    "should_trigger": true
+  },
+  {
+    "query": "i need to offload entirely to mac-mini and desktop, this box should just be the orchestrator for battery's sake",
+    "should_trigger": true
+  },
+  {
+    "query": "kick it off, fan them out across the machines and check on the agents every 5 min",
+    "should_trigger": true
+  },
+  {
+    "query": "it's been a few hours \u2014 is the SEN-467 work done and are all 4 branches pushed?",
+    "should_trigger": true
+  },
+  {
+    "query": "are we ready to delegate wave A? hand each worker the state snapshot and ssh host",
+    "should_trigger": true
+  },
+  {
+    "query": "how do you know when a dispatched agent is actually done \u2014 is there an auto checker?",
+    "should_trigger": true
+  },
+  {
+    "query": "the desktop sshd keeps dropping connections, the work is committed but not pushed \u2014 sort out the dispatch",
+    "should_trigger": true
+  },
+  {
+    "query": "poll the running agents and only escalate to me if one's stuck over 15 min with no commits",
+    "should_trigger": true
+  },
+  {
+    "query": "spawn a few subagents in this session to search the codebase for all the auth call sites",
+    "should_trigger": false
+  },
+  {
+    "query": "run these 3 refactors in parallel right here, they don't touch the same files",
+    "should_trigger": false
+  },
+  {
+    "query": "the gitlab pipeline is failing, check it and fix the build",
+    "should_trigger": false
+  },
+  {
+    "query": "deploy the monorepo to production and confirm it's live",
+    "should_trigger": false
+  },
+  {
+    "query": "plan how we'll break this epic into smaller tickets",
+    "should_trigger": false
+  },
+  {
+    "query": "fix this ChunkLoadError on the prod build",
+    "should_trigger": false
+  },
+  {
+    "query": "schedule a cron job to run the nightly report at 3am",
+    "should_trigger": false
+  }
+]

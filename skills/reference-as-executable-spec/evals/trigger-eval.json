@@ -1,0 +1,82 @@
+[
+  {
+    "query": "at the top of the quiz editor i want a way to edit and save the raw html css like a https://microsoft.github.io/monaco-editor/ dark theme so i can see changes quicker",
+    "should_trigger": true
+  },
+  {
+    "query": "give me an inline editor on the page like https://editorjs.io/ or quil for the article body",
+    "should_trigger": true
+  },
+  {
+    "query": "the idea much like https://openclaw.ai/ or hermes-agent is that our agents can run in the background",
+    "should_trigger": true
+  },
+  {
+    "query": "with multi tenant have you thought about rbac, are there setups similar to casl?",
+    "should_trigger": true
+  },
+  {
+    "query": "for the otp in sentient-homes, the OTP from sentient-monorepo is the pattern we should match",
+    "should_trigger": true
+  },
+  {
+    "query": "use sentient-monorepo as its api source of truth for the new notifications feature",
+    "should_trigger": true
+  },
+  {
+    "query": "build the agent dashboard like that vercel v0 page, same kind of streaming chat panel",
+    "should_trigger": true
+  },
+  {
+    "query": "we're building this same structure as the CASL boilerplate for permissions, mirror it",
+    "should_trigger": true
+  },
+  {
+    "query": "the monorepo cognito pool is the source of truth for otp, wire the new app to read from it not its own",
+    "should_trigger": true
+  },
+  {
+    "query": "i want the command palette to feel like raycast, replicate that fuzzy launcher behavior",
+    "should_trigger": true
+  },
+  {
+    "query": "based on planning/gap-analysis what tasks remain inside of platform before we ship",
+    "should_trigger": false
+  },
+  {
+    "query": "the public page is our source of truth, redirect and phase out the old quiz result page",
+    "should_trigger": false
+  },
+  {
+    "query": "i get a 502 when i submit the email in the login form, identify the true error",
+    "should_trigger": false
+  },
+  {
+    "query": "is the v1.5.11 deploy actually live on chat.beta.sentienthome.ai or did it just say success",
+    "should_trigger": false
+  },
+  {
+    "query": "clicking the left nav does nothing, are the pages built and connected?",
+    "should_trigger": false
+  },
+  {
+    "query": "distribute the refactor across the fleet, mac-mini and desktop, check on them every 5 min",
+    "should_trigger": false
+  },
+  {
+    "query": "do we already have a harness for running these eval tasks or do we need to build one",
+    "should_trigger": false
+  },
+  {
+    "query": "2 and make note of it in claude.md, then turn on the MVP backend in the background",
+    "should_trigger": false
+  },
+  {
+    "query": "the gap-analysis matrix is the source of truth for which tickets are left, order them to get us to zero",
+    "should_trigger": false
+  },
+  {
+    "query": "no remove this editor it was a bad call, replace it with a plain textarea",
+    "should_trigger": false
+  }
+]
