@@ -13,7 +13,7 @@ A multi-agent development framework built on the Claude Code CLI. It lives in `~
 This repository implements a **modular, skill-based architecture** with five cooperating layers:
 
 - ✅ **Agents** — 19 specialized development personas (plus 5 loadable modules) with standardized YAML frontmatter (`name` / `model` / `tools`)
-- ✅ **Skills** — 44 composable `/slash-command` workflows across 45 skill directories
+- ✅ **Skills** — 45 composable `/slash-command` workflows across 46 skill directories
 - ✅ **Hooks** — 30 hook files across 8 subsystems, from quality gates to the one genuinely-wired event hook
 - ✅ **Tools** — Zero-dependency Python utilities (PM-DB layer, quality enforcement, backup/restore) — Python stdlib only
 - ✅ **PM-DB** — A 17-table SQLite project database (`projects.db`) tracking specs, phases, tasks, and execution runs, with both a Python and a generated Prisma access layer
@@ -24,7 +24,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 - ✅ **Cost-efficient model routing** — Opus for deep reasoning (architecture, security, debugging, orchestration); Sonnet for implementation, review, and documentation
 - ✅ **Tool-restriction profiles** — Read-only (advisory/review), Write-no-shell (UI/frontend), and Full (implementation) profiles scope what each agent can touch
 - ✅ **Modularized agents** — large agents split into a small core plus on-demand loadable modules (security-auditor, mastra-core-developer, technical-writer)
-- ✅ **Metacognitive reasoning layer** — 7 procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering, surfaced automatically by a UserPromptSubmit cue hook
+- ✅ **Metacognitive reasoning layer** — 8 procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering, surfaced automatically by a UserPromptSubmit cue hook
 - ✅ **Safety net** — shadow-git snapshot scripts, session-start context restoration, audible completion hooks, and a `health-check.sh` foundation validator
 - ✅ **Zero external dependencies** — every utility is pure Python stdlib
 
@@ -52,7 +52,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 │       ├── security-auditor-pentest.md
 │       └── technical-writer-style.md
 │
-├── skills/                          # 45 skill dirs (44 with SKILL.md)
+├── skills/                          # 46 skill dirs (45 with SKILL.md)
 │   ├── research-gated-build-plan/   # 🧠 Reasoning skill ⭐ NEW
 │   ├── diagnose-from-raw-symptom/   # 🧠 Reasoning skill ⭐ NEW
 │   ├── prove-it-live-before-done/   # 🧠 Reasoning skill ⭐ NEW
@@ -60,6 +60,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 │   ├── steer-and-correct-the-agent/ # 🧠 Reasoning skill ⭐ NEW
 │   ├── enumerated-menu-pick-and-sweep/  # 🧠 Reasoning skill ⭐ NEW
 │   ├── reference-as-executable-spec/    # 🧠 Reasoning skill ⭐ NEW
+│   ├── scope-question-and-delegate/     # 🧠 Reasoning skill ⭐ NEW
 │   │
 │   ├── feature-new/                 # 🎯 End-to-end feature orchestration
 │   ├── feature-continue/            # 🎯 Resume interrupted work
@@ -166,11 +167,11 @@ Specialized development personas, one expert per concern. Every agent ships stan
 
 ## 🔧 Skills
 
-44 composable workflows (across 45 directories — `start-phase/` is a scripts-only helper without a `SKILL.md`). Every skill is a `/slash-command`. Skills are grouped by system below; **every skill is listed**.
+45 composable workflows (across 46 directories — `start-phase/` is a scripts-only helper without a `SKILL.md`). Every skill is a `/slash-command`. Skills are grouped by system below; **every skill is listed**.
 
 ---
 
-### 🧠 Reasoning & Metacognitive Skills (7 skills) ⭐ NEW
+### 🧠 Reasoning & Metacognitive Skills (8 skills) ⭐ NEW
 
 **Mark's working grammar.** Procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering — invoked by terse signals rather than a build command. Because they undertrigger on their own, they are surfaced automatically by the `reasoning-skills` UserPromptSubmit cue hook (see Hooks).
 
@@ -181,6 +182,7 @@ Specialized development personas, one expert per concern. Every agent ships stan
 - `/steer-and-correct-the-agent` — Mid-flight interpreter of terse steering grammar (greenlights, autonomy grants, hard overrides, re-anchoring, method constraints) — encodes when bounded autonomy is granted vs when a human checkpoint is required.
 - `/enumerated-menu-pick-and-sweep` — Structure consequential choices as a numbered/lettered menu so a bare one-token reply counts as a full selection; correctly resolve terse picks, riders, ranged scope-cuts, and multi-item sweeps.
 - `/reference-as-executable-spec` — When a concrete reference is named ("build it like editor.js", "same as X") instead of behavior, go observe the real thing, extract its behavior, and treat **that** as the acceptance bar.
+- `/scope-question-and-delegate` — Triage-then-delegate for ambiguity and the ~200k context cliff: stop only on *real* ambiguity or context cost (not a hard gate), ask only the **decisive** questions, budget the window, and hand each worker a minimal scoped snapshot (goal/inputs/constraints/acceptance) via Workflow/teams/fleet so the orchestrator plans and synthesizes without accumulating execution detail.
 
 **Location:** `/home/mark/.claude/skills/<slug>/`
 **Cue table:** `/home/mark/.claude/hooks/reasoning-skills/signatures.json`
@@ -499,7 +501,7 @@ bash   scripts/health-check.sh             # Validate the whole foundation (non-
 
 | System | Status | Skills | Hooks | Tools | Documentation |
 |--------|--------|--------|-------|-------|---------------|
-| **reasoning-skills** | ✅ v1.0 | 7 | 1 (UserPromptSubmit) | `dispatch.py` + `signatures.json` | `hooks/reasoning-skills/` |
+| **reasoning-skills** | ✅ v1.0 | 8 | 1 (UserPromptSubmit) | `dispatch.py` + `signatures.json` | `hooks/reasoning-skills/` |
 | **feature-orchestration** | ✅ v1.0 | 2 | 0 | 0 | Complete |
 | **start-phase** | ✅ v2.0 | 3 | 4 | 4 | `skills/start-phase-plan/scripts/README.md` |
 | **pm-db** | ✅ v2.0 | 1 | 12 | `project_database.py` + 6 scripts + Prisma | Complete |
@@ -513,7 +515,7 @@ bash   scripts/health-check.sh             # Validate the whole foundation (non-
 
 ### Total Implementation
 
-- ✅ **44 skills** across 45 skill directories (`start-phase/` is a scripts-only helper without `SKILL.md`)
+- ✅ **45 skills** across 46 skill directories (`start-phase/` is a scripts-only helper without `SKILL.md`)
 - ✅ **19 agent personas** + **5 loadable modules** (6 Opus / 13 Sonnet routing)
 - ✅ **30 hook files** across 8 subsystems (1 wired event hook + 4 quality-gate + 12 pm-db + Brain/spec/shadow)
 - ✅ **17-table SQLite PM-DB** (`projects.db`, WAL mode) with Python + generated-Prisma access layers
@@ -1054,12 +1056,12 @@ The **start-phase** system is the most comprehensive and production-ready system
 
 | Metric | Count | Basis |
 |--------|-------|-------|
-| Skills | **44** (45 dirs) | Dirs with `SKILL.md`; `start-phase/` is scripts-only |
+| Skills | **45** (46 dirs) | Dirs with `SKILL.md`; `start-phase/` is scripts-only |
 | Agent personas | **19** | `agents/*.md` (excludes `modules/`) |
 | Loadable modules | **5** | `agents/modules/*.md` |
 | Hook files | **30** | Across 8 subsystems |
 | Wired event hooks | **1** | `reasoning-skills` UserPromptSubmit (in `settings.json`) |
-| Reasoning skills cued | **7** | `signatures.json` trigger table |
+| Reasoning skills cued | **8** | `signatures.json` trigger table |
 | PM-DB tables | **17** | `projects.db` (WAL, FK ON) |
 | External dependencies | **0** | Python stdlib only |
 
@@ -1086,7 +1088,7 @@ The **start-phase** system is the most comprehensive and production-ready system
 | Timeout | 10s |
 | Max cues per prompt (`MAX_SKILLS`) | 3 |
 | Failure mode | ✅ Fails OPEN (exit 0, never blocks/alters the prompt) |
-| Skills covered | 7 (editable in `signatures.json`) |
+| Skills covered | 8 (editable in `signatures.json`) |
 
 ---
 
@@ -1101,7 +1103,7 @@ The **start-phase** system is the most comprehensive and production-ready system
 
 **Q: Reasoning skills never trigger automatically**
 - Confirm the `reasoning-skills` UserPromptSubmit hook is registered in `settings.json`
-- Inspect / extend the trigger phrases in `hooks/reasoning-skills/signatures.json` (7 skills covered)
+- Inspect / extend the trigger phrases in `hooks/reasoning-skills/signatures.json` (8 skills covered)
 - Remember it caps at 3 cues per prompt and fails open — it will never block you
 
 **Q: Quality gates failing**
