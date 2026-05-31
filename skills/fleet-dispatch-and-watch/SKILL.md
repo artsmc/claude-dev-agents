@@ -25,6 +25,7 @@ Don't just kick a vague task — supply done/committed-but-unpushed/blocking-cau
 - `sen-467 work is committed on desktop WSL (commit fcb5bed) but NOT pushed — blocked because desktop sshd was closing all connections (tailnet ping worked, likely memory pressure from a 29h hung jest I tried to kill)`
 - `and clean up partial sentient-monorepo node_modules`
 Give each worker exact IDs/targets (run IDs, branch names, ticket IDs, SSH host), never a vague 'continue'.
+The same snapshot discipline applies to subagents/teams, not just machines — see **scope-question-and-delegate** for budgeting exactly the context a delegate needs (no more, no less).
 
 ## 4. Poll on a fixed cadence — never block, never assume success
 Set recurring check-ins and spell out the exact verification commands with branching outcomes:

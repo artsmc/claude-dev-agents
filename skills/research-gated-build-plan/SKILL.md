@@ -35,6 +35,7 @@ Map the scope by which pieces belong to which subsystem/app, then break coarse w
 - `i need to work out which parts belong to which apps`
 - `SEN-209 and SEN-204 both look they should be broken down into smaller ticket`
 - Prefer incremental per-item integration: `incremental — merge each as it greens`, not one big batch merge.
+- When a unit is sizable/ambiguous or context-heavy, route it through **scope-question-and-delegate** to ask the decisive questions first, then delegate with minimal context.
 
 ## Gate 5: Sequence prerequisites; gate downstream on completion
 Order dependent work explicitly — clear blockers first, sequence env setup, gate releases behind upstream conditions.

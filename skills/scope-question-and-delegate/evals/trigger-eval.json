@@ -1,0 +1,82 @@
+[
+  {
+    "query": "ok this is a big one, help me scope it before we touch anything",
+    "should_trigger": true
+  },
+  {
+    "query": "build the whole internal CRM platform \u2014 leads, pipeline, email sync, reporting, the works",
+    "should_trigger": true
+  },
+  {
+    "query": "should we split this across a few agents or just do it in one pass?",
+    "should_trigger": true
+  },
+  {
+    "query": "this context is getting huge and we still have like 4 subsystems to go, how do we keep this from going off the rails?",
+    "should_trigger": true
+  },
+  {
+    "query": "redo the billing system so it handles usage-based plans \u2014 not totally sure how we want proration or trials to work yet",
+    "should_trigger": true
+  },
+  {
+    "query": "i want to add multi-tenant support across the whole app, what do you need from me before you start?",
+    "should_trigger": true
+  },
+  {
+    "query": "we've got auth, the data model, the dashboard and the API all in flight at once \u2014 how should i hand this off so each piece gets clean context?",
+    "should_trigger": true
+  },
+  {
+    "query": "migrate everything off firebase \u2014 auth, db, storage, functions. where do we even begin and who does what?",
+    "should_trigger": true
+  },
+  {
+    "query": "make it 'social' \u2014 feeds, follows, notifications, dms... figure out what that actually means and what to build first",
+    "should_trigger": true
+  },
+  {
+    "query": "the transcript's getting really long and i don't want quality to tank \u2014 should we hand the execution off to fresh workers and just keep you as the orchestrator?",
+    "should_trigger": true
+  },
+  {
+    "query": "rename this variable from usr to currentUser everywhere in this file",
+    "should_trigger": false
+  },
+  {
+    "query": "the agents we kicked off three hours ago \u2014 are they done yet or stuck?",
+    "should_trigger": false
+  },
+  {
+    "query": "fan this already-scoped lint sweep out to mac-mini and desktop, you just orchestrate",
+    "should_trigger": false
+  },
+  {
+    "query": "clicking the save button does nothing now and the console throws a hydration error, find the real cause",
+    "should_trigger": false
+  },
+  {
+    "query": "is the new revision actually live at the prod URL or are we still serving the old build?",
+    "should_trigger": false
+  },
+  {
+    "query": "add a loading spinner to the submit button while the request is in flight",
+    "should_trigger": false
+  },
+  {
+    "query": "review the task list for parallelism and complexity, then plan the waves before we execute",
+    "should_trigger": false
+  },
+  {
+    "query": "context window's nearly full \u2014 run /compact and keep going on the same task",
+    "should_trigger": false
+  },
+  {
+    "query": "implement the password-reset flow exactly per the spec doc we already wrote \u2014 email token, 1h expiry, single-use",
+    "should_trigger": false
+  },
+  {
+    "query": "did the welcome email actually fire when i signed up the test user, or did it just log success?",
+    "should_trigger": false
+  }
+]

@@ -221,6 +221,41 @@
         "\\blike\\s+https?://",
         "\\bas (its |the |our )?\\w* ?source of truth\\b"
       ]
+    },
+    {
+      "slug": "scope-question-and-delegate",
+      "nudge": "Real ambiguity or context-cost \u2014 triage first; ask only the DECISIVE questions; budget the window (the ~200k cliff); delegate with a minimal scoped snapshot (goal/inputs/constraints/acceptance) via Workflow/teams/fleet; orchestrator plans+synthesizes, doesn't accumulate execution.",
+      "phrases": [
+        "all in flight",
+        "build the whole",
+        "drag the full context",
+        "drag the whole context",
+        "figure out what that means",
+        "help me scope",
+        "is this clear enough to build",
+        "keep the context lean",
+        "keep the main thread lean",
+        "migrate everything off",
+        "not totally sure how",
+        "quality to tank",
+        "scope it before",
+        "scope this before",
+        "should we split this up",
+        "split it across agents",
+        "split this across agents",
+        "this is a big one",
+        "what do you need from me",
+        "where do we even start",
+        "without throwing in an entire context"
+      ],
+      "regexes": [
+        "\\b(transcript|context|window|thread)('?s)? (is )?(getting|too) (long|huge|big|large)\\b",
+        "\\bcontext (is )?(getting|too) (huge|big|large|long)\\b",
+        "\\bscope (this|it) (out|down|first)\\b",
+        "\\bsplit (this|it) (up|across)\\b",
+        "\\bsplit .{0,15}\\b(agents|sub ?agents|context)\\b",
+        "\\bthe whole .{0,25}(platform|app|system)\\b"
+      ]
     }
   ]
 }
