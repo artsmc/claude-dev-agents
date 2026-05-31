@@ -91,7 +91,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 ├── hooks/                           # 30 hook files across 8 subsystems
 │   ├── reasoning-skills/            # ⭐ THE wired event hook (UserPromptSubmit)
 │   │   ├── dispatch.py              #   matches prompt → injects skill cue
-│   │   └── signatures.json          #   editable trigger table (7 skills)
+│   │   └── signatures.json          #   editable trigger table (8 skills)
 │   ├── start-phase/                 # ⭐ Quality-gate lifecycle (4 hooks)
 │   │   ├── phase-start.md  task-complete.md
 │   │   ├── quality-gate.md  phase-complete.md  README.md
@@ -1149,4 +1149,4 @@ Private repository for personal use.
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 **Status:** ✅ Production Ready
 **Last Updated:** 2026-05-30
-**Inventory:** 44 skills · 19 agents (+5 modules) · 30 hook files · 17-table PM-DB · zero dependencies
+**Inventory:** 45 skills · 19 agents (+5 modules) · 30 hook files · 17-table PM-DB · zero dependencies
