@@ -1,0 +1,24 @@
+{
+  "skill_name": "headroom-context-compression",
+  "note": "Validated via live MCP round-trips (compress/retrieve/query/stats proven against headroom 0.24.0), not subagent benchmarks — subagents in the creating session can't reach the mcp__headroom__* tools. Prompts kept for triggering reference and future re-validation.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I dumped the full pg connection logs into /tmp/retry.log — it's like 1800 lines of ECONNREFUSED noise. Spin up a subagent to find the root cause but don't drown its prompt with the whole file.",
+      "expected_output": "Compresses the log via headroom_compress, passes compressed text + hash to the subagent, and instructs the subagent it can headroom_retrieve the full log (or a slice) if it needs an exact line.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Here's the compressed search output with a marker that says [430 items compressed to 88. Retrieve more: hash=ab12cd]. I need the EXACT file path of every match that touches the auth middleware — give me all of them.",
+      "expected_output": "Recognizes the elision gap means matches were dropped, calls headroom_retrieve(hash='ab12cd') to get the full original (or query for 'auth'), reads from original_content/results, and enumerates exact paths rather than trusting the compressed view.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "We're going to walk this 3000-line OpenAPI spec through five refactor steps and I'll keep referencing it. Set things up so we're not re-pasting the whole spec every step.",
+      "expected_output": "Compresses the spec once, carries the compressed view + hash across steps, and retrieves only the needed slice (or full original) per step instead of re-pasting the entire spec.",
+      "files": []
+    }
+  ]
+}

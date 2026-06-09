@@ -1,0 +1,22 @@
+[
+  {"query": "im about to hand this 2000-line terraform plan output to a subagent to review for drift — dont blow up its prompt with the whole thing", "should_trigger": true},
+  {"query": "we're going to iterate on this giant graphql schema across like 6 refactor steps, i really dont want to keep re-pasting the whole 3k line file into every task", "should_trigger": true},
+  {"query": "got a massive jest failure log (~1800 lines), want to farm out the triage to another agent but keep its context lean", "should_trigger": true},
+  {"query": "this search result has a marker at the end saying [512 items compressed to 60. Retrieve more: hash=9f2a1c] and i need every exact filepath that touches the payments module", "should_trigger": true},
+  {"query": "before i spin up the worker agents, shrink this 4MB json api dump so each one isnt carrying the full blob in its prompt", "should_trigger": true},
+  {"query": "the compressed view of these logs is missing the actual stack trace line i need — how do i get the original back", "should_trigger": true},
+  {"query": "i keep pasting this huge openapi spec into every task prompt and its eating my whole context window, theres gotta be a smarter way to carry it", "should_trigger": true},
+  {"query": "stash this big config dump somewhere i can pull the exact value back later without keeping all 1500 lines sitting in front of me the whole time", "should_trigger": true},
+  {"query": "fan out 5 agents to analyze these nginx access logs but each handoff prompt is enormous, trim them down first", "should_trigger": true},
+
+  {"query": "this screenshot png is 8MB, can you compress it down so it fits under the 2MB upload limit on the form", "should_trigger": false},
+  {"query": "gzip the logs directory before we scp it over to the backup host tonight", "should_trigger": false},
+  {"query": "summarize this 40-page PDF vendor contract into a one-page brief i can forward to my boss", "should_trigger": false},
+  {"query": "my context window keeps filling up in this session, should i just run /compact or start fresh?", "should_trigger": false},
+  {"query": "the webinar recording is too big to post in slack, whats the best codec to compress the mp4", "should_trigger": false},
+  {"query": "can you make this handler function more concise? its 200 lines and super repetitive, i want it shorter", "should_trigger": false},
+  {"query": "set up postgres TOAST / column compression for these big jsonb columns, the table is getting huge", "should_trigger": false},
+  {"query": "this API response is huge but i only care about 3 fields — just parse it and tell me the order id, status, and total", "should_trigger": false},
+  {"query": "zip up the dist folder so i can attach it to the github release", "should_trigger": false},
+  {"query": "the diff on this PR is way too long to read through, give me the tldr of what actually changed", "should_trigger": false}
+]
