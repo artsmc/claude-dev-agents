@@ -1,7 +1,7 @@
 # Claude Dev Agents — Claude Code Development Environment
 
 **Version:** 0.3.0
-**Last Updated:** 2026-05-30
+**Last Updated:** 2026-06-09
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 
 A multi-agent development framework built on the Claude Code CLI. It lives in `~/.claude/` and turns Claude Code into a coordinated team of specialized AI agents — driven by `/skill-name` commands, backed by a SQLite project-tracking database, and guarded by quality gates, session-start context restoration, and a metacognitive reasoning layer that nudges the model to plan, debug, verify, and self-correct.
@@ -532,6 +532,71 @@ Skills follow the pattern `/{system}-{action}` (a few take space-separated argum
 - `/memory-bank-*`, `/document-hub-*`, `/documentation-start` (Brain)
 - `/mastra-*` (framework), `/miro-*`, `/gitlab-maintainer` (integrations)
 - Reasoning skills carry descriptive verb-phrase slugs (`/diagnose-from-raw-symptom`, `/prove-it-live-before-done`, …)
+
+---
+
+## 📥 Installation
+
+This repository **is** your `~/.claude/` directory — installing it means putting
+its contents (agents, skills, hooks, tools) where Claude Code looks for them.
+
+### Prerequisites
+
+- ✅ **Claude Code CLI** installed (it creates and owns `~/.claude/`)
+- ✅ **git** and **Python 3.8+** — every tool here is pure stdlib, no `pip install` needed
+- ✅ *(optional)* **pipx** — only for skills backed by an MCP server (e.g.
+  `headroom-context-compression`, which has its own `INSTALL.md`)
+
+### Install into an existing `~/.claude/` (recommended)
+
+Claude Code has usually already created `~/.claude/` with your auth and settings.
+Those files are **git-ignored** (machine-local), so adopting the repo in place
+leaves them untouched — only the tracked files (agents, skills, hooks, etc.)
+are written:
+
+```bash
+cd ~/.claude
+git init
+git remote add origin git@github.com:artsmc/claude-dev-agents.git
+git fetch origin
+git checkout -f main      # writes tracked files; your ignored local files stay put
+```
+
+### Clean install on a brand-new machine
+
+```bash
+# Preserve anything Claude Code already put there (auth, settings)
+mv ~/.claude ~/.claude.local.bak 2>/dev/null || true
+git clone git@github.com:artsmc/claude-dev-agents.git ~/.claude
+
+# Restore machine-local, git-ignored files the repo does NOT carry
+cd ~/.claude
+for f in settings.json settings.local.json config.json .credentials.json projects; do
+  [ -e ~/.claude.local.bak/"$f" ] && cp -r ~/.claude.local.bak/"$f" ./
+done
+```
+
+### What the repo does and doesn't carry
+
+| Tracked (travels with the repo) | Machine-local (git-ignored, per machine) |
+|---|---|
+| `agents/ skills/ hooks/ bin/ scripts/ lib/ docs/ sounds/` | `settings.json`, `settings.local.json`, `config.json` |
+| `README.md`, `.gitignore`, `prisma.config.ts` | `.credentials.json`, `projects/` (PM-DB + session data) |
+| | `~/CLAUDE.md` and `~/.claude.json` — **outside** this repo |
+
+> ⚠️ `~/CLAUDE.md` (workspace instructions) and `~/.claude.json` (MCP server
+> registrations) live in your home dir, **not** in `~/.claude/`, so they are not
+> part of this repo and must be set up separately on each machine. MCP-backed
+> skills also carry their own `INSTALL.md` (see
+> `skills/headroom-context-compression/INSTALL.md`).
+
+### Verify the install
+
+```bash
+bash ~/.claude/scripts/health-check.sh     # foundation validator
+```
+
+Then run the one-time project setup below.
 
 ---
 
@@ -1148,5 +1213,5 @@ Private repository for personal use.
 **Version:** 0.3.0
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 **Status:** ✅ Production Ready
-**Last Updated:** 2026-05-30
+**Last Updated:** 2026-06-09
 **Inventory:** 45 skills · 19 agents (+5 modules) · 30 hook files · 17-table PM-DB · zero dependencies
