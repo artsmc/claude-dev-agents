@@ -1,7 +1,7 @@
 # Claude Dev Agents — Claude Code Development Environment
 
-**Version:** 0.3.0
-**Last Updated:** 2026-06-09
+**Version:** 0.4.0
+**Last Updated:** 2026-07-09
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 
 A multi-agent development framework built on the Claude Code CLI. It lives in `~/.claude/` and turns Claude Code into a coordinated team of specialized AI agents — driven by `/skill-name` commands, backed by a SQLite project-tracking database, and guarded by quality gates, session-start context restoration, and a metacognitive reasoning layer that nudges the model to plan, debug, verify, and self-correct.
@@ -13,8 +13,8 @@ A multi-agent development framework built on the Claude Code CLI. It lives in `~
 This repository implements a **modular, skill-based architecture** with five cooperating layers:
 
 - ✅ **Agents** — 19 specialized development personas (plus 5 loadable modules) with standardized YAML frontmatter (`name` / `model` / `tools`)
-- ✅ **Skills** — 45 composable `/slash-command` workflows across 46 skill directories
-- ✅ **Hooks** — 30 hook files across 8 subsystems, from quality gates to the one genuinely-wired event hook
+- ✅ **Skills** — 43 composable `/slash-command` workflows (43 `SKILL.md` files — `start-phase/` and eval workspace dirs have none)
+- ✅ **Hooks** — 30 hook files across 8 subsystems, from quality gates to audible Stop/Notification feedback and a PreToolUse shadow-snapshot
 - ✅ **Tools** — Zero-dependency Python utilities (PM-DB layer, quality enforcement, backup/restore) — Python stdlib only
 - ✅ **PM-DB** — A 17-table SQLite project database (`projects.db`) tracking specs, phases, tasks, and execution runs, with both a Python and a generated Prisma access layer
 
@@ -24,7 +24,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 - ✅ **Cost-efficient model routing** — Opus for deep reasoning (architecture, security, debugging, orchestration); Sonnet for implementation, review, and documentation
 - ✅ **Tool-restriction profiles** — Read-only (advisory/review), Write-no-shell (UI/frontend), and Full (implementation) profiles scope what each agent can touch
 - ✅ **Modularized agents** — large agents split into a small core plus on-demand loadable modules (security-auditor, mastra-core-developer, technical-writer)
-- ✅ **Metacognitive reasoning layer** — 8 procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering, surfaced automatically by a UserPromptSubmit cue hook
+- ✅ **Metacognitive reasoning layer** — 8 procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering, surfaced via their always-in-context frontmatter descriptions
 - ✅ **Safety net** — shadow-git snapshot scripts, session-start context restoration, audible completion hooks, and a `health-check.sh` foundation validator
 - ✅ **Zero external dependencies** — every utility is pure Python stdlib
 
@@ -41,7 +41,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 │   ├── devops-infrastructure.md     # CI/CD, containers, IaC
 │   ├── express-api-developer.md     # Express 5 + Prisma + JWT
 │   ├── frontend-developer.md        # State & data logic (no Bash)
-│   ├── refactoring-specialist.md    # Code modernization (NEW)
+│   ├── refactoring-specialist.md    # Code modernization
 │   ├── security-auditor.md          # OWASP audit-only (Opus)
 │   ├── ui-developer.md              # Visual TSX implementation
 │   ├── [10 more personas...]
@@ -52,45 +52,53 @@ This repository implements a **modular, skill-based architecture** with five coo
 │       ├── security-auditor-pentest.md
 │       └── technical-writer-style.md
 │
-├── skills/                          # 46 skill dirs (45 with SKILL.md)
-│   ├── research-gated-build-plan/   # 🧠 Reasoning skill ⭐ NEW
-│   ├── diagnose-from-raw-symptom/   # 🧠 Reasoning skill ⭐ NEW
-│   ├── prove-it-live-before-done/   # 🧠 Reasoning skill ⭐ NEW
-│   ├── fleet-dispatch-and-watch/    # 🧠 Reasoning skill ⭐ NEW
-│   ├── steer-and-correct-the-agent/ # 🧠 Reasoning skill ⭐ NEW
-│   ├── enumerated-menu-pick-and-sweep/  # 🧠 Reasoning skill ⭐ NEW
-│   ├── reference-as-executable-spec/    # 🧠 Reasoning skill ⭐ NEW
-│   ├── scope-question-and-delegate/     # 🧠 Reasoning skill ⭐ NEW
+├── archive/                         # Retired & merged skill content (all preserved)
+│   ├── skills/                      # 5 archived SKILL.md files
+│   │   ├── remote-control-builder/  # Retired one-off builder (was a live skill)
+│   │   ├── memory-bank-sync/        # Merged → memory-bank-update --quick
+│   │   ├── feature-continue/        # Merged → feature-new --continue
+│   │   ├── start-phase-execute-team/# Merged → start-phase-execute --team
+│   │   └── documentation-start/     # Folded → memory-bank-initialize + document-hub-initialize
+│   └── command-stubs/               # 11 stale eval-generated stubs (removed from skill routing)
+│
+├── skills/                          # 43 SKILL.md files; start-phase/ + eval workspace dirs have none
+│   ├── research-gated-build-plan/   # 🧠 Reasoning skill
+│   ├── diagnose-from-raw-symptom/   # 🧠 Reasoning skill
+│   ├── prove-it-live-before-done/   # 🧠 Reasoning skill
+│   ├── fleet-dispatch-and-watch/    # 🧠 Reasoning skill
+│   ├── steer-and-correct-the-agent/ # 🧠 Reasoning skill
+│   ├── enumerated-menu-pick-and-sweep/  # 🧠 Reasoning skill
+│   ├── reference-as-executable-spec/    # 🧠 Reasoning skill
+│   ├── scope-question-and-delegate/     # 🧠 Reasoning skill
 │   │
-│   ├── feature-new/                 # 🎯 End-to-end feature orchestration
-│   ├── feature-continue/            # 🎯 Resume interrupted work
+│   ├── feature-new/                 # 🎯 End-to-end feature orchestration (--continue resumes)
 │   ├── spec-plan/  spec-review/     # 📋 Spec authoring + critique
-│   ├── start-phase/                 # 🚀 cache_wrapper.py helper
+│   ├── start-phase/                 # 🚀 cache_wrapper.py helper (no SKILL.md)
 │   ├── start-phase-plan/            # 🚀 Mode 1: strategic planning ⭐ FLAGSHIP
 │   │   └── scripts/                 #   quality_gate.py, task_validator.py,
 │   │                                #   validate_phase.py, sloc_tracker.py
-│   ├── start-phase-execute/         # 🚀 Mode 2: structured execution ⭐
-│   ├── start-phase-execute-team/    # 🚀 Multi-agent parallel execution ⭐
+│   ├── start-phase-execute/         # 🚀 Mode 2: execution (--team for multi-agent) ⭐
 │   ├── pm-db/                       # 🗄️ Project-tracking DB skill
 │   │   └── scripts/                 #   init_db, migrate, import_specs,
 │   │                                #   import_phases, generate_report,
 │   │                                #   export_to_memory_bank
-│   ├── memory-bank-*/               # 🧠 4 Memory Bank skills (6-file memory)
+│   ├── memory-bank-*/               # 🧠 3 Memory Bank skills (initialize, read, update)
+│   │                                #   update --quick for fast 2-file sync
 │   ├── document-hub-*/              # 📚 4 Document Hub skills (cline-docs)
-│   ├── documentation-start/         # 📚 One-shot Brain bootstrap
 │   ├── architecture-quality-assess/ # 🔍 Code quality assessment
 │   ├── security-quality-assess/     # 🔍 OWASP / secrets / CVE scan
 │   ├── code-duplication/            # 🔍 Exact/structural duplicate finder
 │   ├── mastra-*/                    # ⚙️ 11 Mastra framework skills
 │   ├── gitlab-maintainer/           # 🔌 GitLab CI + MR maintenance
 │   ├── miro-diagram/  miro-infographic/  # 🔌 Miro visual creation
+│   ├── jira-reader/  jira-writer/   # 🔌 Jira integration (MCP, VPN-only)
 │   ├── skill-creator/               # 🛠️ Author/measure/optimize skills
 │   ├── new-product/                 # 🛠️ Deep product research + design
-│   └── remote-control-builder/      # 🛠️ Multi-agent system builder
+│   └── headroom-context-compression/# 🛠️ MCP-backed context compression
 │
 ├── hooks/                           # 30 hook files across 8 subsystems
-│   ├── reasoning-skills/            # ⭐ THE wired event hook (UserPromptSubmit)
-│   │   ├── dispatch.py              #   matches prompt → injects skill cue
+│   ├── reasoning-skills/            # Description-based cue (dispatch.py NOT in settings.json)
+│   │   ├── dispatch.py              #   exists; wires as UserPromptSubmit if added to settings.json
 │   │   └── signatures.json          #   editable trigger table (8 skills)
 │   ├── start-phase/                 # ⭐ Quality-gate lifecycle (4 hooks)
 │   │   ├── phase-start.md  task-complete.md
@@ -102,7 +110,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 │   ├── hub/                         # Document Hub session-start (+ planned)
 │   ├── memory-bank/                 # session-start.md (context restore)
 │   ├── spec/                        # feedback-loop.md (spec-writer loop)
-│   ├── shadow-snapshot.sh           # PreToolUse shadow-git checkpoint
+│   ├── shadow-snapshot.sh           # PreToolUse shadow-git checkpoint (registered in settings.json)
 │   └── shadow-cleanup.sh            # shadow/* branch pruner
 │
 ├── lib/
@@ -124,7 +132,7 @@ This repository implements a **modular, skill-based architecture** with five coo
 
 Specialized development personas, one expert per concern. Every agent ships standardized YAML frontmatter (`name`, `model`, `tools`) and a tool-restriction profile. Agents are model-routed for cost: **6 Opus** personas for deep reasoning, **13 Sonnet** personas for implementation/review/docs.
 
-### Code Quality & Refactoring ⭐ NEW
+### Code Quality & Refactoring
 - **refactoring-specialist** — Technical-debt reduction, code modernization, legacy decomposition; preserves behavior via incremental changes and rollback strategies *(Sonnet · Full tools)*
 - **debugger-specialist** — Complex issue diagnosis, root-cause analysis, production incident investigation *(Opus · Full tools)*
 
@@ -167,13 +175,13 @@ Specialized development personas, one expert per concern. Every agent ships stan
 
 ## 🔧 Skills
 
-45 composable workflows (across 46 directories — `start-phase/` is a scripts-only helper without a `SKILL.md`). Every skill is a `/slash-command`. Skills are grouped by system below; **every skill is listed**.
+43 composable workflows (43 `SKILL.md` files — `start-phase/` and eval workspace dirs have none). Every skill is a `/slash-command`. Skills are grouped by system below; **every skill is listed**.
 
 ---
 
-### 🧠 Reasoning & Metacognitive Skills (8 skills) ⭐ NEW
+### 🧠 Reasoning & Metacognitive Skills (8 skills)
 
-**Mark's working grammar.** Procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering — invoked by terse signals rather than a build command. Because they undertrigger on their own, they are surfaced automatically by the `reasoning-skills` UserPromptSubmit cue hook (see Hooks).
+**Mark's working grammar.** Procedural-judgment skills that encode *how* to plan, debug, verify, delegate, and respond to steering — invoked by terse signals rather than a build command. They surface via their always-in-context frontmatter descriptions; `hooks/reasoning-skills/dispatch.py` exists for optional wiring as a UserPromptSubmit nudge hook (see Hooks).
 
 - `/research-gated-build-plan` — Front-loaded planning discipline: inventory what exists, scope the gap against a concrete target, persist the approach as an artifact, and bake quality bars + phase gates *before* any code is written; decides **whether and how** to enter the execution skills.
 - `/diagnose-from-raw-symptom` — Front-to-back debugging from a pasted raw artifact (stack trace, HTTP 500/403, console/Prisma error, screenshot): extract the trigger, probe whether the plumbing even exists, localize good-vs-broken, drive to a durable root cause *before* any fix.
@@ -189,25 +197,24 @@ Specialized development personas, one expert per concern. Every agent ships stan
 
 ---
 
-### 🎯 Feature Workflow Orchestration (2 skills)
+### 🎯 Feature Workflow Orchestration (1 skill)
 
 End-to-end feature delivery that chains planning, review, tracking, and execution with human checkpoints.
 
 ```bash
-/feature-new "feature description"        # spec-plan → spec-review → start-phase-plan → pm-db → start-phase-execute
-/feature-continue ./job-queue/feat/task-list.md   # Resume interrupted work from task-list.md
+/feature-new "feature description"                                   # Full new-feature workflow
+/feature-new --continue ./job-queue/feat/task-list.md                # Resume interrupted work (formerly /feature-continue)
 ```
 
-- `/feature-new` — Complete new-feature workflow orchestrating spec → plan → execute into one flow with **two human approval checkpoints** and PM-DB tracking.
-- `/feature-continue` — Resume interrupted feature work from an existing `task-list.md`, with PM-DB detecting the last completed task.
+- `/feature-new` — Complete new-feature workflow orchestrating spec → plan → execute into one flow with **two human approval checkpoints** and PM-DB tracking. Pass `--continue` to resume from an existing `task-list.md`, with PM-DB detecting the last completed task (formerly `/feature-continue`).
 
 **Features:**
 - ✅ One-command feature development with full automation
 - ✅ Two human approval checkpoints (spec, then plan)
 - ✅ PM-DB tracking integration (separate Phase Run ID per feature)
-- ✅ Session resilience (resume after interruptions)
+- ✅ Session resilience — `--continue` resumes from last completed task
 
-**Location:** `/home/mark/.claude/skills/feature-new/`, `/home/mark/.claude/skills/feature-continue/`
+**Location:** `/home/mark/.claude/skills/feature-new/`
 
 ---
 
@@ -227,19 +234,18 @@ Pre-build specification authoring and critique that feeds the execution pipeline
 
 ---
 
-### 🚀 Start-Phase Execution (3 skills) ⭐ FLAGSHIP
+### 🚀 Start-Phase Execution (2 skills) ⭐ FLAGSHIP
 
 Structured task-list execution with quality gates, parallel waves, and PM-DB tracking — solo or multi-agent.
 
 ```bash
-/start-phase-plan ./job-queue/feat/task-list.md           # Mode 1: strategic planning + human approval
-/start-phase-execute ./job-queue/feat/task-list.md         # Mode 2: structured execution with quality gates
-/start-phase-execute-team ./job-queue/feat/task-list.md    # Parallel execution across multi-agent teams
+/start-phase-plan ./job-queue/feat/task-list.md            # Mode 1: strategic planning + human approval
+/start-phase-execute ./job-queue/feat/task-list.md          # Mode 2: structured execution with quality gates
+/start-phase-execute --team ./job-queue/feat/task-list.md   # Multi-agent parallel execution (formerly /start-phase-execute-team)
 ```
 
 - `/start-phase-plan` — **Mode 1:** strategic planning of a task list (parallelism, complexity, agent delegation) with **human approval before execution**.
-- `/start-phase-execute` — **Mode 2:** structured task execution with quality gates, parallel waves, and PM-DB tracking.
-- `/start-phase-execute-team` — Parallel task execution across multi-agent teams with quality gates.
+- `/start-phase-execute` — **Mode 2:** structured task execution with quality gates, parallel waves, and PM-DB tracking. Pass `--team` for multi-agent parallel execution (formerly `/start-phase-execute-team`).
 
 **Quality Enforcement (automatic via hooks):**
 - ✅ Lint check (hard block) between every task
@@ -271,21 +277,22 @@ Central tracking store for specs, phases, tasks, and execution runs powering the
 
 ---
 
-### 🧠 Memory Bank (4 skills)
+### 🧠 Memory Bank (3 skills)
 
 Six-file persistent project memory for cross-session continuity (`projectbrief`, `productContext`, `techContext`, `systemPatterns`, `activeContext`, `progress`).
 
 ```bash
-/memory-bank-initialize    # Bootstrap the 6 core files with templates
+/memory-bank-initialize    # Bootstrap the 6 core files; cues Document Hub init if neither Brain exists
 /memory-bank-read          # Validate + read all 6 files, summarize with staleness warnings
-/memory-bank-sync          # Fast sync: activeContext.md + progress.md only
 /memory-bank-update        # Comprehensive review/update of all 6 files
+/memory-bank-update --quick  # Fast 2-file sync (activeContext + progress only) — formerly /memory-bank-sync
 ```
 
-- `/memory-bank-initialize` — Bootstrap a new project's Memory Bank.
+- `/memory-bank-initialize` — Bootstrap a new project's Memory Bank. Also cues Document Hub initialization when neither Brain exists (formerly, `/documentation-start` bootstrapped both).
 - `/memory-bank-read` — Quick overview of Memory Bank state with staleness warnings.
-- `/memory-bank-sync` — Fast lightweight sync of `activeContext.md` + `progress.md` for post-task saves.
-- `/memory-bank-update` — Comprehensive review and update of all 6 files after significant work.
+- `/memory-bank-update` — Comprehensive review and update of all 6 files after significant work. Pass `--quick` for a fast `activeContext.md` + `progress.md` sync (formerly `/memory-bank-sync`).
+
+> Note: `/memory-bank-sync` and `/documentation-start` are archived — content preserved in `archive/skills/`.
 
 **Auto-restore:** `hooks/memory-bank/session-start.md` validates and reads the bank at session start (~3s, silent if absent).
 **Location:** `/home/mark/.claude/skills/memory-bank-*/`
@@ -310,16 +317,6 @@ The `cline-docs` documentation lifecycle (four core files: `systemArchitecture.m
 
 **Auto-load:** `hooks/hub/document-hub-session-start.md` silently reads & validates the hub at session start (~2s).
 **Location:** `/home/mark/.claude/skills/document-hub-*/`
-
----
-
-### 📚 Documentation Bootstrap (1 skill)
-
-```bash
-/documentation-start    # Initialize BOTH Memory Bank and Document Hub
-```
-
-- `/documentation-start` — One-shot initializer that stands up both the Memory Bank and the Document Hub for a project, if not already set up.
 
 ---
 
@@ -361,7 +358,7 @@ All 11 listed above are present as `skills/mastra-*` directories.
 
 ---
 
-### 🔌 Integrations — GitLab & Miro (3 skills)
+### 🔌 Integrations — GitLab, Miro & Jira (5 skills)
 
 Skills that drive external platforms.
 
@@ -369,40 +366,56 @@ Skills that drive external platforms.
 /gitlab-maintainer     # Check/diagnose/fix failing CI pipelines; handle MR review via glab
 /miro-diagram          # Flowcharts, UML class/sequence, ERDs directly on Miro boards
 /miro-infographic      # Multi-element infographics, dashboards, one-pagers on Miro
+/jira-reader           # Read Jira issues, search via JQL, summarize sprint/backlog state (MCP, VPN-only)
+/jira-writer           # Create/update/transition Jira issues; project-scope only, no PII (MCP, VPN-only)
 ```
 
 - `/gitlab-maintainer` — Maintainer-level GitLab Enterprise work: diagnose & autonomously fix failing CI (build/test/lint), push the fix, wait for green; handle MR code review (respond, approve, request changes) via `glab`.
 - `/miro-diagram` — Professional diagrams (flowcharts, UML class/sequence, ERDs) directly on Miro boards via the Miro MCP.
 - `/miro-infographic` — Multi-element infographics, dashboards, and one-pagers (diagrams + text + tables + metrics) composed into cohesive Miro layouts.
+- `/jira-reader` — Read Jira issues and epics, search via JQL, summarize sprint/backlog state. Requires VPN. Project-scope access only (no PII). Governed by the jira-reader/jira-writer access split.
+- `/jira-writer` — Create, update, and transition Jira issues. Requires VPN. Project-scope only; no PII fields. Governed by the jira-reader/jira-writer access split.
 
 ---
 
 ### 🛠️ Skill Tooling & Meta-Build (3 skills)
 
-Tooling for authoring/measuring skills and building larger bespoke systems.
+Tooling for authoring/measuring skills and context management.
 
 ```bash
-/skill-creator             # Create, modify, eval, and optimize skills (triggering accuracy + variance)
-/new-product               # Deep research & architecture design for a new product
-/remote-control-builder    # Build a Claude Code remote-control system via a multi-agent team
+/skill-creator                 # Create, modify, eval, and optimize skills (triggering accuracy + variance)
+/new-product                   # Deep research & architecture design for a new product
+/headroom-context-compression  # MCP-backed context compression for large sessions
 ```
 
 - `/skill-creator` — Create, modify, and improve skills; run evals, benchmark performance with variance analysis, and optimize descriptions for triggering accuracy.
 - `/new-product` — Deep research and architecture design for a new product from docs or a description.
-- `/remote-control-builder` — Build a remote-control system for Claude Code using a multi-agent team.
+- `/headroom-context-compression` — MCP-backed context compression that trims context window weight for large sessions; requires the `headroom-context-compression` MCP server (see `skills/headroom-context-compression/INSTALL.md`).
+
+> Note: `/remote-control-builder` (formerly here) is archived — see `archive/skills/remote-control-builder/` for the multi-agent system builder skill and its integration guide.
 
 ---
 
 ## 🪝 Hooks
 
-Automated behaviors triggered by events — **30 hook files across 8 subsystems**. Only one is a genuinely-wired Claude Code event hook (registered in `settings.json`); the rest are markdown-defined workflow hooks and explicit-call utility scripts invoked by skills.
+Automated behaviors triggered by events — **30 hook files across 8 subsystems**. Three are registered Claude Code event hooks in `settings.json`: **Stop** and **Notification** for audio feedback, and **PreToolUse** for the shadow-snapshot. All other hooks are markdown-defined workflow hooks or explicit-call utility scripts invoked by skills.
 
-### Reasoning-Skills Cue Hook ⭐ (the wired event hook)
+### Sound & Shadow-Git Hooks ⭐ (the registered event hooks)
 
-The single registered Claude Code event hook — a **UserPromptSubmit** dispatcher with a 10s timeout.
+The three hooks registered in `settings.json`:
 
-- **`dispatch.py`** reads the prompt JSON from stdin, lowercases it, and matches against `signatures.json` (an editable trigger table of phrases + case-insensitive regexes per skill). On a match it injects `additionalContext` nudging the model to invoke the matching reasoning skill — because those skills undertrigger.
-- **`signatures.json`** currently covers **7 skills**: `research-gated-build-plan`, `diagnose-from-raw-symptom`, `prove-it-live-before-done`, `fleet-dispatch-and-watch`, `steer-and-correct-the-agent`, `enumerated-menu-pick-and-sweep`, `reference-as-executable-spec`.
+- **Stop** → `paplay sounds/done.wav` — audible completion signal after every Claude response
+- **Notification** → `paplay sounds/loop.wav` — audible notification for agent activity
+- **PreToolUse** → `shadow-snapshot.sh` — shadow-git checkpoint before Write/Edit tools
+
+> ⚠️ `shadow-snapshot.sh` and `shadow-cleanup.sh` hardcode `/home/artsmc/.claude` — re-point the `REPO`/`cd` path to this machine before relying on rollback. `health-check.sh` treats `sounds/done.wav` as a foundation check.
+
+### Reasoning-Skills Description Cue
+
+The 8 reasoning skills surface via their always-in-context **frontmatter descriptions** — no event hook registration required for basic operation.
+
+- **`dispatch.py`** — A UserPromptSubmit-style dispatcher that reads the prompt JSON from stdin, lowercases it, and matches against `signatures.json` (an editable trigger table of phrases + case-insensitive regexes per skill). On a match it injects `additionalContext` nudging the model to invoke the matching reasoning skill. **Not currently registered in `settings.json`** — wire it there as a UserPromptSubmit hook to enable explicit nudging.
+- **`signatures.json`** covers all **8 reasoning skills**: `research-gated-build-plan`, `diagnose-from-raw-symptom`, `prove-it-live-before-done`, `fleet-dispatch-and-watch`, `steer-and-correct-the-agent`, `enumerated-menu-pick-and-sweep`, `reference-as-executable-spec`, `scope-question-and-delegate`.
 - ✅ Caps at 3 cues (`MAX_SKILLS`) to avoid nagging
 - ✅ Strictly **non-blocking** and **fails OPEN** — any error → exit 0, never alters or blocks the prompt
 
@@ -436,16 +449,48 @@ Four markdown-defined workflow hooks implementing the `/start-phase` execution l
 
 - **`hooks/spec/feedback-loop.md`** — On `spec-writer` completion, auto-runs `validate_spec.py` + `critique_plan.py` (~5s), presents a completeness + quality score, then collects approve-vs-iterate feedback (iterate re-runs the agent). Degrades gracefully; never blocks.
 
-### Shadow-Git Snapshot Hooks
+---
 
-- **`shadow-snapshot.sh`** — Designed as a PreToolUse hook: for Write/Edit tools, creates a zero-cost `shadow/<epoch>_<timestamp>` branch at current HEAD for instant rollback, then GC's shadow branches older than 24h.
-- **`shadow-cleanup.sh`** — Standalone pruner that deletes `shadow/*` branches older than 86400s.
+## ⚡ Token Efficiency (2026-07)
 
-> ⚠️ Both shadow scripts currently hardcode `/home/artsmc/.claude` and are **not** registered in `settings.json` — re-point them to this machine before relying on them.
+2026-07 overhaul results from the skill-efficiency project (A/B benchmarks, isolated config, Sonnet 5).
 
-### Notification (sound) Hooks
+### Always-in-Context Description Overhead
 
-Registered in `settings.json`: on **Stop** and **TaskCompleted**, `sounds/done.wav` plays via `ffplay` for audible completion feedback. `health-check.sh` treats `sounds/done.wav` as a foundation check.
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Total description chars | 18,895 | 16,169 | −14% |
+| Approx. tokens per request | ~4,723 | ~4,042 | −681 tokens |
+
+Four under-triggering skills were deliberately **expanded** (including `architecture-quality-assess`, which had no frontmatter at all and is now eval-validated). Net savings persist even after expansion.
+
+### On-Trigger SKILL.md Body Size
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Total SKILL.md body chars | 356,536 | 207,343 | −41% |
+| Approx. tokens (on trigger) | ~89k | ~52k | −37k tokens |
+
+Inline templates, cookbooks, and examples moved to per-skill `references/` files — never deleted, just not loaded unless the skill fires.
+
+### Benchmark Results
+
+| Skill | Token change | Quality before | Quality after |
+|-------|-------------|----------------|---------------|
+| `mastra-dev` | −45% | 8.5/10 | 9.5/10 |
+| `document-hub-initialize` | −15% | 10/10 | 10/10 |
+
+Two description trims were auto-rolled back after measurably hurting trigger accuracy (`prove-it-live-before-done`, `enumerated-menu-pick-and-sweep`). Per-skill eval sets now live in each skill's `evals/trigger-eval.json`.
+
+### Effort Playbook
+
+The 30-day transcript analysis + controlled A/B showed the **effort dial barely moves cost or quality on bounded tasks** (medium: 9.50/10 vs xhigh: 9.78/10 quality at +11% tokens). Real cost multipliers come from workflow/agent fan-out (3.4× tokens per turn) and context weight.
+
+Rules:
+- ✅ Keep `effortLevel: medium` persisted in `settings.json` as the default
+- ⚠️ `/effort max` and `ultracode` **auto-expire** (session-scoped only); `low/medium/high/xhigh` **PERSIST** — beware escalating without intending to keep it
+- ✅ Fan out agents on demand, not by default (fan-out sessions cost 3.4× more per turn than flat sessions at identical effort)
+- ✅ Keep orchestrator sessions short; give subagents minimal scoped snapshots (goal/inputs/constraints/acceptance)
 
 ---
 
@@ -501,36 +546,37 @@ bash   scripts/health-check.sh             # Validate the whole foundation (non-
 
 | System | Status | Skills | Hooks | Tools | Documentation |
 |--------|--------|--------|-------|-------|---------------|
-| **reasoning-skills** | ✅ v1.0 | 8 | 1 (UserPromptSubmit) | `dispatch.py` + `signatures.json` | `hooks/reasoning-skills/` |
-| **feature-orchestration** | ✅ v1.0 | 2 | 0 | 0 | Complete |
-| **start-phase** | ✅ v2.0 | 3 | 4 | 4 | `skills/start-phase-plan/scripts/README.md` |
+| **reasoning-skills** | ✅ v1.0 | 8 | 0 (descriptions, not wired) | `dispatch.py` + `signatures.json` | `hooks/reasoning-skills/` |
+| **feature-orchestration** | ✅ v1.1 | 1 | 0 | 0 | Complete |
+| **start-phase** | ✅ v2.0 | 2 | 4 | 4 | `skills/start-phase-plan/scripts/README.md` |
 | **pm-db** | ✅ v2.0 | 1 | 12 | `project_database.py` + 6 scripts + Prisma | Complete |
-| **memory-bank** | ✅ v1.0 | 4 | 1 (session-start) | `validate_memorybank.py` | Complete |
+| **memory-bank** | ✅ v1.1 | 3 | 1 (session-start) | `validate_memorybank.py` | Complete |
 | **document-hub** | ✅ v1.0 | 4 | 1 (+3 planned) | hub scripts | Complete |
 | **spec** | ✅ v1.0 | 2 | 1 (feedback-loop) | `validate_spec.py`, `critique_plan.py` | Complete |
 | **code-quality** | ✅ v1.0 | 3 | 0 | analyzers | Complete |
 | **mastra** | ✅ v1.0 | 11 | 0 | 0 | Per-skill guides |
-| **integrations** | ✅ v1.0 | 3 | 0 | 0 | Per-skill guides |
+| **integrations** | ✅ v1.0 | 5 | 0 | 0 | Per-skill guides |
 | **meta-build** | ✅ v1.0 | 3 | 0 | skill-creator evals | Complete |
 
 ### Total Implementation
 
-- ✅ **45 skills** across 46 skill directories (`start-phase/` is a scripts-only helper without `SKILL.md`)
+- ✅ **43 skills** (43 `SKILL.md` files — `start-phase/` and eval workspace dirs have none)
 - ✅ **19 agent personas** + **5 loadable modules** (6 Opus / 13 Sonnet routing)
-- ✅ **30 hook files** across 8 subsystems (1 wired event hook + 4 quality-gate + 12 pm-db + Brain/spec/shadow)
+- ✅ **30 hook files** across 8 subsystems (3 registered in `settings.json`: Stop/Notification/PreToolUse + 4 quality-gate + 12 pm-db + Brain/spec)
 - ✅ **17-table SQLite PM-DB** (`projects.db`, WAL mode) with Python + generated-Prisma access layers
 - ✅ **~71KB** `ProjectDatabase` layer + zero-dependency quality tools
 - ✅ **Zero external dependencies** (Python stdlib only)
+- ✅ **Archive** — 5 retired/merged skills + 11 stale command stubs in `archive/` (all content preserved)
 
 ### Skill Naming Convention
 
-Skills follow the pattern `/{system}-{action}` (a few take space-separated arguments):
-- `/feature-new`, `/feature-continue` (orchestration)
+Skills follow the pattern `/{system}-{action}` (a few take space-separated arguments or flags):
+- `/feature-new` (orchestration; `--continue` resumes interrupted work)
 - `/spec-plan`, `/spec-review` (spec)
-- `/start-phase-plan`, `/start-phase-execute`, `/start-phase-execute-team` (execution)
+- `/start-phase-plan`, `/start-phase-execute` (execution; `--team` for multi-agent)
 - `/pm-db init`, `/pm-db import`, `/pm-db dashboard` (database)
-- `/memory-bank-*`, `/document-hub-*`, `/documentation-start` (Brain)
-- `/mastra-*` (framework), `/miro-*`, `/gitlab-maintainer` (integrations)
+- `/memory-bank-*`, `/document-hub-*` (Brain; `memory-bank-update --quick` for fast sync)
+- `/mastra-*` (framework), `/miro-*`, `/gitlab-maintainer`, `/jira-reader`, `/jira-writer` (integrations)
 - Reasoning skills carry descriptive verb-phrase slugs (`/diagnose-from-raw-symptom`, `/prove-it-live-before-done`, …)
 
 ---
@@ -608,7 +654,7 @@ Then run the one-time project setup below.
 
 ```bash
 # One-time setup
-/documentation-start          # Initialize Memory Bank + Document Hub
+/memory-bank-initialize       # Initialize Memory Bank (cues Document Hub if neither Brain exists)
 /pm-db init                   # Bootstrap projects.db
 
 # Develop features
@@ -616,7 +662,7 @@ Then run the one-time project setup below.
 /feature-new "integrate payments"
 
 # Resume if interrupted
-/feature-continue ./job-queue/feature-login/task-list.md
+/feature-new --continue ./job-queue/feature-login/task-list.md
 ```
 
 **That's it!** The orchestration skill handles spec → review → plan → tracking → execution automatically, pausing at two human checkpoints.
@@ -629,7 +675,8 @@ Then run the one-time project setup below.
 
 ```bash
 # 1. Initialize
-/documentation-start
+/memory-bank-initialize
+/document-hub-initialize
 /pm-db init
 
 # 2. Plan feature
@@ -659,12 +706,12 @@ New to this system? Start here!
 **Step 1: Initialize Documentation**
 
 ```bash
-/documentation-start
+/memory-bank-initialize
 ```
 
 This creates:
 - Memory Bank (6 files tracking project knowledge)
-- Document Hub (4 `cline-docs` files documenting the codebase)
+- Cues Document Hub initialization (`/document-hub-initialize`) if neither Brain exists yet
 - Auto-initializes only if missing
 
 **Step 2: Initialize PM-DB**
@@ -774,7 +821,7 @@ Step 6/6: Phase complete!
 If your session drops or you need to pause:
 
 ```bash
-/feature-continue ./job-queue/feature-login/task-list.md
+/feature-new --continue ./job-queue/feature-login/task-list.md
 ```
 
 **What happens:**
@@ -824,12 +871,12 @@ Resuming from Task 6...
 After completing features:
 
 ```bash
-/memory-bank-sync        # Quick update (activeContext + progress only)
-/document-hub-update     # Full documentation sync
+/memory-bank-update --quick  # Quick update (activeContext + progress only)
+/document-hub-update         # Full documentation sync
 ```
 
 **When to use each:**
-- `/memory-bank-sync` — after each task or small change (fast, 2 files)
+- `/memory-bank-update --quick` — after each task or small change (fast, 2 files)
 - `/memory-bank-update` — after completing a phase (comprehensive, 6 files)
 - `/document-hub-update` — after architectural changes
 
@@ -839,7 +886,7 @@ After completing features:
 
 ```bash
 # === ONE-TIME SETUP ===
-/documentation-start                  # Memory Bank + Document Hub
+/memory-bank-initialize               # Memory Bank (+ cues Document Hub)
 /pm-db init                           # Project database
 
 # === FOR EACH FEATURE ===
@@ -849,31 +896,30 @@ After completing features:
 # [System executes automatically with quality gates]
 
 # === IF INTERRUPTED ===
-/feature-continue ./job-queue/feature-auth/task-list.md
+/feature-new --continue ./job-queue/feature-auth/task-list.md
 
 # === AFTER FEATURE COMPLETE ===
-/memory-bank-sync                     # Update knowledge base
+/memory-bank-update --quick           # Update knowledge base (fast)
 /pm-db dashboard                      # View metrics
 ```
 
-**That's it!** Four orchestration skills handle everything:
-1. `/documentation-start` — setup (once)
+**That's it!** Three orchestration skills handle everything:
+1. `/memory-bank-initialize` — setup (once)
 2. `/feature-new` — build features (many times)
-3. `/feature-continue` — resume work (when needed)
-4. `/pm-db dashboard` — track progress (any time)
+3. `/pm-db dashboard` — track progress (any time)
 
 ---
 
 ### Common Beginner Questions
 
 **Q: Do I have to remember to invoke the reasoning skills?**
-- No. The `reasoning-skills` UserPromptSubmit hook watches your prompt and silently cues the matching skill (e.g. a pasted stack trace cues `/diagnose-from-raw-symptom`).
-- It caps at 3 cues and fails open — it never blocks or rewrites your prompt.
-- Edit `hooks/reasoning-skills/signatures.json` to tune the triggers.
+- For the most part, no. Reasoning skills surface via their always-in-context frontmatter descriptions — the model's internal routing picks them up naturally (e.g. a pasted stack trace naturally cues `/diagnose-from-raw-symptom`).
+- `hooks/reasoning-skills/dispatch.py` **exists** and can optionally be wired as a UserPromptSubmit hook in `settings.json` for explicit prompt-level nudging; it caps at 3 cues per prompt and fails open.
+- Edit `hooks/reasoning-skills/signatures.json` to tune or extend the trigger phrases.
 
 **Q: Can I cancel during execution?**
 - Yes — Ctrl+C to stop. Progress is saved in PM-DB.
-- Use `/feature-continue` to resume from the last completed task.
+- Use `/feature-new --continue` to resume from the last completed task.
 
 **Q: What if quality gates fail?**
 - The quality-gate hook hard-blocks on lint/build failures, a missing code review, or a missing task-update doc.
@@ -885,7 +931,7 @@ After completing features:
 - Phase summary written by `phase-complete.md` at phase closeout
 
 **Q: How is my work recovered if an edit goes wrong?**
-- `shadow-snapshot.sh` is designed as a PreToolUse hook that branches `shadow/<epoch>_<ts>` before Write/Edit. ⚠️ It is not wired by default and hardcodes a stale home path — re-point and register it first.
+- `shadow-snapshot.sh` is a PreToolUse hook (registered in `settings.json`) that branches `shadow/<epoch>_<ts>` before Write/Edit. ⚠️ It hardcodes `/home/artsmc/.claude` — re-point it before relying on rollback.
 - The Memory Bank + Document Hub session-start hooks restore project context automatically each session.
 
 ---
@@ -918,13 +964,13 @@ Each system ships its own documentation:
 - ✅ **Offer menus, not open questions:** `/enumerated-menu-pick-and-sweep` makes a one-token reply a full selection
 
 ### Documentation
-- ✅ **Initialize first:** `/documentation-start` for new projects
+- ✅ **Initialize first:** `/memory-bank-initialize` for new projects (cues Document Hub)
 - ✅ **Keep docs current:** `/document-hub-update` after changes
 - ✅ **Audit drift:** `/document-hub-analyze` before deciding what to update
 
 ### Knowledge Management
 - ✅ **Read before coding:** `/memory-bank-read` for context (the session-start hook does this for you)
-- ✅ **Sync after tasks:** `/memory-bank-sync` (2 files, fast)
+- ✅ **Sync after tasks:** `/memory-bank-update --quick` (2 files, fast)
 - ✅ **Full refresh after milestones:** `/memory-bank-update` (all 6 files)
 
 ### Specifications
@@ -979,7 +1025,7 @@ Skip orchestration and drive each skill yourself:
 # Part 4/5: task updates + phase closeout (automatic via hooks)
 
 # Multi-agent variant for parallel waves:
-/start-phase-execute-team ./job-queue/feature-notifications/task-list.md
+/start-phase-execute --team ./job-queue/feature-notifications/task-list.md
 
 # === PHASE 5: DOCUMENTATION ===
 /memory-bank-update       # All 6 files
@@ -1014,7 +1060,7 @@ Work on multiple features at once with proper isolation:
 # then Phase 3 integrates end-to-end.
 
 # === STRATEGY 3: Multi-Agent Team Execution ===
-/start-phase-execute-team ./job-queue/feature-payment/task-list.md
+/start-phase-execute --team ./job-queue/feature-payment/task-list.md
 # team-lead coordinates specialists across parallel waves with quality gates
 ```
 
@@ -1061,7 +1107,7 @@ sqlite3 ~/.claude/projects.db ".tables"
 
 ```bash
 # Quick sync after tasks (2 files)
-/memory-bank-sync
+/memory-bank-update --quick
 
 # Deep update after phases (all 6 files)
 /memory-bank-update
@@ -1074,7 +1120,8 @@ sqlite3 ~/.claude/projects.db ".tables"
 /document-hub-update         # then apply
 
 # Re-bootstrap both Brains for a fresh/severely-stale project
-/documentation-start
+/memory-bank-initialize
+/document-hub-initialize
 ```
 
 > The Memory Bank and Document Hub session-start hooks restore both Brains automatically each session — these commands are the manual operations on top.
@@ -1102,14 +1149,14 @@ python ~/.claude/scripts/backup_db.py   # → ~/.claude/backups/
 
 The **start-phase** system is the most comprehensive and production-ready system in the repo:
 
-- ✅ **3 execution skills** — `/start-phase-plan` (Mode 1), `/start-phase-execute` (Mode 2), `/start-phase-execute-team` (multi-agent)
+- ✅ **2 execution skills** — `/start-phase-plan` (Mode 1), `/start-phase-execute` (Mode 2 + `--team` for multi-agent)
 - ✅ **4 comprehensive lifecycle hooks** — phase-start, task-complete, quality-gate, phase-complete
 - ✅ **4 zero-dependency Python tools** — `quality_gate.py`, `task_validator.py`, `validate_phase.py`, `sloc_tracker.py`
 - ✅ **Quality gates between every task** — lint + build hard-block, mandatory AI review, mandatory task-update doc
 - ✅ **Git workflow** — commits only after quality passes
 - ✅ **SLOC tracking** — baseline, updates, final markdown report
 - ✅ **PM-DB integration** — every task/review/gate written to `projects.db` via the pm-db hook suite
-- ✅ **Parallel execution** — multi-agent team support via `team-lead` coordination
+- ✅ **Parallel execution** — multi-agent team support via `--team` flag and `team-lead` coordination
 
 **Recommended phase size:** 5–7 tasks. **Recommended for:** any multi-task development phase requiring quality enforcement and structured workflow.
 
@@ -1121,12 +1168,14 @@ The **start-phase** system is the most comprehensive and production-ready system
 
 | Metric | Count | Basis |
 |--------|-------|-------|
-| Skills | **45** (46 dirs) | Dirs with `SKILL.md`; `start-phase/` is scripts-only |
+| Skills | **43** | `SKILL.md` count; `start-phase/` + eval workspace dirs have none |
 | Agent personas | **19** | `agents/*.md` (excludes `modules/`) |
 | Loadable modules | **5** | `agents/modules/*.md` |
 | Hook files | **30** | Across 8 subsystems |
-| Wired event hooks | **1** | `reasoning-skills` UserPromptSubmit (in `settings.json`) |
-| Reasoning skills cued | **8** | `signatures.json` trigger table |
+| Registered event hooks | **3** | Stop/Notification (sounds) + PreToolUse (shadow-snapshot), in `settings.json` |
+| Reasoning skills | **8** | Trigger via frontmatter descriptions; `dispatch.py` optional |
+| Archived skills | **5** | `archive/skills/` (all content preserved in targets' `references/`) |
+| Archived command stubs | **11** | `archive/command-stubs/` (stale eval-generated stubs) |
 | PM-DB tables | **17** | `projects.db` (WAL, FK ON) |
 | External dependencies | **0** | Python stdlib only |
 
@@ -1145,15 +1194,16 @@ The **start-phase** system is the most comprehensive and production-ready system
 | **Write, no shell** | frontend-developer, ui-developer, accessibility-specialist, spec-writer | Write/Edit, no Bash |
 | **Full** | express-api-developer, nextjs-backend-developer, database-schema-specialist, devops-infrastructure, debugger-specialist, refactoring-specialist, nextjs-qa-developer, mastra-core-developer | Read/Grep/Glob/Write/Edit/Bash |
 
-### Reasoning-Skills Cue Hook
+### Reasoning-Skills Cue (dispatch.py)
 
 | Property | Value |
 |----------|-------|
-| Event | UserPromptSubmit |
-| Timeout | 10s |
+| Trigger method | Always-in-context frontmatter descriptions (primary); `dispatch.py` optional |
+| Registered in `settings.json` | ❌ No — wire manually as UserPromptSubmit to enable prompt nudging |
+| Timeout (if wired) | 10s |
 | Max cues per prompt (`MAX_SKILLS`) | 3 |
 | Failure mode | ✅ Fails OPEN (exit 0, never blocks/alters the prompt) |
-| Skills covered | 8 (editable in `signatures.json`) |
+| Skills covered in `signatures.json` | 8 |
 
 ---
 
@@ -1167,7 +1217,8 @@ The **start-phase** system is the most comprehensive and production-ready system
 - Restart Claude Code if needed
 
 **Q: Reasoning skills never trigger automatically**
-- Confirm the `reasoning-skills` UserPromptSubmit hook is registered in `settings.json`
+- Reasoning skills trigger via their always-in-context frontmatter descriptions — no registration needed for basic operation
+- For explicit prompt-level nudging, wire `dispatch.py` as a UserPromptSubmit hook in `settings.json`
 - Inspect / extend the trigger phrases in `hooks/reasoning-skills/signatures.json` (8 skills covered)
 - Remember it caps at 3 cues per prompt and fails open — it will never block you
 
@@ -1181,8 +1232,11 @@ The **start-phase** system is the most comprehensive and production-ready system
 - Fix the specific failing assertion it prints
 
 **Q: Shadow-git rollback isn't working**
-- `shadow-snapshot.sh` / `shadow-cleanup.sh` hardcode `/home/artsmc/.claude` and are **not** registered in `settings.json`
-- Re-point the `REPO`/`cd` path to this machine and wire `shadow-snapshot.sh` as a PreToolUse hook before relying on it
+- `shadow-snapshot.sh` hardcodes `/home/artsmc/.claude` — re-point the `REPO`/`cd` path to this machine before relying on it
+- It is registered in `settings.json` as a PreToolUse hook on this machine
+
+**Q: I used `/feature-continue` or `/memory-bank-sync` and they're not found**
+- These skills were merged and archived. Use `/feature-new --continue` and `/memory-bank-update --quick` respectively. Original SKILL.md files are preserved in `archive/skills/`.
 
 ### Getting Help
 
@@ -1206,12 +1260,16 @@ Private repository for personal use.
 - [PM-DB v2 Migration](docs/pm-db-v2-migration-summary.md) — planning↔execution split rationale
 - [Agent Confidence Levels](docs/agent-confidence-levels.md) — 🟢🟡🔴 self-checking guide
 - [Multi-Agent Teams](docs/TEAM-SKILLS-README.md) — team-skills implementation + examples
-- [Reasoning-Skills Cue Hook](hooks/reasoning-skills/) — `dispatch.py` + `signatures.json`
+- [Reasoning-Skills Cue](hooks/reasoning-skills/) — `dispatch.py` + `signatures.json`
 
 ---
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Architecture:** Modular Skills, Agents, Hooks & Tools with PM-DB Tracking and Reasoning-Skill Cueing
 **Status:** ✅ Production Ready
-**Last Updated:** 2026-06-09
-**Inventory:** 45 skills · 19 agents (+5 modules) · 30 hook files · 17-table PM-DB · zero dependencies
+**Last Updated:** 2026-07-09
+**Inventory:** 43 skills · 19 agents (+5 modules) · 30 hook files · 17-table PM-DB · zero dependencies
+
+**Version History:**
+- 0.4.0 (2026-07-09): Skill-efficiency overhaul — 5 skills archived (4 merged, 1 retired), 3 new (jira-reader, jira-writer, headroom-context-compression); −41% on-trigger SKILL.md chars; −14% always-in-context overhead; fix stale reasoning-skills "wired hook" claim
+- 0.3.0 (2026-06-09): Reasoning-skills cue hook, refactoring-specialist, installation section

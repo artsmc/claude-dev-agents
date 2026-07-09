@@ -35,13 +35,13 @@ skills/
 │   └── SKILL-TEAM.md                    # ⭐ Team-enabled orchestrator
 ├── spec-plan/
 │   └── TEAM-ENHANCEMENT.md              # Parallel spec generation guide
-└── start-phase-execute-team/
-    └── SKILL.md                         # ⭐ Parallel task executor
+└── start-phase-execute/
+    └── SKILL.md                         # ⭐ Parallel task executor (--team flag)
 
-skills/remote-control-builder/           # Example team skill
-├── SKILL.md                             # Working example
-├── INTEGRATION_GUIDE.md                 # TypeScript implementation
-└── TEAMS_EXAMPLE.md                     # Before/after comparison
+archive/skills/remote-control-builder/   # Archived team skill example (formerly live)
+├── SKILL.md                             # Working example (archived)
+├── INTEGRATION_GUIDE.md                 # TypeScript implementation (archived)
+└── TEAMS_EXAMPLE.md                     # Before/after comparison (archived)
 
 docs/
 ├── teams-integration-guide.md           # Architecture & patterns
@@ -95,7 +95,7 @@ docs/
     │
     ├─ /pm-db import                  (5 sec, tracking)
     │
-    └─ /start-phase-execute-team      (84 min, 7 agents in parallel)
+    └─ /start-phase-execute --team     (84 min, 7 agents in parallel)
         ├─ Wave 1: Tasks 1, 2         (22 min, 2 agents)
         ├─ Wave 2: Task 3             (15 min, 1 agent)
         ├─ Wave 3: Tasks 4, 5         (22 min, 2 agents)
@@ -227,14 +227,13 @@ else:
 
 ### Option B: Create Separate Skills
 
-Keep originals, create team variants:
+Keep originals, create team variants (note: `start-phase-execute-team` was merged into `start-phase-execute --team` and is now archived):
 
 ```bash
 skills/
 ├── spec-plan/SKILL.md           # Original
 ├── spec-plan-team/SKILL.md      # Team version
-├── start-phase-execute/         # Original
-└── start-phase-execute-team/    # Team version
+└── start-phase-execute/         # Original + --team flag (merged; formerly start-phase-execute-team)
 ```
 
 ---
@@ -344,8 +343,8 @@ tmux kill-server
 
 1. **`SKILL-TEAM.md`** - Enhanced /feature-new with team support
 2. **`TEAM-ENHANCEMENT.md`** - Parallel spec generation guide
-3. **`start-phase-execute-team/SKILL.md`** - Parallel task executor
-4. **`remote-control-builder/`** - Complete working example
+3. **`start-phase-execute/SKILL.md`** - Parallel task executor (`--team` flag; formerly `/start-phase-execute-team`)
+4. **`archive/skills/remote-control-builder/`** - Complete working example (archived; content preserved)
 
 ---
 
@@ -471,7 +470,7 @@ Team:
 ### Week 1: Enable & Test
 
 1. Enable teams in settings
-2. Test with `/remote-control-builder` example
+2. Test with a small feature using `--team` flag (formerly tested via `/remote-control-builder`, which is now archived at `archive/skills/remote-control-builder/`)
 3. Test with small feature (`--team` flag)
 4. Measure speedup
 
@@ -522,7 +521,7 @@ Team:
 
 **Next steps:**
 1. Enable teams in settings
-2. Try `/remote-control-builder` example
+2. Test with a real feature using `/feature-new "..." --team` (formerly `/remote-control-builder` — now archived at `archive/skills/remote-control-builder/`)
 3. Test with real feature
 4. Measure speedup
 5. Roll out to production
@@ -534,7 +533,7 @@ Team:
 **Questions:**
 - Read the documentation in `/docs/`
 - Check Claude Code docs
-- Review example skill in `/remote-control-builder/`
+- Review archived example skill in `archive/skills/remote-control-builder/` (formerly a live skill)
 
 **Issues:**
 - Check troubleshooting section
