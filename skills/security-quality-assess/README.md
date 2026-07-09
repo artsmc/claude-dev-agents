@@ -1,8 +1,22 @@
-# Security Quality Assessment Skill
+# /security-quality-assess
+
+> Automated security vulnerability scanning for Python and JavaScript/TypeScript codebases. Detects OWASP Top 10 vulnerabilities, hardcoded secrets, injection risks, and known CVEs with actionable remediation guidance.
 
 **Version**: 1.0.0
 **Status**: Production Ready
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-07-09
+
+## When it triggers
+
+- "Scan this project for security vulnerabilities"
+- "Are there hardcoded secrets in the repo?"
+- "Which dependencies have known CVEs?"
+- "Run a security assessment before we ship"
+- `/security-assess <path>` invoked directly
+
+## Context cost
+
+Description always in context (~0.25k chars); SKILL.md body loads on trigger (~5k chars); `references/configuration.md` (~1.2k) and `references/detection-coverage.md` (~1k) — added in the 2026-07 refactor — load on demand. This README and `lib/`/`scripts/` never load into model context.
 
 ## Overview
 
@@ -32,7 +46,7 @@ The Security Quality Assessment Skill is a comprehensive static analysis tool th
 | A07:2021 - Identification/Auth Failures | ✅ | Weak JWT, insecure sessions, hardcoded passwords |
 | A08:2021 - Software/Data Integrity | 🔜 | Planned for Phase 2 |
 | A09:2021 - Logging Failures | 🔜 | Planned for Phase 2 |
-| A10:2021 - Server-Side Request Forgery | 🔜 | Planned for Phase 2 |
+| A10:2021 - Server-Side Request Forgery | 🟡 | `SSRFAnalyzer` is registered in `scripts/assess.py` (alongside an `AdvancedAnalyzer`); documented coverage in SKILL.md/references remains A01-A07 |
 
 ---
 
@@ -40,7 +54,7 @@ The Security Quality Assessment Skill is a comprehensive static analysis tool th
 
 No installation required! The skill uses only Python 3.8+ standard library.
 
-**Location**: `/home/mark/.claude/skills/security-quality-assess`
+**Location**: `/home/artsmc/.claude/skills/security-quality-assess`
 
 **Requirements**:
 - Python 3.8 or higher
@@ -48,7 +62,7 @@ No installation required! The skill uses only Python 3.8+ standard library.
 
 **Verify Installation**:
 ```bash
-cd /home/mark/.claude/skills/security-quality-assess
+cd /home/artsmc/.claude/skills/security-quality-assess
 python3 scripts/assess.py --version
 ```
 
@@ -60,10 +74,10 @@ python3 scripts/assess.py --version
 
 ```bash
 # Scan current directory
-python3 /home/mark/.claude/skills/security-quality-assess/scripts/assess.py .
+python3 /home/artsmc/.claude/skills/security-quality-assess/scripts/assess.py .
 
 # Scan specific project
-python3 /home/mark/.claude/skills/security-quality-assess/scripts/assess.py /path/to/project
+python3 /home/artsmc/.claude/skills/security-quality-assess/scripts/assess.py /path/to/project
 
 # Use from Claude CLI
 /security-assess /path/to/project
@@ -150,7 +164,7 @@ python3 scripts/assess.py . --config ../shared-suppressions.json
 
 ```
 2026-02-08 11:18:12 [INFO] Security Quality Assessment v1.0.0
-2026-02-08 11:18:12 [INFO] Project: /home/mark/my-project
+2026-02-08 11:18:12 [INFO] Project: /home/artsmc/my-project
 2026-02-08 11:18:12 [INFO] ------------------------------------------------------------
 2026-02-08 11:18:12 [INFO] Phase 1: File Discovery
 2026-02-08 11:18:12 [INFO] Discovered 42 source file(s) and 1 lockfile(s) in 0.003s
@@ -867,13 +881,30 @@ user.password = raw_password  # Should be hashed
 
 ---
 
+## Files
+
+| Path | Purpose |
+|---|---|
+| `SKILL.md` | Skill instructions (loads on trigger) |
+| `references/configuration.md` | CLI flag reference + `.security-suppress.json` format/matching/expiration (added 2026-07) |
+| `references/detection-coverage.md` | Full per-category list of detected patterns (added 2026-07) |
+| `scripts/assess.py` | CLI entry point (5-phase pipeline: discovery → parsing → analysis → suppression → report) |
+| `lib/discovery.py` | File/lockfile discovery, `.gitignore` handling |
+| `lib/parsers/` | Python (AST), JavaScript/TypeScript (regex), dependency lockfile parsers |
+| `lib/analyzers/` | Secrets, Injection, Auth, Config, SensitiveData, Dependency, SSRF, Advanced analyzers |
+| `lib/reporters/markdown_reporter.py` | Markdown report generation |
+| `lib/utils/` | Entropy, OSV client, patterns, suppression loader, compliance map |
+| `lib/models/` | Finding, ParseResult, Suppression, Assessment models |
+| `tests/fixtures/` | Vulnerable Python/JS fixtures + `expected_findings.json` |
+| `evals/evals.json` | Trigger-accuracy eval cases |
+| `examples/` | Sample `.security-suppress.json` + walkthrough README |
+
 ## References
 
 ### Design Documents
 
-- **FRD**: `/home/mark/.claude/job-queue/feature-security-quality-assess/docs/FRD.md`
-- **FRS**: `/home/mark/.claude/job-queue/feature-security-quality-assess/docs/FRS.md`
-- **Design Specification**: `/home/mark/.claude/docs/designs/2026-02-08-security-quality-assessment-design.md`
+- **Design Specification**: `/home/artsmc/.claude/docs/designs/2026-02-08-security-quality-assessment-design.md`
+- FRD/FRS lived in the (since-cleaned) `job-queue/feature-security-quality-assess/` working directory; the design spec above is the surviving record
 
 ### Standards
 
@@ -883,8 +914,8 @@ user.password = raw_password  # Should be hashed
 
 ### Related Skills
 
-- **Architecture Quality Assessment**: `/home/mark/.claude/skills/architecture-quality-assess/`
-- **Code Duplication**: `/home/mark/.claude/skills/code-duplication/`
+- **architecture-quality-assess** (`../architecture-quality-assess/`) — architecture health scoring (layers, SOLID, coupling) for the same codebases
+- **code-duplication** (`../code-duplication/`) — duplicate-code detection and refactoring suggestions
 
 ---
 
@@ -899,5 +930,5 @@ Internal tool - All rights reserved.
 For issues, questions, or feature requests, please contact the security team or create an issue in the project tracker.
 
 **Version**: 1.0.0
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-07-09
 **Maintainer**: Security Tools Team

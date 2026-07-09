@@ -1,8 +1,12 @@
 # Start-Phase: Comprehensive Phase Management System
 
-**Version:** 2.0
+**Version:** 2.1 (2026-07 refactor)
 **Status:** Production Ready
-**Token Estimate:** ~15,000 tokens (complete system)
+
+This README documents the whole two-mode Start-Phase system. Since the 2026-07 refactor it ships as two sibling skills:
+
+- `/start-phase-plan` (this directory) — Mode 1: strategic planning with human approval
+- `/start-phase-execute` (`../start-phase-execute/`) — Mode 2: structured execution, including `--team` multi-agent mode (formerly the standalone `/start-phase-execute-team` skill) governed by the Lean Orchestrator protocol — see `../start-phase-execute/README.md`
 
 ---
 
@@ -100,9 +104,9 @@
 
 | Component | Purpose | Files |
 |-----------|---------|-------|
-| **Mode 1 Skill** | Strategic planning with human approval | `plan.md` |
-| **Mode 2 Skill** | Structured 5-part execution | `execute.md` |
-| **Hooks (4)** | Automated validation and enforcement | `hooks/start-phase/*.md` |
+| **Mode 1 Skill** | Strategic planning with human approval | `start-phase-plan/SKILL.md` |
+| **Mode 2 Skill** | Structured 5-part execution, solo or `--team` | `start-phase-execute/SKILL.md` + `references/*.md` |
+| **Hooks (4)** | Automated validation and enforcement | `~/.claude/hooks/start-phase/*.md` |
 | **Tools (4)** | Quality gates and validation | `scripts/*.py` |
 | **Planning Docs** | Generated in Part 2 | `planning/{task-updates,agent-delegation,phase-structure,code-reviews}/` |
 
@@ -137,11 +141,13 @@ Claude will:
 - Analyze your task list
 - Propose refinements (parallelism, incremental builds)
 - Ask for your approval
-- Save context for Mode 2
+- Hand off paths/phase context to Mode 2 (read-only — Mode 1 writes no files)
 
 **Step 3: Execute (Mode 2)**
 ```bash
-/start-phase execute ./my-feature/tasks.md
+/start-phase execute ./my-feature/tasks.md               # auto mode (team at 7+ tasks)
+/start-phase execute ./my-feature/tasks.md --team        # force multi-agent team
+/start-phase execute ./my-feature/tasks.md --sequential  # force solo
 ```
 
 Claude will:
@@ -321,8 +327,10 @@ Mode 2 is **tactical execution** with quality enforcement:
 ### Usage
 
 ```bash
-/start-phase execute /path/to/task-list.md [extra_instructions]
+/start-phase execute /path/to/task-list.md [extra_instructions] [--team|--sequential]
 ```
+
+`--team` (formerly `/start-phase-execute-team`) runs each wave as parallel team agents under the Lean Orchestrator protocol; benchmark vs naive fan-out: quality parity 6/6 at -67% parent tokens. Details in `../start-phase-execute/README.md` and `../start-phase-execute/references/lean-orchestrator.md`.
 
 **Examples:**
 ```bash
@@ -2407,19 +2415,22 @@ vim ./my-feature/tasks.md
 
 **Documentation Structure:**
 - `README.md` - This comprehensive guide
-- `plan.md` - Mode 1 skill (strategic planning)
-- `execute.md` - Mode 2 skill (structured execution)
-- `hooks/start-phase/*.md` - 4 comprehensive hooks
+- `SKILL.md` - Mode 1 skill (strategic planning; description always in context ~420 chars, body loads on trigger ~5.3k chars)
+- `../start-phase-execute/SKILL.md` - Mode 2 skill (structured execution + `--team` mode; see its `README.md` and `references/`)
+- `~/.claude/hooks/start-phase/*.md` - 4 comprehensive hooks
 - `scripts/README.md` - Python tools documentation
-- `scripts/*.py` - 4 quality enforcement tools
+- `scripts/*.py` - 4 quality enforcement tools (`quality_gate.py`, `task_validator.py`, `validate_phase.py`, `sloc_tracker.py`)
+- `evals/evals.json` - simple/medium/complex task-list planning evals
 
 **See also:**
-- Planning examples: `planning/start-phase-refactoring-plan.md`
+- Execute-side docs (team mode, Lean Orchestrator): `../start-phase-execute/README.md`
 - Tool documentation: `scripts/README.md`
-- Hook documentation: `hooks/start-phase/README.md`
+- Hook documentation: `~/.claude/hooks/start-phase/README.md`
+
+**Related skills:** `/start-phase-execute` (runs the approved plan), `/feature-new` (end-to-end orchestration), `/research-gated-build-plan` (decides whether to enter this pipeline), `/pm-db` (tracking dashboard).
 
 ---
 
-**Version:** 2.0
-**Last Updated:** 2026-01-17
+**Version:** 2.1
+**Last Updated:** 2026-07-09
 **Status:** ✅ Production Ready

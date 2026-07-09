@@ -6,6 +6,17 @@ Developer guide for maintaining and extending the mastra-dev skill for the Mastr
 
 The **mastra-dev** skill is a comprehensive development toolkit for building AI agent systems using the Mastra Framework. It provides command-line operations for creating agents, workflows, tools, managing MCP server integrations, and debugging Mastra applications.
 
+### 2026-07 Refactor: Hub + Satellites
+
+In July 2026 the skill was restructured for context economy. The SKILL.md body shrank from ~39k to ~5.7k chars; it now serves as the **router/index**:
+
+- **Command details** moved to `references/` (six on-demand docs — command reference, CLI FAQ, configuration, best practices, troubleshooting, use cases) that load only when needed.
+- **Mastra concepts and hand-written code patterns** moved to ten satellite skills (`mastra-agents`, `mastra-workflows`, `mastra-mcp-tools`, `mastra-memory`, `mastra-rag`, `mastra-streaming`, `mastra-evals`, `mastra-deploy`, `mastra-workspace`, `mastra-planning`), each a thin SKILL.md stub plus a `skill.sh` that prints its full guide on demand. SKILL.md's routing table maps topics to satellites.
+
+mastra-dev remains the CLI/scaffolding hub (`skill.sh` → `scripts/main.py`); the satellites carry the API/pattern guides.
+
+**Context cost:** description always in context (~120 chars); SKILL.md body loads on trigger (~5.7k chars); `references/*` (~2.7k–18k chars each) load on demand.
+
 ### Key Capabilities
 
 1. **Agent Management** - Create and configure LLM-powered agents
@@ -30,6 +41,13 @@ The **mastra-dev** skill is a comprehensive development toolkit for building AI 
 ```
 mastra-dev skill
 ├── skill.sh               # Entry point (bash wrapper)
+├── references/            # On-demand docs loaded by SKILL.md routing
+│   ├── command-reference.md  # Per-command flags, generated code, sample output
+│   ├── cli-faq.md            # The five core how-do-I questions
+│   ├── configuration.md      # .mastra-dev-config.json + template variables
+│   ├── best-practices.md     # DO/DON'T checklists
+│   ├── troubleshooting.md    # Ten common issues with fixes
+│   └── use-cases.md          # Three end-to-end walkthroughs
 ├── scripts/
 │   ├── main.py           # Command-line interface and routing
 │   ├── agent_generator.py  # Agent creation and management
@@ -86,8 +104,15 @@ Each generator handles code generation for specific entities:
 ```
 /home/artsmc/.claude/skills/mastra-dev/
 ├── skill.sh                          # Bash entry point
-├── SKILL.md                          # User documentation
+├── SKILL.md                          # Router/index (~5.7k chars, post-refactor)
 ├── README.md                         # Developer documentation
+└── references/
+    ├── best-practices.md
+    ├── cli-faq.md
+    ├── command-reference.md
+    ├── configuration.md
+    ├── troubleshooting.md
+    └── use-cases.md
 └── scripts/
     ├── __init__.py
     ├── main.py                       # CLI router (main entry)
@@ -661,6 +686,11 @@ When adding features, update:
 
 ### Related Skills
 
+**Mastra satellites** (concept/API guides this hub routes to — see the routing table in SKILL.md):
+`mastra-agents`, `mastra-workflows`, `mastra-mcp-tools`, `mastra-memory`, `mastra-rag`, `mastra-streaming`, `mastra-evals`, `mastra-deploy`, `mastra-workspace`, `mastra-planning`
+
+**General**:
+
 - **document-hub-initialize** - Initialize documentation structure
 - **memory-bank-initialize** - Initialize project memory
 - **security-quality-assess** - Security vulnerability scanning
@@ -669,6 +699,6 @@ When adding features, update:
 ---
 
 **Maintainer:** AIForge Team
-**Last Updated:** 2026-02-11
-**Version:** 1.0.0
+**Last Updated:** 2026-07-09
+**Version:** 1.1.0 (hub + satellites refactor)
 **Status:** Active

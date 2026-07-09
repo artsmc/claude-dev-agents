@@ -1,278 +1,112 @@
-  # pm-db: Project Management Database
+# /pm-db
 
-Complete project management tracking system for Claude Code.
+> Project management database for tracking specs, phases, tasks, and execution runs. Use for project status, tracking feature work, progress dashboards, or importing specs from /spec-plan.
 
 ## Overview
 
-The pm-db skill provides a SQLite-based tracking system for managing:
-- **Projects** and specifications (FRD, FRS, GS, TR, task-lists)
-- **Jobs** and tasks with status tracking
-- **Code reviews** with verdicts and issues
-- **Agent assignments** with duration tracking
-- **Execution logs** of all commands
-- **Dashboards** and reporting
-- **Backup and restore** with online backups and integrity verification
+SQLite-based tracking system (`~/.claude/projects.db`) for the full development lifecycle:
+
+```
+Project (e.g., "aiforge")
+  └─ Phase (e.g., "file-upload-feature")
+       └─ Plan (approved task breakdown + spec documents)
+            └─ Tasks (atomic work items with waves/dependencies)
+                 └─ Runs (execution attempts with timing/status)
+```
+
+Covers spec import (FRD, FRS, GS, TR, task-lists), execution runs, quality gates, code reviews, dashboards/reporting, Memory Bank export, and backup/restore with integrity verification.
+
+## When it triggers
+
+- "What's the status?" / "how's the project going?"
+- "Track this feature" / "track this work"
+- "Show me progress" / "give me a dashboard"
+- "Import my specs" (after `/spec-plan`)
 
 ## Quick Start
 
 ```bash
-# 1. Initialize database
-/pm-db init
-
-# 2. Import specifications from job-queue
-/pm-db import
-
-# 3. View dashboard
-/pm-db dashboard
+/pm-db init        # initialize database + run migrations
+/pm-db import      # import specs from job-queue into projects/phases
+/pm-db dashboard   # status dashboard with metrics
+/pm-db migrate     # apply pending schema migrations (--dry-run supported)
 ```
 
-## Commands
+Full invocations, flags, and the step-by-step import walkthroughs (including manual import via the Python API) are in `references/commands.md`.
 
-### Database Management
+Import notes: default job-queue is `~/.claude/job-queue/`; for the AIForge monorepo add `--job-queue-dir /home/artsmc/applications/low-code/job-queue`. Use `import_specs.py` for `/spec-plan` output, `import_phases.py` for `/start-phase-plan` output.
 
-#### `/pm-db init`
-Initialize the database and run all migrations.
+## Database Schema (v5)
 
-Options:
-- `--reset` - Backup existing database and create fresh one
+- **Core:** `projects`, `phases`, `phase_plans`, `plan_documents`, `tasks`, `task_dependencies`, `phase_runs`, `task_runs`
+- **Tracking:** `task_updates`, `quality_gates`, `code_reviews`, `run_artifacts`, `phase_metrics`
+- **Advanced:** `agent_context_cache`, `agent_invocations`, `agent_file_reads`, `checklists`, `checklist_items`
 
-#### `/pm-db migrate`
-Run pending database migrations.
-
-Options:
-- `--dry-run` - Show what would happen without applying
-- `--target-version N` - Migrate to specific version
-
-### Data Import
-
-#### `/pm-db import`
-Import specifications from `~/.claude/job-queue/feature-*/docs/`.
-
-Options:
-- `--project NAME` - Filter by project name
-- `--auto-confirm` - Don't prompt for filesystem paths
-
-Imports:
-- FRD.md, FRS.md, GS.md, TR.md, task-list.md
-- Creates projects automatically
-- Captures filesystem paths for Memory Bank integration
-
-### Reporting
-
-#### `/pm-db dashboard`
-Generate status dashboard with metrics.
-
-Options:
-- `--format text` - ASCII text (default)
-- `--format json` - JSON output
-- `--format markdown` - Markdown tables
-
-Shows:
-- Active and pending jobs
-- Recent completions (last 7 days)
-- Velocity metrics (trend analysis)
-
-## Automatic Tracking (Hooks)
-
-The pm-db system uses hooks for automatic tracking:
-
-### Job Lifecycle
-- **on-job-start** - Creates job when `/start-phase execute` begins
-- **on-task-start** - Creates task when work starts
-- **on-task-complete** - Marks task complete with exit code
-
-### Execution Logging
-- **on-tool-use** - Logs every command execution
-  - Captures: command, output, exit code, duration
-
-### Code Quality
-- **on-code-review** - Stores code review results
-  - Captures: reviewer, summary, verdict, issues, files
-
-### Agent Tracking
-- **on-agent-assign** - Records agent assignments
-  - Captures: agent type, job/task, timestamps
-
-## Database Schema
-
-### Core Tables
-
-**projects**
-- Stores top-level projects
-- Fields: name, description, filesystem_path
-- filesystem_path used for Memory Bank exports
-
-**specs**
-- Stores specifications (FRD, FRS, GS, TR, task-list)
-- Links to projects
-- Tracks status: draft, approved, in-progress, completed
-
-**jobs**
-- Execution jobs (e.g., "Build auth feature")
-- Tracks: status, priority, assigned agent, duration
-- Links to specs
-
-**tasks**
-- Individual tasks within jobs
-- Tracks: status, execution order, dependencies
-- Duration automatically calculated
-
-### Tracking Tables
-
-**code_reviews**
-- Code review summaries
-- Fields: reviewer, verdict (approved/changes-requested/rejected), issues
-
-**execution_logs**
-- All command executions
-- Fields: command, output, exit_code, duration_ms
-- Enables full audit trail
-
-**agent_assignments**
-- Agent work tracking
-- Fields: agent_type, job_id/task_id, duration
+Migrations live in `~/.claude/migrations/`; to add one, create `00N_description.sql` with a `schema_version` insert, then `/pm-db migrate --dry-run` before applying.
 
 ## Python API
 
 ```python
-from lib.project_database import ProjectDatabase
+from project_database import ProjectDatabase   # ~/.claude/lib/project_database.py
 
-# Create database instance
-db = ProjectDatabase()
-
-# Or use as context manager
 with ProjectDatabase() as db:
-    # Create project
-    project_id = db.create_project("my-app", "My application", "/path/to/app")
-
-    # Create spec
-    spec_id = db.create_spec(
-        project_id=project_id,
-        name="feature-auth",
-        frd_content="...",
-        status="draft"
-    )
-
-    # Create and track job
-    job_id = db.create_job(spec_id, "Build auth", priority="high")
-    db.start_job(job_id)
-
-    # ... work happens ...
-
-    db.complete_job(job_id, exit_code=0)
-
-    # Generate dashboard
-    dashboard = db.generate_dashboard()
+    project = db.get_project_by_name("aiforge")
+    phases = db.list_phases(project_id=1)
+    tasks = db.list_tasks(plan_id=1)
+    run_id = db.create_phase_run(phase_id=1, plan_id=1)
+    db.start_phase_run(run_id)
+    db.complete_phase_run(run_id, status='completed')
+    dashboard = db.generate_phase_dashboard(phase_id=1)
 ```
 
-## Performance
+## Automatic Tracking (Hooks)
 
-Design targets (met):
-- Query response: <100ms (P95)
-- Dashboard generation: <2 seconds
-- 100 spec import: <5 seconds
-- Handles 10,000+ jobs without degradation
+Hooks in `~/.claude/hooks/pm-db/` track work automatically: run/task lifecycle when `/start-phase execute` begins, per-command execution logging (command, output, exit code, duration), code-review results, and agent assignments. `/feature-new --continue` reads these `phase_runs`/`task_runs` records to resume interrupted work.
 
 ## Memory Bank Integration
 
-The pm-db system exports to **per-project Memory Banks**:
+Exports to **per-project Memory Banks**: reads `filesystem_path` from the projects table, writes to `{filesystem_path}/memory-bank/`, updates `activeContext.md` and `progress.md`, auto-creates minimal structure if missing, debounces per project.
 
-- Reads `filesystem_path` from projects table
-- Exports to `{filesystem_path}/memory-bank/`
-- Updates `activeContext.md` and `progress.md`
-- Auto-creates minimal structure if missing
-- Per-project debouncing (not global)
+## Performance
 
-See Task 6.1 and 6.2 for implementation details.
+Design targets (met): query response <100ms P95, dashboard <2s, 100-spec import <5s, 10,000+ tasks without degradation.
 
-## File Structure
+## Context cost
 
-```
-~/.claude/
-├── lib/
-│   └── project_database.py      # Core database abstraction
-├── migrations/
-│   ├── 001_initial.sql          # Initial schema
-│   ├── 002_add_code_reviews.sql # Code reviews
-│   └── 003_add_execution_logs.sql # Logs + agents
-├── hooks/pm-db/
-│   ├── on-job-start.py
-│   ├── on-task-start.py
-│   ├── on-tool-use.py
-│   ├── on-code-review.py
-│   ├── on-task-complete.py
-│   └── on-agent-assign.py
-├── skills/pm-db/
-│   ├── SKILL.md                 # Skill definition
-│   ├── README.md               # This file
-│   └── scripts/
-│       ├── init_db.py
-│       ├── migrate.py
-│       ├── import_specs.py
-│       ├── generate_report.py
-│       └── export_to_memory_bank.py
-└── projects.db                  # SQLite database
-```
+Description always in context (~440 chars); SKILL.md body loads on trigger (~4k chars); `references/commands.md` (~4k chars) loads on demand before running any script. The other references/ docs (API_REFERENCE, DEVELOPMENT, USER_GUIDE, SECURITY_AUDIT, etc.) are deep-dive material read only when needed.
+
+## Files
+
+| Path | Purpose |
+|------|---------|
+| `SKILL.md` | Concepts, integration map, Python API quick reference, troubleshooting |
+| `references/commands.md` | Full command invocations + import walkthroughs (primary reference) |
+| `references/API_REFERENCE.md` | Complete Python API documentation |
+| `references/DEVELOPMENT.md` | Development guide |
+| `references/USER_GUIDE.md` | End-user guide |
+| `references/SECURITY_AUDIT.md`, `references/ACCEPTANCE_CRITERIA_VERIFICATION.md`, `references/DOCUMENTATION_REVIEW.md` | Audit/verification records |
+| `scripts/init_db.py` | Create DB + apply migrations (`--reset` backs up first) |
+| `scripts/migrate.py` | Apply pending migrations (`--dry-run`) |
+| `scripts/import_specs.py` | Import raw spec files from job-queue |
+| `scripts/import_phases.py` | Import structured phases with tasks/dependencies |
+| `scripts/generate_report.py` | Dashboard (text/json/markdown, `--project` filter) |
+| `scripts/export_to_memory_bank.py` | Per-project Memory Bank export |
+| `tests/` | 10 test suites: unit, hooks, integration, e2e, performance, security, backup/restore, deployment, UAT, v2 smoke |
+| `evals/evals.json` | Skill evals |
+
+Shared infrastructure outside this dir: `~/.claude/lib/project_database.py` (core abstraction), `~/.claude/migrations/`, `~/.claude/hooks/pm-db/`, `~/.claude/projects.db`.
 
 ## Troubleshooting
 
-### Database locked
-```bash
-# Check for stale connections
-lsof ~/.claude/projects.db
+- **Database not found** → `python3 ~/.claude/skills/pm-db/scripts/init_db.py`
+- **No projects found** → run import with `--auto-confirm`
+- **Import found nothing** → check the job-queue path; add `--job-queue-dir` for the monorepo
+- **Database locked** → `lsof ~/.claude/projects.db`; WAL mode is enabled by default
+- **Migration failed** → `/pm-db migrate --dry-run`, fix the SQL, re-apply
 
-# WAL mode helps prevent locks
-# (enabled automatically by init_db.py)
-```
+## Related skills
 
-### Migration failed
-```bash
-# Roll back and fix
-/pm-db migrate --dry-run  # See what would happen
-# Fix SQL syntax error
-/pm-db migrate            # Apply again
-```
-
-### Import not finding files
-```bash
-# Check job-queue structure
-ls -la ~/.claude/job-queue/feature-*/docs/
-
-# Manually specify path
-/pm-db import --auto-confirm
-```
-
-## Development
-
-### Running Tests
-
-```bash
-# Unit tests
-python3 skills/pm-db/tests/test_project_database.py
-
-# Integration tests
-python3 skills/pm-db/tests/test_hooks.py
-
-# Performance tests
-python3 skills/pm-db/tests/test_performance.py
-```
-
-### Adding New Migrations
-
-1. Create `migrations/00N_description.sql`
-2. Include version update: `INSERT INTO schema_version (version, description) VALUES (N, '...')`
-3. Test: `/pm-db migrate --dry-run`
-4. Apply: `/pm-db migrate`
-
-## Support
-
-For issues or questions:
-- Check `TR.md` for technical requirements
-- Check `FRD.md` for feature requirements
-- Check `GS.md` for usage scenarios
-
----
-
-**Version:** 1.0
-**License:** Internal Use
-**Maintainer:** Claude Code Infrastructure
+- **/spec-plan** — produces the specs that `import_specs.py` ingests
+- **/start-phase-plan / /start-phase-execute** — create and run the plans/tasks PM-DB tracks
+- **/feature-new** — imports to PM-DB as Step 4; `--continue` resumes from PM-DB run records
+- **/memory-bank-update** — complements the export: PM-DB writes progress, memory-bank skills manage the rest

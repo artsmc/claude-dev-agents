@@ -1,26 +1,10 @@
-# Memory Bank Skills
+# /memory-bank-initialize
 
-Project memory management system. Maintains 6 core files documenting project context, progress, and decisions.
+> Bootstrap a new project's Memory Bank by creating the six core files with templates and gathering initial project information from the user. Also the entry point to initialize/set up project documentation in a new or freshly cloned repo — including bootstrapping BOTH Brain systems (Memory Bank + Document Hub) at once.
 
-## Quick Start
+## What it does
 
-```bash
-# Initialize new project
-/memorybank initialize
-
-# Update after major changes
-/memorybank update
-
-# Quick sync after tasks (NEW!)
-/memorybank sync
-
-# View current state
-/memorybank read
-```
-
----
-
-## The Memory Bank
+Creates the `memory-bank/` directory in a project with its six core files from starter templates, prompts for initial project details, and validates the result with `validate_memorybank.py`. It is also the entry point for bootstrapping both Brain systems in one pass (formerly `/documentation-start`): run this skill, then `/document-hub-initialize`, skipping whichever system already exists.
 
 ```
 memory-bank/
@@ -32,201 +16,44 @@ memory-bank/
 └── progress.md             # Status & learnings ⚡
 ```
 
-**⚡ = Updated frequently**
+**⚡ = updated frequently** (see `/memory-bank-update --quick`)
 
----
+## When it triggers
 
-## Skills
+- "initialize the memory bank"
+- "set up project documentation systems for this new repo — memory bank plus document hub"
+- "bootstrap both brain systems for the freshly cloned repo"
+- "this project has no docs yet — initialize the documentation from scratch"
+- "/documentation-start" (archived skill; routes here)
 
-### 1. `/memorybank initialize`
+## Usage
 
-**Purpose:** Bootstrap new project
-
-**Creates:** All 6 files with templates
-**Tools:** `validate_memorybank.py`
-**When:** Start of new project
-
----
-
-### 2. `/memorybank update`
-
-**Purpose:** Comprehensive review and update
-
-**Updates:** All 6 files
-**Tools:** `validate_memorybank.py`, `detect_stale.py`, `extract_todos.py`
-**When:** After significant changes, architectural decisions
-
-**Workflow:**
-1. Validate structure
-2. Detect staleness
-3. Read all files
-4. Extract TODOs
-5. Propose updates
-6. Apply after approval
-
----
-
-### 3. `/memorybank sync` ⭐ NEW!
-
-**Purpose:** Fast sync of active files only
-
-**Updates:** activeContext.md + progress.md only
-**Tools:** `sync_active.py`, `extract_todos.py`
-**When:** After each task completion
-
-**Why it exists:** Memory bank updates frequently, but full `/memorybank update` is slow.
-Sync is 3x faster and perfect for post-task updates.
-
-**Speed:** ~2 seconds vs ~5+ for full update
-
----
-
-### 4. `/memorybank read`
-
-**Purpose:** Quick overview
-
-**Reads:** All 6 files in hierarchical order
-**Tools:** `validate_memorybank.py`, `detect_stale.py`
-**When:** Start of work, periodic checks
-
----
-
-## Python Tools
-
-### validate_memorybank.py
-
-**Purpose:** Structure validation + staleness detection
-
-**Checks:**
-- All 6 files exist
-- File hierarchy consistency
-- Staleness (last modified)
-- Cross-file references
-
-**Output:**
-```json
-{
-  "valid": true,
-  "warnings": [...],
-  "last_updated": {
-    "activeContext.md": 3,
-    "progress.md": 5
-  }
-}
+```
+/memory-bank-initialize
 ```
 
----
+No flags. Formerly also covered by `/documentation-start` (archived) for the both-systems bootstrap — that flow now lives in this skill's "Bootstrapping both systems" section.
 
-### detect_stale.py
+## Context cost
 
-**Purpose:** Find outdated information
+Description always in context (~320 chars); SKILL.md body loads on trigger (~1.8k chars); `references/templates/*` (six per-file templates) load on demand as each Memory Bank file is created.
 
-**Detects:**
-- Stale files (not updated recently)
-- Tech contradictions (techContext vs dependencies)
-- Completed items still marked in-progress
-- Cross-file inconsistencies
+## Files
 
-**Output:**
-```json
-{
-  "staleness_score": 0.23,
-  "status": "needs_attention",
-  "stale_files": [...],
-  "recommendations": [...]
-}
-```
+| Path | Purpose |
+|---|---|
+| `SKILL.md` | Workflow: check-exists → create dir → six files → gather info → validate |
+| `references/templates/*.md` | Starter templates for all six Memory Bank files |
+| `scripts/validate_memorybank.py` | Structure validation (used by this skill) |
+| `scripts/detect_stale.py`, `scripts/extract_todos.py`, `scripts/sync_active.py` | Shared with read/update (memory-bank-update symlinks this scripts dir) |
+| `scripts/README.md` | Full tool documentation |
+| `evals/documentation-start-routing-eval.json` | Routing eval for the merged /documentation-start triggers |
 
----
+All Python tools are stdlib-only — no `pip install` needed.
 
-### extract_todos.py
+## File hierarchy
 
-**Purpose:** Extract action items from code and files
-
-**Sources:**
-- TODO comments in code
-- Uncompleted items in progress.md
-- Action items in activeContext.md
-
-**Output:**
-```json
-{
-  "next_steps": [
-    {
-      "task": "Implement authentication API",
-      "priority": "high",
-      "source": "activeContext.md"
-    }
-  ],
-  "recently_completed": [...]
-}
-```
-
----
-
-### sync_active.py
-
-**Purpose:** Fast sync of dynamic files
-
-**Updates:**
-- activeContext.md (focus, blockers, learnings)
-- progress.md (completed items)
-
-**Input:** JSON with completed, new_focus, learnings, blockers
-
-**Output:**
-```json
-{
-  "updated": {
-    "activeContext.md": true,
-    "progress.md": true
-  },
-  "changes": {...}
-}
-```
-
----
-
-## Session-Start Hook ✅
-
-**Automatic Context Loading**
-
-Hook loads entire Memory Bank at session start:
-- Reads all 6 files silently
-- Validates structure
-- Provides immediate context
-- Implements "Brain" persona
-
-**Performance:** ~3 seconds overhead
-
-See `hooks/memory-bank/README.md`
-
----
-
-## Tool Summary Matrix
-
-| Tool | initialize | update | read | sync |
-|------|:----------:|:------:|:----:|:----:|
-| **validate_memorybank.py** | ✅ | ✅ (2x) | ✅ | ❌ |
-| **detect_stale.py** | ❌ | ✅ | ✅ | ❌ |
-| **extract_todos.py** | ❌ | ✅ | ❌ | ✅ |
-| **sync_active.py** | ❌ | ❌ | ❌ | ✅ |
-
----
-
-## Comparison: Memory Bank vs Document Hub
-
-| Aspect | Memory Bank | Document Hub |
-|--------|-------------|--------------|
-| **Files** | 6 (hierarchical) | 4 (flat) |
-| **Focus** | Progress & context | Architecture |
-| **Updates** | After every task | Monthly/major changes |
-| **Dynamic files** | activeContext + progress | None |
-| **Unique skill** | `/memorybank sync` | `/document-hub analyze` |
-
----
-
-## File Hierarchy
+Files are read in dependency order across all memory-bank skills:
 
 ```mermaid
 flowchart TD
@@ -239,30 +66,10 @@ flowchart TD
     AC --> P[progress.md]
 ```
 
-Files must be read in dependency order.
+A session-start hook (`hooks/memory-bank/`) loads the whole Memory Bank at session start for immediate context.
 
----
+## Related skills
 
-## Zero Dependencies
-
-All Python tools use standard library only:
-- `json`, `sys`, `re`, `pathlib`, `datetime`, `os`
-
-No `pip install` needed!
-
----
-
-## Status
-
-**Implementation:** ✅ Complete
-- 4 skills implemented
-- 4 Python tools implemented
-- Session-start hook implemented
-- Zero dependencies
-- Following Anthropic pattern
-
-**Ready for production use.**
-
----
-
-See `scripts/README.md` for complete tool documentation.
+- `/memory-bank-read` — summarize current state ("where did I leave off")
+- `/memory-bank-update` — full 6-file review, or `--quick` for a 2-file save (formerly `/memory-bank-sync`)
+- `/document-hub-initialize` — the other Brain system (4 flat files in `cline-docs/`, architecture-focused, updated on major changes; Memory Bank is progress/context-focused and updated after every task)

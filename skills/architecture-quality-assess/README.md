@@ -1,6 +1,12 @@
-# Architecture Quality Assessment - User Guide
+# /architecture-quality-assess
 
-**Quick Start Guide for the Architecture Quality Assessment Skill**
+> Assess and score codebase architecture health — layer separation, SOLID compliance, module coupling (FAN-IN/FAN-OUT), circular dependencies, drift from documented patterns. Analysis-only report + refactoring tasks; for docs-vs-code drift use document-hub-analyze.
+
+**User guide for the Architecture Quality Assessment skill.** SKILL.md deliberately defers here (and to USAGE_GUIDE.md) for use cases, interpretation, config, integrations, CI, troubleshooting, and FAQ.
+
+> **2026-07 fix**: this skill previously shipped with NO frontmatter in SKILL.md, so it could never trigger from conversation. Frontmatter was added in the 2026-07 refactor; it now triggers on "assess/review/grade architecture quality", "architecture score", "how healthy is the architecture".
+
+**Context cost**: the frontmatter description is always in context (~0.4k chars); the SKILL.md body loads on trigger (~3.3k chars); `references/analysis-details.md` (~7.5k), `references/report-formats.md` (~3.8k), and `references/operations.md` (~3.2k) load on demand. This README, USAGE_GUIDE.md, and everything under `lib/`, `scripts/`, `tests/` never load into model context.
 
 ---
 
@@ -51,9 +57,10 @@ The report includes:
 ### 4. Generate Refactoring Tasks (Optional)
 
 ```bash
-/architecture-quality-assess --generate-tasks
+/architecture-quality-assess --format tasks
 
 # Creates: architecture-refactoring-tasks.md
+# (--format all writes markdown + json + tasks in one run)
 ```
 
 ### 5. Execute Fixes (Optional)
@@ -114,8 +121,8 @@ The report includes:
 1. Run assessment: `/architecture-quality-assess`
 2. Review coupling metrics for auth modules
 3. Identify circular dependencies
-4. Generate task list: `--generate-tasks`
-5. Execute refactoring: `/start-phase execute`
+4. Generate task list: `--format tasks`
+5. Execute refactoring: `/start-phase-execute`
 
 **Result**: Data-driven refactoring plan with priorities
 
@@ -250,18 +257,20 @@ The report includes:
 ### Advanced Commands
 
 ```bash
-# Incremental analysis (only changed files)
-/architecture-quality-assess --incremental
-
-# Disable caching (force full re-analysis)
+# Disable caching (force full re-parse; caching is on by default)
 /architecture-quality-assess --no-cache
 
 # Generate refactoring task list
-/architecture-quality-assess --generate-tasks
+/architecture-quality-assess --format tasks
 
-# Custom config file
-/architecture-quality-assess --config .my-arch-config.json
+# All formats at once (markdown + json + tasks)
+/architecture-quality-assess --format all
+
+# List available analyzers
+/architecture-quality-assess --list-analyzers
 ```
+
+**Flags that do NOT exist** (removed from older docs): `--incremental`, `--cache`, `--generate-tasks`, `--config`. Caching is automatic (disable with `--no-cache`); tasks come from `--format tasks`; configuration is picked up automatically from `.architecture-assess.json` in the project root — there is no CLI flag for it.
 
 ---
 
@@ -314,7 +323,7 @@ Memory Bank stores your documented architecture patterns. This skill compares yo
 **Workflow**:
 ```bash
 # 1. Document your architecture
-/memorybank update
+/memory-bank-update
 # (Ensure systemPatterns.md describes your architecture)
 
 # 2. Run analysis
@@ -338,13 +347,13 @@ PM-DB tracks your development progress. Use it to track refactoring work.
 **Workflow**:
 ```bash
 # 1. Generate assessment and task list
-/architecture-quality-assess --generate-tasks
+/architecture-quality-assess --format tasks
 
 # 2. Import tasks to PM-DB
 /pm-db import architecture-refactoring-tasks.md
 
 # 3. Execute with tracking
-/start-phase execute architecture-refactoring-tasks.md
+/start-phase-execute architecture-refactoring-tasks.md
 
 # 4. Monitor progress
 /pm-db dashboard
@@ -487,8 +496,8 @@ ls requirements.txt  # Or pyproject.toml
 
 **Fix**:
 ```bash
-# Enable caching (default)
-/architecture-quality-assess --cache
+# Caching is on by default — repeated runs reuse parse results.
+# Only use --no-cache when you actually need a full re-parse.
 
 # Exclude unnecessary files
 # Create .architecture-assess.json:
@@ -501,10 +510,9 @@ ls requirements.txt  # Or pyproject.toml
     "build/"
   ]
 }
-
-# Use incremental mode for repeated runs
-/architecture-quality-assess --incremental
 ```
+
+See `references/operations.md` for optional speedups (networkx, tree-sitter) and cache details.
 
 ---
 
@@ -533,7 +541,7 @@ ls requirements.txt  # Or pyproject.toml
 **Fix**:
 ```bash
 # Initialize Memory Bank first
-/memorybank init
+/memory-bank-initialize
 
 # Then run assessment
 /architecture-quality-assess
@@ -552,7 +560,7 @@ ls requirements.txt  # Or pyproject.toml
 - After onboarding new team members
 
 ❌ **Don't run**:
-- On every single commit (use incremental mode)
+- On every single commit (the parse cache helps, but it's still a full analysis)
 - On generated code or build artifacts
 - Without excluding test files first
 
@@ -677,14 +685,37 @@ A: Yes, run per sub-project or target specific paths
 
 ---
 
+## Files
+
+| Path | Purpose |
+|---|---|
+| `SKILL.md` | Skill instructions (loads on trigger); verified CLI flag table |
+| `README.md` | This user guide (human docs, never loads into context) |
+| `USAGE_GUIDE.md` | Command walkthroughs and workflow scripts |
+| `references/analysis-details.md` | Per-analyzer violation heuristics with example output |
+| `references/report-formats.md` | Markdown/JSON report schemas + task-list format |
+| `references/operations.md` | Optional deps, config schema, caching/performance, changelog |
+| `skill.sh` | Entry point wrapper around `scripts/assess.py` |
+| `scripts/assess.py`, `scripts/detect_project_type.py` | The analysis CLI |
+| `lib/` | Analyzers, parsers, graph, models, reporters |
+| `tests/` | Unit + integration tests (pytest) |
+| `examples/` | Sample configs (Next.js, Django, FastAPI) |
+| `evals/trigger-eval.json` | Trigger-accuracy eval cases |
+| `architecture-assessment.md`, `phases-4-5-6-complete.md` | Historical build/design docs |
+
+## Related Skills
+
+- **security-quality-assess** — OWASP/security scanning of the same codebases (this skill scores structure, that one scores vulnerabilities)
+- **code-duplication** — duplicate-code detection and refactoring suggestions
+- **document-hub-analyze** — docs-vs-code drift for `cline-docs/`; use it (not this skill) when the question is documentation alignment
+- **start-phase-execute** / **pm-db** — consume the generated `architecture-refactoring-tasks.md`
+
 ## Support
 
 **Documentation**: See SKILL.md for complete technical reference
-
-**Issues**: Report via `/help` in Claude CLI
 
 **Custom Configuration**: See Configuration section above
 
 ---
 
-**Last Updated**: 2026-02-07
+**Last Updated**: 2026-07-09

@@ -1,6 +1,22 @@
-# Code Duplication Analysis Skill
+# /code-duplication
 
-Deep analysis of codebase for code duplication. Detects exact, structural, and pattern-level duplicates, generates comprehensive reports with refactoring suggestions and metrics.
+> Deep analysis of codebase for code duplication. Detects exact, structural, and pattern-level duplicates, generates comprehensive reports with refactoring suggestions and metrics.
+
+## What it does
+
+Scans a codebase with three detection engines — exact (hash-based), structural (AST-based), and pattern (regex anti-patterns) — then writes a markdown report (`duplication-report.md`) with duplication percentage, top offenders, a file heatmap, and concrete refactoring suggestions. Analysis-only; never edits code. Pure Python stdlib, no dependencies.
+
+## When it triggers
+
+- "How much duplication is in this codebase?"
+- "Find copy-pasted code in src/"
+- "What refactoring would reduce our LOC the most?"
+- "Run a duplication report before the refactor"
+- `/code-duplication` invoked directly
+
+## Context cost
+
+Description always in context (~0.2k chars); SKILL.md body loads on trigger (~4k chars); no `references/` dir — this README and `scripts/` never load into model context.
 
 ## Features
 
@@ -129,20 +145,30 @@ The generated markdown report includes:
 - **📋 Duplicate Blocks** - Detailed listings with code samples and refactoring suggestions
 - **💡 Recommendations** - Priority actions grouped by difficulty (easy/medium/hard)
 
+## Configuration
+
+CLI flags cover most needs (`--min-lines`, `--min-chars`, `--exclude`, `--language`). A `.duplication-config.json` in the project root (or any parent directory) is discovered automatically by `scripts/config_loader.py` — there is no `--config` CLI flag.
+
 ## Dependencies
 
 - **Python 3.7+** (required)
 - **Zero external dependencies** - Uses only Python stdlib
 
-## Development Status
+## Files
 
-✅ **Complete** - All features implemented and tested
+| Path | Purpose |
+|---|---|
+| `SKILL.md` | Skill instructions (loads on trigger) |
+| `skill.sh` | Entry point wrapper around `scripts/cli.py` |
+| `scripts/cli.py` | CLI with full argument parsing |
+| `scripts/exact_detector.py`, `structural_detector.py`, `pattern_detector.py` | The three detection engines |
+| `scripts/file_discovery.py`, `gitignore_parser.py`, `git_integration.py` | File scanning, .gitignore handling, incremental (changed-files) mode |
+| `scripts/metrics_calculator.py`, `heatmap_renderer.py`, `suggestion_engine.py`, `report_generator.py` | Metrics, heatmap, refactoring suggestions, markdown/CSV output |
+| `scripts/models.py`, `config_loader.py`, `utils.py` | Data models, `.duplication-config.json` loader, helpers |
+| `scripts/duplication-report.md` | Sample report output |
 
-## Technical Details
+## Related skills
 
-See full documentation in README.md for:
-- Architecture overview
-- Data models
-- Pattern catalog
-- Performance benchmarks
-- Development guide
+- **architecture-quality-assess** — structural/architecture scoring (layers, SOLID, coupling); use it when the question is architecture health rather than duplicated code
+- **security-quality-assess** — OWASP vulnerability scanning of the same codebases
+- **start-phase-execute** — execute the refactoring work the report suggests

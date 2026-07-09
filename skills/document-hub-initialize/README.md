@@ -2,20 +2,26 @@
 
 A comprehensive documentation management system for software projects. Automatically maintain architecture diagrams, module responsibilities, technology stack, and domain glossaries.
 
+> This README documents the whole document-hub family (initialize / read / analyze / update). It lives in `document-hub-initialize/` because, since the 2026-07 dedup, this directory holds the single canonical copy of the Python helper scripts (`scripts/`) — the other three skills invoke scripts from this path rather than carrying their own copies.
+
+`/document-hub-initialize` is also the entry point for bootstrapping BOTH "Brain" systems in a fresh repo (formerly `/documentation-start`): run it to create `cline-docs/`, then run `/memory-bank-initialize` to create `memory-bank/`.
+
+**Context cost (this skill):** description always in context (~0.2k chars); SKILL.md body loads on trigger (~5.7k chars); `references/` (templates for the 4 core files, `example-initialization.md`, `script-reference.md`) load on demand. This README and `scripts/README.md` are human docs — never loaded into model context. Each sibling skill's README lists its own cost.
+
 ## Quick Start
 
 ```bash
 # Initialize documentation for a new project
-/document-hub initialize
+/document-hub-initialize
 
 # Update documentation after code changes
-/document-hub update
+/document-hub-update
 
 # View current documentation state
-/document-hub read
+/document-hub-read
 
 # Analyze documentation quality and drift
-/document-hub analyze
+/document-hub-analyze
 ```
 
 ---
@@ -45,7 +51,7 @@ project-root/
 
 ## Available Skills
 
-### 1. `/document-hub initialize`
+### 1. `/document-hub-initialize`
 
 **Purpose:** Bootstrap a new project with complete documentation structure
 
@@ -89,7 +95,7 @@ python scripts/validate_hub.py /path/to/project
 
 ---
 
-### 2. `/document-hub update`
+### 2. `/document-hub-update`
 
 **Purpose:** Intelligently update documentation based on code changes and drift
 
@@ -147,7 +153,7 @@ python scripts/validate_hub.py /path/to/project
 
 ---
 
-### 3. `/document-hub read`
+### 3. `/document-hub-read`
 
 **Purpose:** Quick overview of current documentation state
 
@@ -195,7 +201,7 @@ python scripts/validate_hub.py /path/to/project
 
 ---
 
-### 4. `/document-hub analyze`
+### 4. `/document-hub-analyze`
 
 **Purpose:** Deep analysis of documentation quality and drift (read-only)
 
@@ -494,7 +500,7 @@ python scripts/extract_glossary.py /path/to/project "**/*.ts" 3
 
 ```bash
 # Step 1: Initialize documentation
-/document-hub initialize
+/document-hub-initialize
 
 # Behind the scenes:
 # → validate_hub.py (check if exists)
@@ -504,17 +510,17 @@ python scripts/extract_glossary.py /path/to/project "**/*.ts" 3
 # → validate_hub.py (verify result)
 
 # Step 2: Review and refine
-/document-hub read
+/document-hub-read
 
 # Step 3: User adds context, then update
-/document-hub update
+/document-hub-update
 ```
 
 ### Example 2: Maintaining Documentation
 
 ```bash
 # Monthly health check
-/document-hub analyze
+/document-hub-analyze
 
 # Output shows:
 # - Health Score: 77/100
@@ -524,7 +530,7 @@ python scripts/extract_glossary.py /path/to/project "**/*.ts" 3
 # - 18 glossary gaps
 
 # Fix high-priority issues
-/document-hub update
+/document-hub-update
 
 # Behind the scenes:
 # → validate_hub.py (pre-check)
@@ -543,7 +549,7 @@ python scripts/extract_glossary.py /path/to/project "**/*.ts" 3
 # Developer completes payment module
 
 # Check what needs updating
-/document-hub analyze
+/document-hub-analyze
 
 # Output:
 # - New module detected: src/payments
@@ -551,7 +557,7 @@ python scripts/extract_glossary.py /path/to/project "**/*.ts" 3
 # - 5 new glossary terms
 
 # Apply updates
-/document-hub update
+/document-hub-update
 
 # Behind the scenes:
 # → analyze_changes.py detects payment module changes
@@ -581,23 +587,23 @@ The analyze skill calculates a health score (0-100):
 
 ### When to Use Each Skill
 
-- **Use `/document-hub initialize`:**
+- **Use `/document-hub-initialize`:**
   - New project setup
   - Adding docs to existing project
   - Rebuilding corrupted docs
 
-- **Use `/document-hub update`:**
+- **Use `/document-hub-update`:**
   - After major features
   - After refactoring
   - After dependency changes
   - Monthly maintenance
 
-- **Use `/document-hub read`:**
+- **Use `/document-hub-read`:**
   - Onboarding new developers
   - Before starting feature work
   - Quick health checks
 
-- **Use `/document-hub analyze`:**
+- **Use `/document-hub-analyze`:**
   - Before planning updates
   - Monthly audits
   - Diagnosing issues
@@ -605,10 +611,10 @@ The analyze skill calculates a health score (0-100):
 
 ### Workflow Recommendations
 
-1. **Daily Development:** `/document-hub read` to check context
-2. **After Features:** `/document-hub analyze` → `/document-hub update`
-3. **Monthly:** `/document-hub analyze` to monitor health
-4. **New Projects:** `/document-hub initialize` → review → `/document-hub update`
+1. **Daily Development:** `/document-hub-read` to check context
+2. **After Features:** `/document-hub-analyze` → `/document-hub-update`
+3. **Monthly:** `/document-hub-analyze` to monitor health
+4. **New Projects:** `/document-hub-initialize` → review → `/document-hub-update`
 
 ---
 
@@ -629,29 +635,35 @@ No `pip install` required.
 ## File Locations
 
 ```
-skills/hub/
-├── README.md                      ← You are here
-├── document-hub-initialize.md     ← Skill: Initialize
-├── document-hub-update.md         ← Skill: Update
-├── document-hub-read.md           ← Skill: Read
-├── document-hub-analyze.md        ← Skill: Analyze
-└── scripts/
-    ├── README.md                  ← Tool documentation
-    ├── validate_hub.py            ← Tool: Validation
-    ├── detect_drift.py            ← Tool: Drift detection
-    ├── analyze_changes.py         ← Tool: Git analysis
-    ├── extract_glossary.py        ← Tool: Glossary extraction
-    └── requirements.txt           ← (Empty - no deps needed)
+~/.claude/skills/
+├── document-hub-initialize/
+│   ├── README.md                  ← You are here (family overview)
+│   ├── SKILL.md                   ← Skill: Initialize
+│   ├── references/
+│   │   ├── example-initialization.md
+│   │   ├── script-reference.md
+│   │   └── templates/             ← 4 core-file templates
+│   └── scripts/                   ← CANONICAL copies (2026-07 dedup)
+│       ├── README.md              ← Tool documentation
+│       ├── validate_hub.py        ← Tool: Validation
+│       ├── detect_drift.py        ← Tool: Drift detection
+│       ├── analyze_changes.py     ← Tool: Git analysis
+│       ├── extract_glossary.py    ← Tool: Glossary extraction
+│       └── requirements.txt       ← (No third-party deps needed)
+├── document-hub-read/             ← SKILL.md + references/output-format.md
+├── document-hub-analyze/          ← SKILL.md + references/report-format.md
+└── document-hub-update/           ← SKILL.md
 ```
+
+The read/analyze/update skills call the scripts by absolute path, e.g. `python /home/artsmc/.claude/skills/document-hub-initialize/scripts/detect_drift.py <project>`.
 
 ---
 
 ## Getting Help
 
-- **For skill usage:** Read individual skill files (`document-hub-*.md`)
-- **For tool details:** See `scripts/README.md`
-- **For planning docs:** Check `.claude/planning/`
-- **For examples:** Each skill file contains complete examples
+- **For skill usage:** Read each skill's `SKILL.md` (`document-hub-*/SKILL.md`)
+- **For tool details:** See `document-hub-initialize/scripts/README.md`
+- **For examples:** `references/example-initialization.md` and each SKILL.md contain complete examples
 
 ---
 
@@ -677,7 +689,7 @@ skills/hub/
 ### Session-Start Hook ✅
 
 **Status:** Implemented and enabled by default
-**Location:** `hooks/hub/document-hub-session-start.md`
+**Location:** `~/.claude/hooks/hub/document-hub-session-start.md`
 
 **What It Does:**
 - Automatically loads documentation hub at the start of every session
@@ -687,7 +699,7 @@ skills/hub/
 
 **Benefits:**
 - "Brain" persona: Documentation as your memory
-- No manual `/document-hub read` needed
+- No manual `/document-hub-read` needed
 - Immediate context-aware responses
 - Zero user friction
 
@@ -708,7 +720,7 @@ src/payments module, which handles all payment integrations..."
 [Response uses knowledge from loaded documentation]
 ```
 
-**See:** `hooks/hub/README.md` for complete documentation
+**See:** `~/.claude/hooks/hub/README.md` for complete documentation
 
 ### Why Only One Hook?
 
