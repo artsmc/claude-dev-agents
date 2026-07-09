@@ -53,7 +53,7 @@ Phase 5: Closeout     → Summary, metrics, archive
 In team mode, agents handle Phase 3 execution and their own per-task commits (Phase 4 gates run inside each agent); Phases 1, 2, and 5 are unchanged.
 
 **Lean Orchestrator (mandatory cost discipline):** 30-day mining showed workers are only ~15% of cost — the waste is the parent re-reading fat accumulated context 50–100×/turn (71% of the worst session). So:
-- Workers default to **Sonnet at medium effort**; escalate per-task only for ambiguity, cross-cutting design, or security (routing table in the reference).
+- Workers default to **Sonnet at medium effort**; escalate per-task only for ambiguity, cross-cutting design, or security — and down-route fully-specified, self-contained, gate-verified tasks to **Haiku** (benchmarked 6/6 pass, zero escalations; routing table in the reference).
 - Spawn prompts are **scoped snapshots** — goal, input *paths* (never pasted blobs; headroom-compress unavoidable large handoffs), constraints, acceptance, output contract.
 - Workers return a **compact report** (status, artifact paths, verification evidence, ≤2-sentence notes); full detail goes to files in `{planning_folder}/task-updates/`.
 - Parent keeps ≤~30k tokens of accumulated state, dispatches each wave in ONE message, never re-reads worker artifacts it doesn't need, and **checkpoints to task-list.md/pm-db between waves** so the session can `/clear` or resume.

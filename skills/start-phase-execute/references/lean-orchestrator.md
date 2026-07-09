@@ -29,6 +29,7 @@ Source: `~/.claude/job-queue/feature-skill-efficiency/findings/effort-analysis.m
 
 | Task profile | Model | Effort | Examples |
 |---|---|---|---|
+| Down-route: fully specified + self-contained + executable gate | haiku | medium | single-file utilities/scripts from a crisp spec, boilerplate with a runnable acceptance test, format conversions |
 | **Default: implementation / mechanical** | **sonnet** | **medium** | CRUD endpoints, components from spec, tests, refactors with a known pattern, config, migrations, docs |
 | Ambiguous requirements (spec leaves real design choices) | sonnet | high | "design the retry strategy", unclear API shape |
 | Cross-cutting design (defines contracts ≥2 other tasks consume, touches 3+ modules) | opus | medium–high | shared type layer, event schema, auth middleware others build on |
@@ -41,7 +42,19 @@ Source: `~/.claude/job-queue/feature-skill-efficiency/findings/effort-analysis.m
   Body A/B showed lean scoped context *helps*: mastra-dev −45% tokens with quality
   8.5→9.5; document-hub-initialize −15% tokens, tied 10/10. Same-session medium vs high
   phases produced 1,339 vs 1,098 output tokens/call. Scoping beats cranking the dial.
-- Never haiku for execution (measured too weak for task completion).
+- **Haiku down-routing (measured 2026-07-09, third fixture arm):** Haiku workers went
+  **6/6 PASS with zero retries and zero escalations**, quality 9.28 vs Sonnet-workers 9.49
+  and naive-Fable 9.78 — the leanest parent (296k) and cheapest arm price-weighted (88.5%
+  of tokens on the cheapest tier). Down-route ONLY when all three hold: the spec is complete
+  (no design choices left), the task is self-contained (no cross-task contracts), and a
+  runnable gate verifies it — the Wave Gate + retry ladder (haiku retry → sonnet escalation)
+  makes haiku-first safe because failures escalate automatically at bounded cost. Expect
+  ~0.2–0.5 more edge-case spec slippage and craft dings (hand-rolled CLI parsing, fragile
+  error dispatch); when exact spec fidelity or code craft matters, stay on Sonnet.
+- Haiku is also right for non-execution roles: monitor/watchdog agents, mechanical
+  extraction/reformatting, read-only status summarization. It is **wrong for the trigger-eval
+  router** (measured: 88% agreement vs Sonnet with false triggers exactly on near-miss
+  boundaries — e.g. GitHub-vs-GitLab) and for judges, orchestrators, and anything ambiguous.
 
 ## Rule 2 — Scoped snapshot (every worker spawn prompt)
 
