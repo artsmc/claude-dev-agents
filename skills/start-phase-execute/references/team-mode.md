@@ -6,6 +6,8 @@ Multi-agent teams execute waves of tasks in parallel.
 **Speedup:** 1.5-2x faster depending on task parallelism
 
 > **Reference:** All TypeScript pseudocode (wave creation, TeamCreate/TaskCreate calls, the full agent spawn-prompt template, polling and shutdown loops), the complete 7-task worked example with display formats, and full error-recovery playbooks live in `references/team-mode-examples.md`. Read it before executing Part 3, and whenever you need the exact spawn prompt or a display/output format.
+>
+> **Cost discipline:** `references/lean-orchestrator.md` is mandatory and governs what context goes into every spawn prompt (scoped snapshots, paths not blobs), what comes back (compact returns), worker model/effort routing (Sonnet/medium default), and parent hygiene (~30k state budget, wave checkpoints, one-message dispatch).
 
 ---
 
