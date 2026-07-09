@@ -7,22 +7,11 @@ description: Comprehensive review and update of the documentation hub (cline-doc
 
 Intelligently update documentation based on code changes and drift detection.
 
-**Helper Scripts Available**:
-- `scripts/analyze_changes.py` - Analyzes git history since last doc update
-- `scripts/detect_drift.py` - Finds undocumented modules and technologies
-- `scripts/validate_hub.py` - Validates documentation structure
-- `scripts/extract_glossary.py` - Extracts new domain terms
-
-**Always run scripts with `--help` or check scripts/README.md first** to understand their usage and output format.
-
-## What This Skill Does
-
-Performs a comprehensive review and update of all documentation hub files:
-
-1. Analyzes what changed since last doc update (via git)
-2. Detects drift between docs and codebase
-3. Proposes specific, scoped updates
-4. Validates result after updates
+**Helper Scripts** — canonical copies live in `/home/artsmc/.claude/skills/document-hub-initialize/scripts/` (see its `README.md` or `--help` for usage and output format):
+- `analyze_changes.py` - Analyzes git history since last doc update
+- `detect_drift.py` - Finds undocumented modules and technologies
+- `validate_hub.py` - Validates documentation structure
+- `extract_glossary.py` - Extracts new domain terms
 
 ## Decision Tree: Update Strategy
 
@@ -44,41 +33,27 @@ User requests update → Is this a git repository?
 
 **Step 1: Validate Current State**
 
-Always validate before making changes:
-
 ```bash
-python scripts/validate_hub.py /path/to/project
+python /home/artsmc/.claude/skills/document-hub-initialize/scripts/validate_hub.py /path/to/project
 ```
 
-If validation fails:
-- Fix structural errors first
-- Address broken cross-references
-- Repair invalid Mermaid diagrams
-- Then proceed with content updates
+If validation fails, fix structural errors, broken cross-references, and invalid Mermaid diagrams before content updates.
 
 **Step 2: Analyze Recent Changes**
 
-Use git history to scope the update:
+Use git history to scope the update (returns JSON categorizing changes; auto-detects since last doc update, or pass a commit/date as second arg):
 
 ```bash
-# Auto-detect since last doc update
-python scripts/analyze_changes.py /path/to/project
-
-# Or specify a commit/date
-python scripts/analyze_changes.py /path/to/project abc123
+python /home/artsmc/.claude/skills/document-hub-initialize/scripts/analyze_changes.py /path/to/project
 ```
-
-This returns JSON categorizing changes.
 
 **Step 3: Detect Drift**
 
-Even if no recent changes, check for drift:
+Even with no recent changes, check for drift — undocumented modules, missing technologies, documented-but-removed code:
 
 ```bash
-python scripts/detect_drift.py /path/to/project
+python /home/artsmc/.claude/skills/document-hub-initialize/scripts/detect_drift.py /path/to/project
 ```
-
-This identifies undocumented modules, missing technologies, and documented-but-removed code.
 
 ### Phase 2: Propose Updates
 
@@ -90,17 +65,9 @@ Update each file systematically based on change analysis.
 
 ### Phase 4: Post-Update Validation
 
-After making updates, always validate:
-
-```bash
-python scripts/validate_hub.py /path/to/project
-```
+After making updates, always re-run `validate_hub.py` on the project.
 
 ## Best Practices
 
-- **Always validate first** - Fix structural issues before content updates
-- **Use git analysis** - Let `analyze_changes.py` scope the update
-- **Present proposals** - Show user what will change
+- **Present proposals** - Show user what will change before editing
 - **Update incrementally** - One file at a time, validate between
-
-See `scripts/README.md` for complete helper script documentation.

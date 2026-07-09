@@ -84,78 +84,7 @@ This returns ranked terms with context from code comments.
 
 Create the four core files with initial content based on the gathered information.
 
-**systemArchitecture.md template:**
-```markdown
-# System Architecture
-
-## High-Level Overview
-
-[Brief description of what this project does]
-
-## Architecture Diagram
-
-\`\`\`mermaid
-flowchart TD
-    Client[Client/User] --> Server[Application Server]
-    Server --> DB[Database]
-\`\`\`
-
-## Database Schema
-
-[If applicable, add ER diagram or schema description]
-
-## Key Processes
-
-[Describe major workflows]
-```
-
-**keyPairResponsibility.md template:**
-```markdown
-# Key Modules & Responsibilities
-
-## Project Overview
-
-[What this project does and why]
-
-## Module Breakdown
-
-### [Module Name]
-**Location:** `src/module-name/`
-**Responsibility:** [What this module handles]
-**Key Files:**
-- `file1.ts` - [Purpose]
-- `file2.ts` - [Purpose]
-```
-
-**glossary.md template:**
-```markdown
-# Glossary
-
-Domain-specific terms used throughout the codebase.
-
-## A
-
-**[Term]** - [Definition based on code context]
-```
-
-**techStack.md template:**
-```markdown
-# Technology Stack
-
-## Core Technologies
-
-### [Framework Name]
-**Purpose:** [What it's used for]
-**Version:** [If detected from package.json]
-
-## Infrastructure
-
-[Databases, caching, etc.]
-
-## Development Tools
-
-[Build tools, testing frameworks, etc.]
-```
+**Templates:** starter templates for all four files live in `references/templates/` (`systemArchitecture.md`, `keyPairResponsibility.md`, `glossary.md`, `techStack.md`). Read the relevant template file when creating each doc file.
 
 ### Step 4: Populate with Detected Information
 
@@ -199,58 +128,7 @@ Check that:
 
 ## Example: Complete Initialization
 
-```python
-import json
-import subprocess
-from pathlib import Path
-
-project_path = Path("/path/to/project")
-docs_path = project_path / "cline-docs"
-
-# Step 1: Check if exists
-if docs_path.exists():
-    print("Documentation hub already exists. Validating...")
-    result = subprocess.run(
-        ["python", "scripts/validate_hub.py", str(project_path)],
-        capture_output=True, text=True
-    )
-    validation = json.loads(result.stdout)
-    if validation["valid"]:
-        print("Hub is valid. Use /document-hub read to view it.")
-        exit(0)
-
-# Step 2: Create directory
-docs_path.mkdir(exist_ok=True)
-
-# Step 3: Detect technologies and modules
-drift_result = subprocess.run(
-    ["python", "scripts/detect_drift.py", str(project_path)],
-    capture_output=True, text=True
-)
-drift_data = json.loads(drift_result.stdout)
-
-# Step 4: Extract glossary terms
-glossary_result = subprocess.run(
-    ["python", "scripts/extract_glossary.py", str(project_path)],
-    capture_output=True, text=True
-)
-glossary_data = json.loads(glossary_result.stdout)
-
-# Step 5: Generate files
-# [Create files using templates + detected data]
-
-# Step 6: Validate
-validate_result = subprocess.run(
-    ["python", "scripts/validate_hub.py", str(project_path)],
-    capture_output=True, text=True
-)
-validation = json.loads(validate_result.stdout)
-
-if validation["valid"]:
-    print("✓ Documentation hub initialized successfully!")
-else:
-    print("⚠ Issues detected:", validation["errors"])
-```
+A full end-to-end Python example of the 6-step workflow is in `references/example-initialization.md` — read it if you want a concrete script-driven walkthrough.
 
 ## Best Practices
 
@@ -270,6 +148,10 @@ else:
 ✅ **Do** validate before and after
 ✅ **Do** ask user for additional context
 
+## Bootstrapping both systems at once (formerly /documentation-start)
+
+To initialize BOTH Brain systems in one pass: run this skill (skip if `cline-docs/` already has all 4 files), then run `/memory-bank-initialize` (skip if `memory-bank/` already has its 6 files). Re-run either to force re-initialization if a system is present but incomplete.
+
 ## What Comes Next
 
 After initialization:
@@ -280,22 +162,4 @@ After initialization:
 
 ## Helper Script Reference
 
-**validate_hub.py** - Check documentation structure
-```bash
-python scripts/validate_hub.py /path/to/project
-# Returns: {"valid": bool, "errors": [], "warnings": []}
-```
-
-**detect_drift.py** - Find undocumented code
-```bash
-python scripts/detect_drift.py /path/to/project
-# Returns: {"module_drift": {...}, "technology_drift": {...}}
-```
-
-**extract_glossary.py** - Extract domain terms
-```bash
-python scripts/extract_glossary.py /path/to/project
-# Returns: {"terms": [{term, contexts, score}...]}
-```
-
-See `scripts/README.md` for complete documentation.
+Usage and JSON output shapes for validate_hub.py, detect_drift.py, and extract_glossary.py are in `references/script-reference.md` — read it before invoking a script; `scripts/README.md` has complete documentation.

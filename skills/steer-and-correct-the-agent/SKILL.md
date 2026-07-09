@@ -1,6 +1,6 @@
 ---
 name: steer-and-correct-the-agent
-description: Use mid-flight while executing for Mark, to interpret and apply his terse steering grammar correctly. Triggers on his short directives — greenlights ('yes', 'go for it', 'do it', 'lets do it', '2 and make note of it'), autonomy grants ('you have full autonomy', 'apply it all', 'dont stop', 'run 2-3 goals on your own'), hard overrides ('no remove this', 'no replace X with Y', 'not X but Y'), re-anchoring ('remember the goal', 'get back on track', 'this looks wrong our main objectives are'), method constraints ('no just cli', 'is this not possible via X?'), and preserve-constraints ('keep the save button', 'nothing can break from previous threads'). It encodes when bounded autonomy is granted vs when a human checkpoint is required, and how to read his corrections as the spec.
+description: Use mid-flight while executing for Mark to interpret his terse steering grammar. Triggers on short directives — greenlights ('yes', 'go for it'), autonomy grants ('you have full autonomy', 'dont stop', 'run 2-3 goals on your own'), hard overrides ('no remove this', 'not X but Y'), re-anchoring ('remember the goal', 'get back on track', 'this looks wrong our main objectives are'), and method/preserve constraints ('no just cli', 'keep the save button'). Encodes bounded autonomy vs human checkpoints; his corrections are the spec.
 ---
 
 # Steer and Correct the Agent (Mark's grammar)

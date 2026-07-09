@@ -1,6 +1,6 @@
 ---
 name: spec-review
-description: Validate, critique, and iterate on generated specifications
+description: Validate, critique, and iterate on generated specifications. Use for "review this spec", "critique the FRD/FRS", "is this spec ready to build?", or folding user feedback into a spec produced by spec-plan before execution begins.
 ---
 
 # Spec Review: Critique & Iterate

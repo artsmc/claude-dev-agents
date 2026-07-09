@@ -1,0 +1,58 @@
+[
+  {
+    "query": "can you assess the architecture quality of /home/artsmc/applications/low-code? I want an overall score",
+    "should_trigger": true
+  },
+  {
+    "query": "how healthy is this codebase's architecture? feels like everything imports everything",
+    "should_trigger": true
+  },
+  {
+    "query": "run an architecture review on the scrum-master repo - check the layering and dependency health",
+    "should_trigger": true
+  },
+  {
+    "query": "I think we have circular dependencies between our services, can you analyze module coupling and give me a report",
+    "should_trigger": true
+  },
+  {
+    "query": "grade our architecture before we start the big refactor, want to know the worst SOLID violations",
+    "should_trigger": true
+  },
+  {
+    "query": "give me an architecture health check with a refactoring task list for apps/web",
+    "should_trigger": true
+  },
+  {
+    "query": "is there sql sitting directly in our api routes? check layer separation violations across the nextjs app",
+    "should_trigger": true
+  },
+  {
+    "query": "whats our fan-in/fan-out looking like, which modules are the most tightly coupled?",
+    "should_trigger": true
+  },
+  {
+    "query": "draw an architecture diagram of our system on my miro board",
+    "should_trigger": false
+  },
+  {
+    "query": "are the docs up to date with the code? check cline-docs for drift",
+    "should_trigger": false
+  },
+  {
+    "query": "scan the codebase for security vulnerabilities and hardcoded secrets",
+    "should_trigger": false
+  },
+  {
+    "query": "find duplicated code across the repo and suggest refactoring for the copies",
+    "should_trigger": false
+  },
+  {
+    "query": "help me design the architecture for a new product im building, need some deep research first",
+    "should_trigger": false
+  },
+  {
+    "query": "summarize the system architecture from the memory bank, catch me up on this project",
+    "should_trigger": false
+  }
+]

@@ -21,7 +21,7 @@
         {
           "name": "sequential-mode",
           "type": "contains",
-          "description": "Uses start-phase-execute (not start-phase-execute-team) since no --team flag"
+          "description": "Uses start-phase-execute without the --team flag since no --team flag was given"
         },
         {
           "name": "state-threading",
@@ -31,7 +31,7 @@
         {
           "name": "skill-specific-recovery",
           "type": "contains",
-          "description": "Mentions skill-specific recovery commands like /spec-plan, /spec-review, /start-phase plan, /feature-continue (not just generic error handling)"
+          "description": "Mentions skill-specific recovery commands like /spec-plan, /spec-review, /start-phase plan, /feature-new --continue (not just generic error handling)"
         },
         {
           "name": "pm-db-best-effort",
@@ -44,7 +44,7 @@
       "id": 1,
       "name": "complex-team",
       "prompt": "Build a complete notification system with real-time WebSocket events, email digests, and in-app notification center --team",
-      "expected_output": "Model correctly parses --team flag and routes to team mode. Passes --team to spec-plan. Uses start-phase-execute-team for execution step.",
+      "expected_output": "Model correctly parses --team flag and routes to team mode. Passes --team to spec-plan. Uses start-phase-execute --team for execution step.",
       "files": [],
       "assertions": [
         {
@@ -60,7 +60,7 @@
         {
           "name": "team-execute-routing",
           "type": "contains",
-          "description": "Uses start-phase-execute-team (not start-phase-execute) for execution"
+          "description": "Uses start-phase-execute with the --team flag for execution"
         },
         {
           "name": "correct-step-order",

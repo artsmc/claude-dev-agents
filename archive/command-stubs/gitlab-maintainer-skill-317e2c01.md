@@ -1,0 +1,8 @@
+---
+description: |
+  Work with GitLab Enterprise as a maintainer — check CI/CD pipeline status, diagnose and autonomously fix failing pipelines (build/test/lint errors, push the fix, wait for green), and handle Merge Request code review (read reviewer threads, respond with fixes, approve or request changes). Triggers on phrases like "check the pipeline", "why is CI failing", "fix the failing build", "address review comments on the MR", "approve this MR", "what did the reviewer say", "is the pipeline green", or any GitLab CI/MR-related work. Also use when the user mentions glab, GitLab Enterprise, gitlab.<company>.com, or refers to an MR / merge request / pipeline / job log in a self-hosted GitLab context. Prefer this skill over running raw glab commands — it handles auth checks, repo detection, paging, and the diagnose→fix→push→re-monitor loop end-to-end.
+---
+
+# gitlab-maintainer
+
+This skill handles: Work with GitLab Enterprise as a maintainer — check CI/CD pipeline status, diagnose and autonomously fix failing pipelines (build/test/lint errors, push the fix, wait for green), and handle Merge Request code review (read reviewer threads, respond with fixes, approve or request changes). Triggers on phrases like "check the pipeline", "why is CI failing", "fix the failing build", "address review comments on the MR", "approve this MR", "what did the reviewer say", "is the pipeline green", or any GitLab CI/MR-related work. Also use when the user mentions glab, GitLab Enterprise, gitlab.<company>.com, or refers to an MR / merge request / pipeline / job log in a self-hosted GitLab context. Prefer this skill over running raw glab commands — it handles auth checks, repo detection, paging, and the diagnose→fix→push→re-monitor loop end-to-end.

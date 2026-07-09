@@ -1,6 +1,6 @@
 ---
 name: gitlab-maintainer
-description: Work with GitLab Enterprise as a maintainer — check CI/CD pipeline status, diagnose and autonomously fix failing pipelines (build/test/lint errors, push the fix, wait for green), and handle Merge Request code review (read reviewer threads, respond with fixes, approve or request changes). Triggers on phrases like "check the pipeline", "why is CI failing", "fix the failing build", "address review comments on the MR", "approve this MR", "what did the reviewer say", "is the pipeline green", or any GitLab CI/MR-related work. Also use when the user mentions glab, GitLab Enterprise, gitlab.<company>.com, or refers to an MR / merge request / pipeline / job log in a self-hosted GitLab context. Prefer this skill over running raw glab commands — it handles auth checks, repo detection, paging, and the diagnose→fix→push→re-monitor loop end-to-end.
+description: Work with GitLab Enterprise as a maintainer via glab — check pipeline status, diagnose and fix failing CI (build/test/lint), push the fix and wait for green, and handle MR review threads, approvals, and change requests. Use for "check the pipeline", "why is CI failing", "address review comments", "approve this MR", or any mention of glab, a self-hosted GitLab MR, pipeline, or job log. Prefer this over raw glab commands — it handles auth checks, repo detection, paging, and the diagnose→fix→push→re-monitor loop.
 ---
 
 # GitLab Maintainer
@@ -18,47 +18,9 @@ git remote -v 2>/dev/null                      # what remotes / which GitLab hos
 
 Identify the **target host** — the GitLab hostname you'll be talking to. Usually it's `git remote get-url origin`, but check all remotes: a repo can have multiple GitLab remotes pointing at different instances (e.g., `origin` on the old host, `new_origin` on a migrated host). If the user named a specific remote ("test on new_origin"), use that one.
 
-Then verify auth against that host using a **project-scoped endpoint**, not `/user`:
-
-```bash
-# Encode the project path: group/subgroup/repo → group%2Fsubgroup%2Frepo
-glab api --hostname "$HOST" "projects/$PROJECT_ENC" 2>&1 | head -c 200
-```
-
-Why not `glab auth status`? It hits `/user`, which 401s for **project access tokens** (bot tokens like `project_NNN_bot_*`). Those tokens work fine for project endpoints but have no `/user`. The skill must work for both PATs and project tokens, so test what we'll actually use.
-
-Three outcomes:
-
-1. **Returns JSON with project info** → auth works, proceed.
-2. **Returns `401 Unauthorized`** → token bad, expired, or missing project scope. Stop and ask the user to refresh (see token sourcing below).
-3. **Returns `404 Not Found`** → token works but lacks access to this project, OR the project path is wrong. Confirm `$PROJECT_ENC` matches the remote URL path, then ask.
-
-If not in a git repo at all, ask the user to `cd` into one or pass project + host explicitly.
-
-### Where the token comes from (in priority order)
-
-The skill should find a working token without storing anything new in user config:
-
-1. **`GITLAB_TOKEN` env var** (if already set in the shell) — use it as-is.
-2. **glab's stored config** for the target host (`~/.config/glab-cli/config.yml` or `~/snap/glab/current/.config/glab-cli/config.yml`) — glab uses this automatically when you don't pass `--hostname`.
-3. **Embedded in a git remote URL** (`https://user:TOKEN@host/...`) — if `git remote get-url <name>` shows a token in the URL, extract it for the matching host:
-   ```bash
-   TOKEN=$(git remote get-url <remote> | sed -nE 's|https://[^:]+:([^@]+)@.*|\1|p')
-   ```
-   This is common in CI-cloned repos and dev-laptop setups. Don't echo the token to the user; just use it.
-
-When using sources 1 or 3, pass the host explicitly on every call:
-
-```bash
-GITLAB_TOKEN="$TOKEN" glab api --hostname "$HOST" <endpoint>
-GITLAB_TOKEN="$TOKEN" glab ci status --hostname "$HOST"     # most glab commands accept --hostname
-```
-
-If no token can be found anywhere, stop and ask the user to either run `glab auth login --hostname <host>` (persistent) or `export GITLAB_TOKEN=...` (session-only).
-
 ### One-shot context resolver
 
-The bundled script does all of the above in one call — parse the remote, extract host + project + (if present) embedded token, and emit shell exports:
+The bundled script resolves everything in one call — parse the remote, extract host + project + (if present) embedded token, and emit shell exports:
 
 ```bash
 eval "$(bash scripts/resolve-context.sh)"               # uses 'origin'
@@ -71,7 +33,9 @@ After eval, `$GITLAB_HOST`, `$GITLAB_PROJECT`, `$GITLAB_PROJECT_ENC`, and `$GITL
 glab api --hostname "$GITLAB_HOST" "projects/$GITLAB_PROJECT_ENC" | head -c 200
 ```
 
-JSON back = good to go. 401/404 = stop and ask.
+JSON back = good to go. `401` = token bad, expired, or missing scope — stop and ask the user to refresh. `404` = token lacks access to this project or the project path is wrong. If not in a git repo at all, ask the user to `cd` into one or pass project + host explicitly.
+
+For the manual recipes behind the script — verifying auth on a project-scoped endpoint (and why not `glab auth status`), project-path URL-encoding, token sourcing priority (env var → glab config → token embedded in a remote URL), passing `--hostname` explicitly, and API paging — read `references/glab-cookbook.md`. Read it whenever auth fails, the token setup is unusual, or you need raw `glab api` calls.
 
 ## Routing — pick the workflow
 

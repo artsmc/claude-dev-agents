@@ -1,0 +1,10 @@
+[
+  {"query": "/documentation-start", "should_trigger": true},
+  {"query": "initialize the memory bank and document hub if theyre not already set up", "should_trigger": true},
+  {"query": "set up project documentation systems for this new repo — memory bank plus document hub", "should_trigger": true},
+  {"query": "bootstrap both brain systems for the freshly cloned scrum-master repo", "should_trigger": true},
+  {"query": "this project has no docs yet — initialize the documentation from scratch", "should_trigger": true},
+  {"query": "start the documentation for this new project — create the core doc files", "should_trigger": true},
+  {"query": "initialize docs: memory bank and cline-docs hub, force re-init if needed", "should_trigger": true},
+  {"query": "new repo, nothing set up — get the documentation systems initialized", "should_trigger": true}
+]

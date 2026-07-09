@@ -1,6 +1,6 @@
 ---
 name: reference-as-executable-spec
-description: Use when Mark frames a feature by pointing at a concrete reference instead of describing behavior from scratch — when he names a live product as the target ('an inline editor like editor.js', 'a code editor like monaco-editor dark theme', 'much like openclaw.ai'), points at an internal subsystem as the literal spec to replicate ('the OTP from sentient-monorepo is the pattern we should match', 'use sentient-monorepo as the api source of truth'), or anchors a requirement on an external library as the structural model ('setups similar to CASL', 'building this same CASL boilerplate'). Whenever he says 'build it like THAT', 'same as X', or 'mimic/replicate X', treat the named reference as the executable spec — go observe it, extract its real behavior, and let THAT define correct rather than inventing requirements.
+description: "Use when Mark points at a concrete reference as the feature spec instead of describing behavior — a live product ('an inline editor like editor.js', 'much like openclaw.ai'), an internal subsystem ('the OTP from sentient-monorepo is the pattern we should match'), or a library's structure ('setups similar to CASL'). On 'build it like THAT', 'same as X', 'mimic/replicate X': the named reference IS the executable spec — go observe it and let its real behavior define correct."
 ---
 
 # Reference As Executable Spec

@@ -1,18 +1,34 @@
 ---
 name: memorybank-update
-description: Comprehensive review and update of all Memory Bank files. Reads all 6 files, proposes targeted updates focusing on activeContext.md and progress.md, and validates results. Use this skill when the user wants a full memory bank refresh after significant work — architecture changes, new patterns, tech stack updates, or multiple completed features. If the user only needs a quick progress save (1-2 files), use memory-bank-sync instead. Triggers on "update the memory bank", "refresh documentation", "sync all memory bank files", or after major milestones.
+description: Review and update Memory Bank files. Full mode reads all 6 files and proposes targeted updates; --quick mode (formerly memory-bank-sync) updates only activeContext.md + progress.md. Full mode for "update the memory bank", "refresh documentation", "sync all memory bank files", architecture changes, or major milestones. Quick for "quick save", "save my progress", "mark this as done", "update where I left off", or recording a finished task without a full review.
 ---
 
 # Memory Bank: Update
 
-Comprehensive review and update of entire Memory Bank.
+Comprehensive review and update of entire Memory Bank, with a `--quick` mode (formerly /memory-bank-sync) for fast 2-file saves.
 
 **Helper Scripts Available:**
 - `scripts/validate_memorybank.py` - Pre/post validation
 - `scripts/detect_stale.py` - Find outdated info
 - `scripts/extract_todos.py` - Extract action items
+- `scripts/sync_active.py` - Fast 2-file update (quick mode)
 
-## Workflow
+## Quick Mode (--quick)
+
+Fast sync of activeContext.md + progress.md ONLY — skips the full 6-file review below. Use after individual tasks, for a quick save before ending a session, or minor progress updates. NOT for architecture changes (run full mode).
+
+Does NOT touch: projectbrief, productContext, techContext, systemPatterns.
+
+```bash
+python3 scripts/sync_active.py /path/to/project \
+  --active '{"Current Focus": "...", "Learnings": "..."}' \
+  --progress '{"What'\''s Working": "- Finished task"}' \
+  --append
+```
+
+Full quick-mode procedure, output format, and performance notes: `references/quick-mode.md`.
+
+## Full Workflow
 
 ### 1. Announce
 "Understood. Initiating a full Memory Bank review and update."

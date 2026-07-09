@@ -1,6 +1,6 @@
 ---
 name: memorybank-initialize
-description: Bootstrap a new project's Memory Bank by creating the six core files with templates and gathering initial project information from the user.
+description: Bootstrap a new project's Memory Bank by creating the six core files with templates and gathering initial project information from the user. Also the entry point to initialize/set up project documentation in a new or freshly cloned repo — including bootstrapping BOTH Brain systems (Memory Bank + Document Hub) at once.
 ---
 
 # Memory Bank: Initialize
@@ -35,124 +35,11 @@ project-root/
 
 ## File Templates
 
-### projectbrief.md
-```markdown
-# Project Brief
+Starter templates for all six files live in `references/templates/` (`projectbrief.md`, `productContext.md`, `techContext.md`, `systemPatterns.md`, `activeContext.md`, `progress.md`). Read the relevant template file when creating each Memory Bank file.
 
-## Project Name
-[Name]
+## Bootstrapping both systems at once (formerly /documentation-start)
 
-## Core Purpose
-[What problem does this solve?]
-
-## Key Objectives
-- Objective 1
-- Objective 2
-
-## Scope
-[What's included and what's not]
-
-## Success Criteria
-[How do we know we succeeded?]
-```
-
-### productContext.md
-```markdown
-# Product Context
-
-## User Problems
-[What problems are users facing?]
-
-## Solution Approach
-[How does this project solve those problems?]
-
-## User Experience Goals
-- Goal 1
-- Goal 2
-
-## Key Features
-- Feature 1
-- Feature 2
-```
-
-### techContext.md
-```markdown
-# Technical Context
-
-## Technology Stack
-- **Framework:** [e.g., Next.js 14]
-- **Language:** [e.g., TypeScript]
-- **Database:** [e.g., PostgreSQL]
-
-## Development Setup
-[How to get started developing]
-
-## Key Dependencies
-- Dependency 1
-- Dependency 2
-
-## Constraints
-[Technical limitations or requirements]
-```
-
-### systemPatterns.md
-```markdown
-# System Patterns
-
-## Architecture Overview
-[High-level system design]
-
-## Key Technical Decisions
-- Decision 1: [Rationale]
-- Decision 2: [Rationale]
-
-## Design Patterns
-[Patterns used in the codebase]
-
-## Component Relationships
-[How major components interact]
-```
-
-### activeContext.md
-```markdown
-# Active Context
-
-## Current Focus
-[What you're working on right now]
-
-## Recent Changes
-[What changed recently]
-
-## Next Steps
-- Step 1
-- Step 2
-
-## Blockers
-[Any issues preventing progress]
-
-## Learnings
-[Recent insights or patterns discovered]
-```
-
-### progress.md
-```markdown
-# Progress
-
-## What's Working
-- Working item 1
-- Working item 2
-
-## What's Left to Build
-- [ ] Feature 1
-- [ ] Feature 2
-
-## Current Status
-[Overall project status]
-
-## Known Issues
-- Issue 1
-- Issue 2
-```
+To initialize BOTH Brain systems in one pass: run this skill first (skip if `memory-bank/` already has all 6 files), then run `/document-hub-initialize` (skip if `cline-docs/` already has its 4 files). Re-run either to force re-initialization if a system is present but incomplete.
 
 ## Tool Usage
 

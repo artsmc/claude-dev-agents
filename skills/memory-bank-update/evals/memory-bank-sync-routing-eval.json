@@ -1,0 +1,11 @@
+[
+  {"query": "quick save my progress before I hop off", "should_trigger": true},
+  {"query": "just update progress.md and activeContext — mark the login task as done", "should_trigger": true},
+  {"query": "save my progress: finished the API pagination task, record it", "should_trigger": true},
+  {"query": "update where I left off, I'm stopping for the day", "should_trigger": true},
+  {"query": "mark this as done in the memory bank real quick, no full review", "should_trigger": true},
+  {"query": "quick sync of activeContext and progress after that task", "should_trigger": true},
+  {"query": "/memory-bank-sync", "should_trigger": true},
+  {"query": "record that the migration task is finished — lightweight update only, dont touch the other memory bank files", "should_trigger": true},
+  {"query": "just update progress, skip the full memory bank review", "should_trigger": true}
+]

@@ -39,40 +39,7 @@ Performs comprehensive security analysis to answer:
 
 ## Detection Coverage
 
-### OWASP Top 10 (2021)
-
-✅ **A01 - Broken Access Control**
-- Missing authentication decorators
-- Unauthenticated route handlers
-
-✅ **A02 - Cryptographic Failures**
-- Hardcoded secrets (AWS keys, API tokens, passwords)
-- Weak cryptography (MD5, SHA1, DES)
-- High-entropy strings (potential secrets)
-
-✅ **A03 - Injection**
-- SQL injection (string concatenation in queries)
-- Command injection (shell=True, os.system)
-- Code injection (eval, exec, compile)
-- XSS (innerHTML, dangerouslySetInnerHTML)
-
-✅ **A04 - Insecure Design**
-- PII exposure in logs
-- Unencrypted sensitive data storage
-
-✅ **A05 - Security Misconfiguration**
-- Debug mode enabled in production
-- Insecure CORS configurations
-- Missing security headers
-
-✅ **A06 - Vulnerable Components**
-- Known CVEs from OSV database
-- Outdated dependencies with security issues
-
-✅ **A07 - Authentication Failures**
-- Weak JWT secrets
-- Insecure session cookies
-- Hardcoded passwords
+Covers OWASP Top 10 (2021) categories A01-A07: access control, cryptographic failures, injection, insecure design, misconfiguration, vulnerable components (CVEs), and authentication failures. Read `references/detection-coverage.md` for the full per-category list of detected patterns when you need to know exactly what is flagged.
 
 ## Severity Levels
 
@@ -93,33 +60,7 @@ The tool uses exit codes for CI/CD integration:
 
 ## Suppression System
 
-Suppress false positives while maintaining an audit trail using `.security-suppress.json`:
-
-```json
-{
-  "version": "1.0",
-  "suppressions": [
-    {
-      "rule_id": "hardcoded-secret",
-      "file_path": "tests/fixtures/test_data.py",
-      "line_number": 23,
-      "reason": "Test fixture with fake credentials",
-      "expires": "2026-12-31",
-      "approved_by": "security-team"
-    }
-  ]
-}
-```
-
-**Suppression Matching**:
-1. Exact match: `rule_id` + `file_path` + `line_number` (most specific)
-2. File-level: `rule_id` + `file_path` (suppresses all in file)
-3. Global: `rule_id` only (suppresses everywhere)
-
-**Expiration Handling**:
-- Expired suppressions are ignored
-- Tool warns about expired entries
-- Review and renew or remove as needed
+Suppress false positives with an audit trail via `.security-suppress.json` (entries support expiration dates and approver fields). Read `references/configuration.md` for the file format, matching precedence, and expiration rules when suppressing findings.
 
 ## Common Workflows
 
@@ -200,17 +141,7 @@ The markdown report includes:
 
 ## Configuration Options
 
-```bash
-/security-assess <path> [OPTIONS]
-
-Options:
-  --output, -o FILE    Write report to FILE instead of stdout
-  --config FILE        Path to custom .security-suppress.json
-  --skip-osv           Skip dependency CVE scanning (faster, offline-friendly)
-  --verbose, -v        Enable DEBUG-level logging
-  --version            Print version and exit
-  --help, -h           Show help message
-```
+Full CLI flag reference (`--output`, `--config`, `--skip-osv`, `--verbose`, `--version`, `--help`) is in `references/configuration.md` — read it when customizing a scan invocation.
 
 ## Quality Metrics
 

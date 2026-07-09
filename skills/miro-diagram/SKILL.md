@@ -1,16 +1,11 @@
 ---
 name: miro-diagram
 description: >
-  Create professional diagrams directly on Miro boards using the Miro MCP tools.
-  Supports flowcharts, UML class diagrams, UML sequence diagrams, and entity-relationship diagrams.
-  Use this skill whenever the user wants to create, visualize, or diagram anything on a Miro board —
-  architecture diagrams, system flows, database schemas, interaction sequences, process maps,
-  decision trees, or any visual that communicates structure and relationships.
-  Also trigger when the user says things like "draw this on Miro", "make a diagram",
-  "visualize this architecture", "create an ERD", "map out this flow",
-  "sequence diagram for this interaction", or "put this on my Miro board".
-  Even if the user just says "diagram this" without mentioning Miro, use this skill
-  if the Miro MCP is connected.
+  Create diagrams on Miro boards using the Miro MCP tools — flowcharts, UML class/sequence
+  diagrams, and ERDs. Use whenever the user wants to diagram or visualize anything on a
+  Miro board: architecture, system flows, database schemas, process maps, interaction
+  sequences — or just says "diagram this" with the Miro MCP connected. For multi-element
+  layouts (diagrams + text + tables + metrics), use miro-infographic instead.
 compatibility:
   tools:
     - mcp__miro__diagram_get_dsl
@@ -43,30 +38,7 @@ Miro auto-layouts your diagram. You cannot control pixel positions of nodes. Thi
 
 ## Emoji Icons in Labels
 
-Miro renders emoji in node labels, entity titles, actor names, and cluster titles. Use them — they dramatically improve visual scannability.
-
-**Recommended emoji by domain:**
-
-| Domain | Emoji | Example Label |
-|--------|-------|---------------|
-| User/Actor | 👤 | `👤 User` |
-| Web/Frontend | 🌐 | `🌐 Web App :3500` |
-| API/Auth | 🔐 | `🔐 API Gateway :4000` |
-| AI/ML | 🤖 | `🤖 Mastra Engine :3000` |
-| Container/Sandbox | 📦 | `📦 Microsandbox :5000` |
-| Database | 🐘 | `🐘 PostgreSQL` |
-| Cache/Fast store | ⚡ | `⚡ Redis` |
-| Logs/Audit | 📋 | `📋 S3 Audit Logs` |
-| Workflow | 🔄 | `🔄 Workflow` |
-| Skill/Plugin | 🧩 | `🧩 Skill` |
-| Execution | ⚡ | `⚡ Execution` |
-| Storage | 💾 | `💾 Data Layer` (cluster) |
-| App layer | 🖥️ | `🖥️ Application Layer` (cluster) |
-| External | 🌍 | `🌍 Third-party API` |
-| Queue/Async | 📬 | `📬 Job Queue` |
-| Config | ⚙️ | `⚙️ Config Service` |
-
-Add port numbers to service labels when relevant (e.g., `:3500`, `:4000`) — they provide useful context at a glance.
+Miro renders emoji in node labels, entity titles, actor names, and cluster titles. Use them — they dramatically improve visual scannability. Add port numbers to service labels when relevant (e.g., `:3500`, `:4000`). The per-domain emoji table (👤 user, 🌐 web, 🔐 auth, 🐘 database, ⚡ cache, …) is in `references/diagram-patterns.md` — read it when picking labels.
 
 ## Flowchart Diagrams
 
@@ -74,13 +46,7 @@ Add port numbers to service labels when relevant (e.g., `:3500`, `:4000`) — th
 
 1. **8-12 nodes maximum.** One node per major component or decision point. Internal details (middleware, ORM layers) belong in labels or companion docs, not separate nodes.
 
-2. **2-3 palette colors.** Each color = a meaning. Use Miro's approved colors:
-   ```
-   #ffc6c6 (red)    #f8d3af (orange)  #fff6b6 (yellow)
-   #dbfaad (lime)   #adf0c7 (green)   #c3faf5 (teal)
-   #ccf4ff (ltblue) #c6dcff (blue)    #dedaff (purple)
-   #ffd8f4 (pink)   #e7e7e7 (gray)
-   ```
+2. **2-3 palette colors.** Each color = a meaning. Use only Miro's approved hex colors and recommended palettes — listed in `references/color-palette.md`; read it before choosing a `palette` line.
 
 3. **2-3 clusters with 2-5 nodes each.** Clusters organize the story — "Application Layer" vs "Data Layer" — but too many clusters with cross-connections create spaghetti.
 
@@ -92,35 +58,7 @@ Add port numbers to service labels when relevant (e.g., `:3500`, `:4000`) — th
 
 5. **Connection labels: 1-3 words.** Use `-` for self-evident connections. Label decisions (`YES`/`NO`) and cross-service connections (`REST`, `Queue`, `Triggers`).
 
-### Example: Architecture Flowchart
-
-```
-graphdir LR
-palette #c6dcff #c3faf5 #adf0c7 #dedaff
-
-n1 👤 User flowchart-terminator 2
-n2 🌐 Web App :3500 flowchart-process 0
-n3 🔐 API Gateway :4000 flowchart-process 0
-n4 🤖 Mastra Engine :3000 flowchart-process 3
-n5 📦 Microsandbox :5000 flowchart-process 0
-n6 🐘 PostgreSQL flowchart-data 1
-n7 ⚡ Redis flowchart-data 1
-n8 📋 S3 Audit Logs flowchart-data 1
-
-c n1 HTTPS n2
-c n2 REST n3
-c n3 Workflows n4
-c n3 Skills n5
-c n3 Query n6
-c n4 State n6
-c n4 Jobs n7
-c n5 Logs n8
-
-cluster c1 "🖥️ Application Layer" n2 n3 n4 n5
-cluster c2 "💾 Data Layer" n6 n7 n8
-```
-
-Why this works: 8 nodes, 3 colors, 2 clusters, LR direction, emoji labels with ports, short connection labels.
+A full worked example (8-node architecture flowchart DSL) is in `references/diagram-patterns.md` under "Worked Examples" — read it before writing your first flowchart DSL.
 
 ## UML Sequence Diagrams
 
@@ -138,24 +76,7 @@ Good for showing multi-service interactions over time — auth flows, API call c
 - **Keep actors to 5-7.** More than 7 actors makes the diagram too wide.
 - **Group related messages.** The eye reads top-to-bottom, so put the happy path first, error handling after.
 
-### Example: Auth + API Call Sequence
-
-```
-graphdir LR
-
-n1 "👤 User" #adf0c7
-n2 "🌐 Web App" #c6dcff
-n3 "🔐 API Service" #c6dcff
-n4 "🐘 Database" #c3faf5
-
-e1 "Login request" n1 n2 async_call
-e2 "POST /api/auth/login" n2 n3 sync_call
-e3 "Validate credentials" n3 n4 sync_call
-e4 "Return user record" n4 n3 sync_return
-e5 "Generate JWT (15min)" n3 n3 sync_call
-e6 "200 OK + tokens" n3 n2 sync_return
-e7 "Store token, show dashboard" n2 n1 async_call
-```
+A worked auth-flow sequence example is in `references/diagram-patterns.md` under "Worked Examples".
 
 ## Entity-Relationship Diagrams
 
@@ -171,29 +92,7 @@ Good for database schemas and data models.
 - **5-8 entities maximum** per diagram. For large schemas, split into focused diagrams (e.g., "User Domain", "Workflow Domain").
 - **Emoji in entity titles** work and improve readability.
 
-### Example: Core Data Model
-
-```
-graphdir LR
-
-n1 "👤 User" "PK	id	uuid
-	email	string
-	role	enum" #c6dcff
-
-n2 "🔄 Workflow" "PK	id	uuid
-FK	userId	uuid
-	name	string
-	status	enum" #c6dcff
-
-n3 "⚡ Execution" "PK	id	uuid
-FK	workflowId	uuid
-	status	enum
-	startedAt	timestamp" #adf0c7
-
-e1 "creates" n1 one .. zero_or_many n2
-e2 "triggers" n2 one .. zero_or_many n3
-e3 "runs" n1 one .. zero_or_many n3
-```
+A worked 3-entity ERD example (with correct TAB usage) is in `references/diagram-patterns.md` under "Worked Examples".
 
 ## Handling Complex Systems
 
@@ -235,5 +134,5 @@ doc_create(
 
 ## Reference Files
 
-- `references/color-palette.md` — Miro's approved colors and semantic mappings
-- `references/diagram-patterns.md` — Common patterns for each diagram type
+- `references/color-palette.md` — Miro's approved hex colors, semantic mappings, and recommended palettes. Read before writing a `palette` line.
+- `references/diagram-patterns.md` — Per-type structural patterns, the emoji-by-domain table, and worked DSL examples (flowchart, sequence, ERD). Read before writing DSL for a diagram type you haven't produced this session.

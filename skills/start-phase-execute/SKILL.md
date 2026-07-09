@@ -1,6 +1,6 @@
 ---
 name: start-phase-execute
-description: "Structured task execution with quality gates, parallel waves, and pm-db tracking. Use this skill when the user wants to execute a task list, run implementation tasks, start building a feature from a plan, or says things like 'execute these tasks', 'start building', 'run the implementation', 'execute the plan', or 'start phase execute'. Also triggers on '/start-phase execute' commands."
+description: "Structured task execution with quality gates, parallel waves, and pm-db tracking — solo or with multi-agent teams (--team). Use this skill when the user wants to execute a task list, run implementation tasks, start building a feature from a plan, run tasks in parallel with a team of agents, or says things like 'execute these tasks', 'start building', 'run the implementation', 'execute the plan', 'execute with a team', or 'start phase execute'. Also triggers on '/start-phase execute' and '/start-phase-execute-team' commands."
 args:
   task_list_file:
     type: string
@@ -10,6 +10,11 @@ args:
     type: string
     description: Optional extra context for execution
     required: false
+  team_mode:
+    type: string
+    description: "Team execution mode: auto, enabled (--team), disabled (--sequential)"
+    required: false
+    default: "auto"
 ---
 
 # Start-Phase Execute
@@ -21,6 +26,8 @@ Execute a task list with parallel waves, agent delegation, and quality gates.
 ```bash
 /start-phase execute /path/to/task-list.md
 /start-phase execute /path/to/task-list.md "Focus on type safety"
+/start-phase execute /path/to/task-list.md --team        # force team mode
+/start-phase execute /path/to/task-list.md --sequential  # force solo mode
 ```
 
 ## Workflow Overview
@@ -32,6 +39,20 @@ Phase 3: Execute      → Run tasks by wave (parallel where possible)
 Phase 4: Quality Gate → Lint, build, review after each task
 Phase 5: Closeout     → Summary, metrics, archive
 ```
+
+---
+
+## Team Mode (--team)
+
+*Formerly the standalone `/start-phase-execute-team` skill.*
+
+**When to use:** auto-enables at 7+ tasks in the list; force on with `--team`, force off with `--sequential`. Worth it for complex features (2+ hours sequential) with multiple independent modules — expect ~3x tokens for 1.5-2x speed. Skip for simple changes, routine maintenance, or single-file work.
+
+**Procedure summary:** parse the task list → group tasks into dependency waves (empty wave = circular dependency, abort) → `TeamCreate("phase-execution")` → `TaskCreate` per task, wiring blockers via `TaskUpdate({ addBlockedBy })` → per wave, spawn one agent per task (model: sonnet); each agent claims its task, executes, passes quality gates (hard blocks), self-reviews, commits, and marks complete → team lead polls `TaskList` until the wave completes → verify all tasks `completed` → `SendMessage` shutdown to members, then `TeamDelete`.
+
+In team mode, agents handle Phase 3 execution and their own per-task commits (Phase 4 gates run inside each agent); Phases 1, 2, and 5 are unchanged.
+
+**Before executing in team mode, read `references/team-mode.md`** (full procedure, mode detection, error recovery, best practices) and `references/team-mode-examples.md` (pseudocode, the exact agent spawn-prompt template, worked 7-task example, display formats).
 
 ---
 
@@ -119,61 +140,13 @@ mkdir -p "{planning_folder}/phase-structure"
 These documents force comprehensive analysis before any code is written.
 This is the skill's primary value — don't skip this phase.
 
-### 2.1 Task Delegation Plan
+Create all three in `{planning_folder}`:
 
-Create `{planning_folder}/agent-delegation/task-delegation.md`:
+1. `agent-delegation/task-delegation.md` — per-task agent type, priority, difficulty, dependencies, estimate; plus agent workload summary
+2. `agent-delegation/sub-agent-plan.md` — wave decomposition: dependency graph → parallel waves with file-conflict analysis and time-savings calculation (the most important document)
+3. `phase-structure/system-changes.md` — all files created/modified/deleted, grouped by impact level, with cross-app impacts
 
-For each task, determine:
-- **Agent type** — match to available agents at `~/.claude/agents/`
-- **Priority** — HIGH/MEDIUM/LOW based on dependency position
-- **Difficulty** — EASY/MEDIUM/HARD based on scope
-- **Dependencies** — which tasks must complete first
-- **Estimated time**
-
-Include an agent workload summary to ensure balanced distribution.
-
-### 2.2 Wave Decomposition (Parallel Execution Plan)
-
-Create `{planning_folder}/agent-delegation/sub-agent-plan.md`:
-
-This is the most important planning document. The goal is to maximize
-parallelism while preventing file conflicts.
-
-**How to decompose tasks into waves:**
-
-1. **Build the dependency graph** — which tasks depend on which
-2. **Identify independent roots** — tasks with no dependencies are Wave 1
-3. **Check for file conflicts** — tasks modifying the same file CANNOT be parallel
-4. **Group by readiness** — once all dependencies resolve, task enters next wave
-5. **Validate each wave** — no two tasks in a wave touch the same file
-
-**Common patterns:**
-- Schema/model changes → Wave 1 (everything depends on these)
-- Service/business logic → Wave 2 (depends on models)
-- Controllers/routes → Wave 3 (depends on services)
-- Frontend components → Can often parallel with backend waves
-- Tests → Final wave (depends on everything)
-
-**For each wave, document:**
-- Which tasks run in parallel
-- Which agent handles each task
-- File conflict analysis proving parallel safety
-- Estimated wave duration (max of parallel tasks, not sum)
-
-**Calculate time savings:**
-```
-Sequential: sum of all task estimates
-Parallel:   sum of wave max-durations
-Savings:    (sequential - parallel) / sequential × 100%
-```
-
-### 2.3 System Changes Analysis
-
-Create `{planning_folder}/phase-structure/system-changes.md`:
-
-- List all files that will be created, modified, or deleted
-- Group by impact level (HIGH = core logic, MEDIUM = integration, LOW = types/tests)
-- Note cross-app impacts (API + Web + Mastra + Microsandbox)
+Read `references/planning-docs.md` for the full template and instructions for each document BEFORE writing them.
 
 ---
 

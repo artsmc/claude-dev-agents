@@ -2,18 +2,12 @@
 name: miro-infographic
 description: >
   Create visual infographics on Miro boards by composing diagrams, documents, and tables
-  into cohesive layouts. Supports stats dashboards, comparison layouts, process overviews
-  with data, executive summaries, and any multi-element visual presentation.
-  Use this skill whenever the user wants to create an infographic, dashboard, visual summary,
-  one-pager, comparison chart, metrics overview, or any visual that combines data, text,
-  and diagrams into a presentation-ready layout on Miro.
-  Trigger on phrases like "create an infographic", "make a dashboard on Miro",
-  "visual summary", "one-pager", "comparison chart", "metrics overview",
-  "executive summary on Miro", "put together a visual report",
-  or "present this data visually on my board".
-  If the user just needs a single diagram (flowchart, ERD, sequence diagram), use
-  miro-diagram instead. Use THIS skill when the output needs multiple visual elements
-  composed together — diagrams + text + tables + metrics.
+  into cohesive layouts — stats dashboards, comparison layouts, process overviews with
+  data, executive summaries. Use whenever the user wants an infographic, dashboard,
+  visual summary, one-pager, comparison chart, or metrics overview on Miro, or asks to
+  present data visually on their board. For a single diagram (flowchart, ERD, sequence)
+  use miro-diagram; use THIS skill when multiple elements — diagrams + text + tables +
+  metrics — compose together.
 compatibility:
   tools:
     - mcp__miro__diagram_get_dsl
@@ -28,15 +22,7 @@ compatibility:
 
 Build multi-element visual layouts on Miro boards by composing **diagrams**, **documents**, and **tables** into cohesive infographics. Miro doesn't have a native infographic tool — you create them by placing multiple primitives on the board with intentional positioning.
 
-## Available Building Blocks
-
-| Block | Miro Tool | Best For |
-|-------|-----------|----------|
-| **Diagrams** | `diagram_create` | Process flows, architecture maps, relationship visuals |
-| **Documents** | `doc_create` | Rich text sections — headers, stats callouts, narratives, legends |
-| **Tables** | `table_create` + `table_sync_rows` | Data grids, feature comparisons, metrics tables |
-
-Each block is positioned on the board using x/y coordinates. Your job is to plan the layout, create each block, and position them so they read as one cohesive visual.
+**Read `references/recipes.md` before creating anything** — it contains the building-blocks table (which Miro tool creates which element), the layout templates, and four ready-made recipes (stats dashboard, comparison layout, process overview with data, executive one-pager) with element order and x/y coordinates.
 
 ## Layout Planning
 
@@ -57,39 +43,7 @@ Row 3:    y=1200      y=1200               y=1200
 - **Row height:** varies by content, typically 400-600px per row
 - **Reading order:** top-left to bottom-right (like a page)
 
-### Layout Templates
-
-Pick the template that matches the infographic type:
-
-**Stats Dashboard (2-3 columns, 2-3 rows):**
-```
-[Title Doc - spans full width]     y=0
-[Metric Doc 1] [Metric Doc 2] [Metric Doc 3]  y=400
-[Table or Diagram - spans 2-3 cols]            y=1000
-```
-
-**Comparison Layout (2 columns):**
-```
-[Title Doc - full width]           y=0
-[Option A Doc]  [Option B Doc]     y=400
-[Comparison Table - full width]    y=1000
-[Recommendation Doc - full width]  y=1600
-```
-
-**Process Overview with Data (mixed):**
-```
-[Title Doc - full width]           y=0
-[Process Diagram - spans 2 cols]   y=400
-[KPI Table]     [Notes Doc]        y=1200
-```
-
-**Executive Summary (single column, scrolling):**
-```
-[Title + Context Doc]              y=0
-[Key Metrics Table]                y=600
-[Architecture Diagram]             y=1200
-[Recommendations Doc]              y=1800
-```
+Layout templates for the four infographic types are in `references/recipes.md` — pick one before creating.
 
 ## Creating Each Block
 
@@ -169,66 +123,7 @@ Follow the `miro-diagram` skill patterns: fetch DSL spec first, keep nodes under
 
 Position diagrams using x/y in `diagram_create`. They typically take up 1-2 columns of width.
 
-## Infographic Recipes
-
-### Recipe 1: Stats/Metrics Dashboard
-
-Creates a visual overview of key metrics with a supporting data table.
-
-**Elements to create (in order):**
-1. **Title doc** (x=0, y=0) — project name, date, owner, status badge
-2. **Metrics doc** (x=0, y=400) — 3-6 headline numbers with emoji, bold formatting
-3. **Trend table** (x=0, y=1000) — time-series or breakdown data with select columns for status
-4. **Optional: Architecture diagram** (x=0, y=1600) — system overview if relevant
-
-**Example title doc:**
-```markdown
-# 🚀 AIForge Platform Dashboard
-**Period:** Q1 2026 | **Status:** 🟢 Healthy | **Team:** Platform Engineering
-```
-
-**Example metrics doc:**
-```markdown
-# 📊 Platform Health
-
-- **99.95%** Uptime (target: 99.9%)
-- **142ms** P50 Latency
-- **2.4M** Daily API Calls
-- **847** Active Users
-- **12** Deployed Workflows
-- **0** Critical Incidents (30d)
-```
-
-### Recipe 2: Comparison Layout
-
-Creates a side-by-side comparison with recommendation.
-
-**Elements to create:**
-1. **Title doc** (x=0, y=0) — what's being compared and why
-2. **Option A doc** (x=0, y=400) — summary, pros/cons for first option
-3. **Option B doc** (x=900, y=400) — summary, pros/cons for second option
-4. **Comparison table** (x=0, y=1000) — feature-by-feature breakdown with status columns
-5. **Recommendation doc** (x=0, y=1600) — which option and why
-
-### Recipe 3: Process Overview with Data
-
-Creates a visual process with supporting metrics.
-
-**Elements to create:**
-1. **Title doc** (x=0, y=0) — process name and context
-2. **Process diagram** (x=0, y=400) — flowchart showing the process (use miro-diagram patterns)
-3. **KPI table** (x=0, y=1200) — metrics for each process stage
-4. **Notes doc** (x=900, y=1200) — caveats, next steps, owner assignments
-
-### Recipe 4: Executive Summary One-Pager
-
-Creates a presentation-ready summary combining narrative, data, and visuals.
-
-**Elements to create:**
-1. **Header doc** (x=0, y=0) — title, executive summary paragraph, key takeaway
-2. **Metrics table** (x=0, y=600) — core KPIs in a clean table
-3. **Architecture/flow diagram** (x=0, y=1200) — visual showing the system or process
-4. **Next steps doc** (x=0, y=1800) — action items, timeline, owners
+Element-by-element recipes for the four infographic types (stats dashboard, comparison, process overview, executive one-pager) are in `references/recipes.md` — follow one when composing a full infographic.
 
 ## Design Principles
 

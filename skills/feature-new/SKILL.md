@@ -1,14 +1,14 @@
 ---
 name: feature-new
-description: "Complete feature workflow - from planning to execution with PM-DB tracking. Use this skill when the user wants to build a new feature end-to-end, saying things like 'build this feature', 'implement this', 'new feature', 'add this capability', or '/feature-new'. Orchestrates spec-plan → spec-review → start-phase-plan → pm-db → start-phase-execute into one workflow with human checkpoints. Even if the user doesn't explicitly mention this skill, use it whenever someone describes a new feature they want built from scratch."
+description: "Complete feature workflow - from planning to execution with PM-DB tracking. Use when the user wants to build a new feature end-to-end ('build this feature', 'implement this', 'new feature', 'add this capability', '/feature-new'), or to resume one: --continue picks up interrupted feature work from task-list.md with PM-DB tracking intact, skipping completed tasks — use for 'continue/resume the feature', 'pick up where we left off', 'what's left on this feature', or a dropped session (pure status recall: memory-bank-read). Orchestrates spec-plan → spec-review → start-phase-plan → pm-db → start-phase-execute into one workflow with human checkpoints. Use it whenever someone describes a new feature they want built from scratch."
 args:
   feature_description:
     type: string
-    description: Brief description of the feature to develop
+    description: Brief description of the feature to develop, or path to task-list.md in --continue mode
     required: true
   mode:
     type: string
-    description: "Execution mode: auto (default), team, sequential. Team mode passes --team to sub-skills for parallel execution. Auto lets each sub-skill decide."
+    description: "Execution mode: auto (default), team, sequential, continue. Team mode passes --team to sub-skills for parallel execution. Auto lets each sub-skill decide. Continue resumes interrupted feature work from a task-list.md."
     required: false
     default: "auto"
 ---
@@ -21,16 +21,9 @@ Chain five skills into one workflow: **spec → review → plan → track → ex
 
 Building a feature from scratch involves multiple skills in sequence, with state (file paths, project names) threading between them. This orchestrator handles sequencing, state-passing, and error recovery so you focus on the feature itself.
 
-Each sub-skill handles its own output, user interaction, and formatting. This skill only manages the flow between them.
-
 ## Flow
 
-```
-spec-plan → spec-review → start-phase-plan → pm-db import → execute
-    |            |              |                  |             |
- generates    validates     user approves     best-effort    builds it
- spec docs    quality       execution plan    tracking
-```
+spec-plan (generates specs) → spec-review (validates quality) → start-phase-plan (user approves plan) → pm-db import (best-effort tracking) → execute (builds it)
 
 **Human checkpoints:** after spec-review (if issues), after phase-plan (always).
 
@@ -38,12 +31,14 @@ spec-plan → spec-review → start-phase-plan → pm-db import → execute
 
 The user may pass flags inline in the description string (e.g., `"add auth --team"`). Before doing anything:
 
-1. **Scan `feature_description` for `--team` or `--sequential`** flags
+1. **Scan `feature_description` for `--team`, `--sequential`, or `--continue`** flags
 2. If found, **strip the flag** from the description and set `mode` accordingly
 3. Pass the **cleaned description** (without flags) to sub-skills
 4. Re-append `--team` to spec-plan args only if mode is "team" (spec-plan expects it as a flag)
 
 Example: `"add auth --team"` → `feature_description = "add auth"`, `mode = "team"`
+
+**If mode is "continue"** (`"--continue ./job-queue/feature-auth/tasks.md"`), skip the workflow below entirely and jump to [Continue Mode](#continue-mode----continue). The remaining argument is the task-list.md path.
 
 ## State Tracking
 
@@ -54,10 +49,7 @@ Track these values across steps — each is derived from the previous step's out
 - **task_list_path** — path to the generated task-list.md
 - **pm_db_ids** — project/phase/plan IDs from pm-db (may be null if import was skipped)
 
-If a path isn't clear from sub-skill output, use Glob:
-```
-Glob: "**/feature-*/task-list.md" or "**/feature-*/docs/task-list.md"
-```
+If a path isn't clear from sub-skill output, Glob for `**/feature-*/task-list.md` or `**/feature-*/docs/task-list.md`.
 
 ---
 
@@ -89,8 +81,6 @@ Skill: spec-review
 - **Errors found:** Ask the user via AskUserQuestion:
   - "Continue anyway" → proceed to Step 3
   - "Stop and fix" → stop workflow, tell user specs are saved at spec_dir
-
-This step prevents executing a flawed spec. It's a safety net, not a gate — the user decides whether issues are blocking.
 
 ---
 
@@ -126,23 +116,17 @@ Args: "import --project {feature_name} --auto-confirm"
 
 ## Step 5: Execute Tasks
 
-Choose the execution skill based on mode:
+Invoke start-phase-execute, appending `--team` when mode is "team":
 
-**If mode is "team":**
-```
-Skill: start-phase-execute-team
-Args: "{task_list_path}"
-```
-
-**If mode is "sequential" or "auto":**
 ```
 Skill: start-phase-execute
 Args: "{task_list_path}"
+      (append " --team" if mode is "team")
 ```
 
 The execution skill handles everything: wave decomposition, agent delegation, quality gates, git commits, and PM-DB tracking hooks.
 
-**If it fails mid-execution:** Tell the user which task failed and that they can resume with `/feature-continue` or `/start-phase execute {task_list_path}`.
+**If it fails mid-execution:** Tell the user which task failed and that they can resume with `/feature-new --continue {task_list_path}`.
 
 ---
 
@@ -156,11 +140,39 @@ Specs: {spec_dir}
 Tasks completed: (from execution output)
 
 Next:
-  /pm-db dashboard    — view project metrics
-  /memory-bank-sync   — update project memory
+  /pm-db dashboard             — view project metrics
+  /memory-bank-update --quick  — update project memory
 ```
 
 Keep it short. The sub-skills already showed detailed output during their runs.
+
+---
+
+## Continue Mode (--continue)
+
+*Formerly the standalone `/feature-continue` skill.*
+
+Resume interrupted feature work from a task-list.md with PM-DB tracking intact, skipping completed tasks. Use for a dropped session, an intentional pause, or a retry after a quality-gate failure.
+
+```bash
+/feature-new --continue ./job-queue/feature-auth/tasks.md
+```
+
+**Procedure (summary):**
+
+1. **Detect feature location** — derive the input and planning folders from the task-list.md path
+2. **Check PM-DB status** — query `phase_runs` for the feature's latest run:
+   - *Active run* → reuse its `phase_run_id`
+   - *Completed run* → nothing to resume; offer `/pm-db dashboard` or a fresh `/start-phase execute`
+   - *No run* → offer `/pm-db import`, a fresh `/feature-new`, or `/start-phase execute` without tracking
+3. **Detect last completed task** — query `task_runs` for `exit_code = 0`; the first task not in that set is the resume point (failed tasks re-run)
+4. **Resume execution** — call `/start-phase execute` with the task list path, the existing `PM_DB_PHASE_RUN_ID`, the skip-list of completed task_keys, and the resume-from task
+
+**Key behaviors:** reuses the existing phase_run_id (never creates a duplicate), skips completed tasks, keeps the same quality gates, continues the git commit sequence, and updates the same PM-DB records for complete traceability.
+
+Full detail — PM-DB queries and hook code, progress-detection logic, per-scenario walkthroughs, and error handling (missing task-list.md, missing planning folder, already-complete phase) — lives in [references/continue-mode.md](references/continue-mode.md).
+
+**Limitations:** requires PM-DB import first; resumes from the last completed task (not mid-task); assumes task-list.md hasn't changed significantly.
 
 ---
 
@@ -181,7 +193,7 @@ At any failure (except Step 4 which is best-effort):
 | Step 2 | `/spec-review` |
 | Step 3 | `/start-phase plan {task_list_path}` |
 | Step 4 | `/pm-db import --project {feature_name}` (or skip) |
-| Step 5 | `/feature-continue` or `/start-phase execute {task_list_path}` |
+| Step 5 | `/feature-new --continue {task_list_path}` |
 
 ---
 
@@ -191,28 +203,10 @@ Before starting Step 1, run Glob to check for existing artifacts. If found, conf
 
 **Pre-flight checks:**
 
-1. **Check for task-list.md:**
-   ```
-   Glob: "**/feature-*/task-list.md" or "**/feature-*/docs/task-list.md"
-   ```
-   If found → specs exist. Check if user also said they reviewed them.
+1. **Check for task-list.md** — Glob `**/feature-*/task-list.md` or `**/feature-*/docs/task-list.md`. If found → specs exist; check if the user also said they reviewed them.
+2. **Check for phase-summary.md** — Glob `**/feature-*/planning/phase-structure/phase-summary.md`. If found → planning already done.
 
-2. **Check for phase-summary.md:**
-   ```
-   Glob: "**/feature-*/planning/phase-structure/phase-summary.md"
-   ```
-   If found → planning already done.
-
-**Confirmation is mandatory before skipping.** Even if the user's message clearly implies steps are done, present what you found and ask:
-
-```
-AskUserQuestion:
-  "I found existing specs at: {path}
-   Skip spec generation and review, and go straight to planning?"
-  Options: "Yes, skip to planning" / "No, regenerate from scratch"
-```
-
-This prevents silently skipping safety steps (especially spec-review) without the user's explicit awareness.
+**Confirmation is mandatory before skipping.** Even if the user's message clearly implies steps are done, present what you found and ask via AskUserQuestion (e.g., "I found existing specs at {path} — skip to planning, or regenerate from scratch?"). Never silently skip safety steps, especially spec-review.
 
 **Skip matrix:**
 
@@ -228,6 +222,4 @@ This prevents silently skipping safety steps (especially spec-review) without th
 ## Notes
 
 - Each sub-skill manages its own output — don't duplicate their displays
-- The workflow is sequential because each step depends on the previous one
-- Mode "auto" defers to each sub-skill's own auto-detection (spec-plan picks tier, execute picks parallelism)
-- Mode "team" passes team flags through to sub-skills that support them
+- Mode "auto" defers to each sub-skill's own auto-detection (spec-plan picks tier, execute picks parallelism); mode "team" passes team flags through to sub-skills that support them

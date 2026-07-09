@@ -1,0 +1,16 @@
+[
+  {"query": "can you make an infographic on my Miro board summarizing our Q2 platform metrics? board is uXjVNabc123", "should_trigger": true},
+  {"query": "put together a one-pager on miro comparing supabase vs firebase for the AIForge backend - want a feature table, pros/cons for each, and a recommendation at the bottom", "should_trigger": true},
+  {"query": "I need an executive summary on the Miro board for the scrum-master launch: key metrics up top, a timeline diagram, and a next-steps section", "should_trigger": true},
+  {"query": "make a dashboard on Miro showing uptime, p95 latency and daily API call volume, plus a trend table underneath", "should_trigger": true},
+  {"query": "present this sprint data visually on my board - velocity numbers, a per-story status table, and a short narrative for stakeholders", "should_trigger": true},
+  {"query": "create a visual report on miro for the postgres migration: the process flow, a KPI table for each stage, and notes on risks", "should_trigger": true},
+  {"query": "throw together a comparison chart on my miro board for plan A vs plan B pricing, side by side with a table breaking down features", "should_trigger": true},
+  {"query": "visual summary of the architecture review on Miro - combine the system diagram with stats callouts and a risk table so leadership can scan it", "should_trigger": true},
+  {"query": "draw a flowchart on Miro of the auth login flow in apps/api/src/auth", "should_trigger": false},
+  {"query": "create an ERD on my miro board for the schema in apps/api/prisma/schema.prisma", "should_trigger": false},
+  {"query": "make a sequence diagram on Miro for the OTP verification interaction between client, api and twilio", "should_trigger": false},
+  {"query": "visualize this architecture on miro - just map out how the services connect", "should_trigger": false},
+  {"query": "build a dashboard page in React with Recharts showing our usage metrics", "should_trigger": false},
+  {"query": "what's the status of the feature work, show me a progress dashboard", "should_trigger": false}
+]

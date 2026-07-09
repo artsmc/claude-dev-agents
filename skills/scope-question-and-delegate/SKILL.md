@@ -1,6 +1,6 @@
 ---
 name: scope-question-and-delegate
-description: Use when work is genuinely ambiguous in a way that changes the plan, or big/multi-part/underspecified enough to balloon context — or when the orchestrator's window is trending toward the ~200k cliff where quality and cost degrade. Fires when Mark says 'this is a big one', 'what do you need from me before you start', 'dont drag the whole context through this', 'should we split this up', or 'keep the main thread lean' — or when one thread is doing both the planning AND the execution. This is Mark's triage-then-delegate discipline — decide fast whether real ambiguity or context cost warrants a stop, ask only the few DECISIVE questions, treat the window as a finite budget, and hand each worker a minimal scoped snapshot so the orchestrator plans and synthesizes without accumulating execution detail. Not a hard gate — small clear tasks just proceed.
+description: Use when work is genuinely ambiguous in a way that changes the plan, big/multi-part/underspecified enough to balloon context, or when the orchestrator's window nears the ~200k cliff. Fires when Mark says 'this is a big one', 'what do you need from me before you start', 'dont drag the whole context through this', 'should we split this up' — or when one thread does both the planning AND the execution. Triage fast, ask only the few DECISIVE questions, treat the window as a finite budget, and hand each worker a minimal scoped snapshot. Not a hard gate — small clear tasks just proceed.
 ---
 
 # Scope, Question, and Delegate

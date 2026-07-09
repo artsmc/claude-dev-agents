@@ -1,0 +1,18 @@
+[
+  {"query": "spec out the notification preferences feature for apps/web before anyone writes code", "should_trigger": true},
+  {"query": "I want to do some pre-planning research for adding SAML SSO to the api - what should the spec cover?", "should_trigger": true},
+  {"query": "can you prep an FRD and technical requirements for file versioning in the low-code repo", "should_trigger": true},
+  {"query": "lets plan before we build - write up requirements for the sprint report export feature", "should_trigger": true},
+  {"query": "need a quick spec for a logout button, just a task list is fine", "should_trigger": true},
+  {"query": "this multi-tenant data isolation work is big - generate a full tiered spec, probably needs gherkin scenarios too", "should_trigger": true},
+  {"query": "before we start on OAuth2 support, research the scope and draft the requirement docs", "should_trigger": true},
+  {"query": "draft a right-sized requirements doc for webhook retries - dont over-produce", "should_trigger": true},
+  {"query": "help me scope and spec the file upload feature - which docs does it actually need, FRD? TR?", "should_trigger": true},
+  {"query": "review the FRD.md in job-queue/feature-auth/docs and tell me whats missing or contradictory", "should_trigger": false},
+  {"query": "heres task-list.md for the auth feature - plan the execution order and which agents should take each task", "should_trigger": false},
+  {"query": "execute the tasks in job-queue/feature-notifications/docs/task-list.md", "should_trigger": false},
+  {"query": "build this feature end to end: user avatar uploads with S3 storage", "should_trigger": false},
+  {"query": "whats the status of the specs we're tracking - show me progress across phases", "should_trigger": false},
+  {"query": "critique the generated spec for the search feature and iterate on it until its solid", "should_trigger": false},
+  {"query": "kick off deep research and architecture design for the brand new product idea we discussed", "should_trigger": false}
+]

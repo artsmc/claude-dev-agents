@@ -388,7 +388,7 @@ These scripts are designed to work with Memory Bank skills:
 
 - `/memory-bank-initialize` - Uses `validate_memorybank.py` after creation
 - `/memory-bank-read` - Uses `detect_stale.py` and `validate_memorybank.py` for health checks
-- `/memory-bank-sync` - Uses `sync_active.py` and `extract_todos.py` for quick updates
+- `/memory-bank-update --quick` (formerly /memory-bank-sync) - Uses `sync_active.py` and `extract_todos.py` for quick updates
 - `/memory-bank-update` - Uses all scripts for comprehensive reviews
 
 ### Automation

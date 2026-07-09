@@ -2,21 +2,13 @@
 name: headroom-context-compression
 description: >-
   Shrink large text before it travels or gets re-read, using the headroom MCP
-  (mcp__headroom__headroom_compress / _retrieve / _stats). Reach for this
-  BEFORE forwarding a big blob into a subagent (Task) prompt, before stashing
-  content you'll reason over again later, or in any multi-step pipeline where
-  the same large output would otherwise be carried forward repeatedly. The
-  compression is lossy but fully reversible — every compress returns a hash you
-  can later expand with headroom_retrieve, so nothing is ever truly lost. Use
-  this skill whenever you're about to hand off, persist, or repeatedly re-read
-  large logs, file contents, search results, JSON, or command output — even if
-  the user never says "compress." If you find yourself pasting a 200+ line blob
-  into a subagent prompt or a notes file, that's the trigger. Also reach for it
-  the other direction — when you're handed a compressed `hash=` marker or a
-  summarized view and need an exact detail (a line, value, or filepath) back
-  from the original. This is about LLM context budget and recovering originals —
-  NOT gzip/zip archiving, image/video compression, making code more concise, or
-  database column compression.
+  (mcp__headroom__headroom_compress / _retrieve / _stats). Use it BEFORE
+  pasting a 200+ line blob (logs, files, search results, JSON) into a subagent
+  Task prompt, stashing content you'll re-read later, or re-carrying big output
+  through a pipeline — even if the user never says "compress." Every compress
+  returns a hash headroom_retrieve expands, so use it in reverse too: handed a
+  `hash=` marker, recover exact details from the original. NOT gzip/zip,
+  image/video compression, making code concise, or database column compression.
 ---
 
 # Headroom context compression
@@ -128,33 +120,12 @@ hash returns an `error` ("Content not found"), it likely expired (the store
 has a TTL) or came from a different process — re-compress the source if you
 still have it.
 
-## Worked example
+## Worked example + verifying savings
 
-You ran a command that produced ~200 lines of connection-retry logs and you
-want a subagent to diagnose the root cause without drowning its prompt.
-
-1. `headroom_compress(content=<the 200 lines>)`
-   → `{ "compressed": "...[201 items compressed to 91. Retrieve more:
-   hash=3bfd…2bca]", "hash": "3bfd…2bca", "savings_percent": 47.4, ... }`
-2. Spawn the subagent with the `compressed` text **and** this line:
-   *"Full log is recoverable: call `mcp__headroom__headroom_retrieve` with
-   hash=3bfd…2bca (add a `query` to pull a specific slice) if you need an exact
-   line."*
-3. The subagent spots a gap around attempt 4 in the compressed view, suspects a
-   dropped line, and calls `headroom_retrieve(hash="3bfd…2bca")` → reads the
-   full original from `original_content`, finds the exact line, confirms the
-   cause. (If it only wanted the matching lines it could pass
-   `query="attempt"` and read `results[].text` — but for a definite answer the
-   full retrieve is surest.)
-
-Nothing was lost; the prompt stayed small; precision was one call away when it
-mattered.
-
-## Verify it's actually paying off
-
-Compression has overhead, and savings vary wildly by content (logs/text shrink
-a lot; already-dense JSON less so). After a session that leaned on it, glance at
-`headroom_stats` to confirm real tokens were saved — don't compress on faith.
+A step-by-step subagent-handoff example (compress → pass hash → retrieve) and
+how to confirm real token savings with `headroom_stats` live in
+`references/worked-example.md` — read it the first time you run this pattern or
+when checking that compression is actually paying off.
 
 ## Automatic compression (optional, advanced)
 

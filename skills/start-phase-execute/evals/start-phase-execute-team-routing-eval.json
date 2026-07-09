@@ -1,0 +1,10 @@
+[
+  {"query": "/start-phase-execute-team ./job-queue/feature-auth/tasks.md", "should_trigger": true},
+  {"query": "execute the task list with a team of agents in parallel", "should_trigger": true},
+  {"query": "run these tasks with multi-agent teams and quality gates", "should_trigger": true},
+  {"query": "execute the plan at ./job-queue/feature-payments/tasks.md with a team — parallel waves where possible", "should_trigger": true},
+  {"query": "start phase execute team mode on the notifications task list", "should_trigger": true},
+  {"query": "use agent teams to execute the phase 2 tasks in parallel", "should_trigger": true},
+  {"query": "run the implementation with parallel task execution, team mode enabled", "should_trigger": true},
+  {"query": "execute these tasks in parallel with a team for the speedup", "should_trigger": true}
+]

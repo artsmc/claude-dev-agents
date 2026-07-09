@@ -1,6 +1,6 @@
 ---
 name: research-gated-build-plan
-description: Use at the START of anything sizable, before writing code — when Mark says 'want to work out the full plan', 'I want to do some deep research', 'lets start the planning', 'what does complete look like?', 'what tickets/tasks remain', 'how close are we / what are our current gaps', 'do we already have a harness for this', or 'is there a system we can use?'. This is Mark's front-loaded decision discipline — inventory what already exists before building, scope the gap against a concrete target, research and persist the approach as an artifact, sequence prerequisites, and bake quality bars + phase gates with human checkpoints directly into the go-ahead. It decides WHETHER and HOW to enter the execution skills (start-phase-plan, feature-new); run it first.
+description: Use at the START of anything sizable, BEFORE writing code — when Mark says 'lets start the planning', 'I want to do some deep research', 'what does complete look like / what tickets remain / what are our current gaps', or 'do we already have a harness for this / is there a system we can use?'. Inventory what exists, scope the gap, persist research as artifacts, gate phases on human checkpoints. Decides WHETHER and HOW to enter the execution skills (start-phase-plan, feature-new); run it first.
 ---
 
 # Research-Gated Build Plan

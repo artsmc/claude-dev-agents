@@ -1,0 +1,58 @@
+[
+  {
+    "query": "continue the auth feature — task list is at ./job-queue/feature-auth/tasks.md, we got through task 3 before my laptop died",
+    "should_trigger": true
+  },
+  {
+    "query": "pick up where we left off on the payments feature yesterday and finish the remaining tasks",
+    "should_trigger": true
+  },
+  {
+    "query": "resume the task-list.md work for feature-notifications, the phase run should still be open in pm-db",
+    "should_trigger": true
+  },
+  {
+    "query": "whats left on this feature? tasks 1-4 in job-queue/feature-export/tasks.md already passed, finish the rest",
+    "should_trigger": true
+  },
+  {
+    "query": "my session dropped mid-execution on the admin dashboard feature, resume it without redoing the completed tasks",
+    "should_trigger": true
+  },
+  {
+    "query": "we paused the search feature on friday — continue from the next incomplete task in the task list",
+    "should_trigger": true
+  },
+  {
+    "query": "/feature-continue ./job-queue/feature-billing/tasks.md",
+    "should_trigger": true
+  },
+  {
+    "query": "resume feature-csv-import where it stopped, dont re-run the tasks that already passed quality gates",
+    "should_trigger": true
+  },
+  {
+    "query": "build this feature: user avatar upload with S3 presigned URLs and an image cropper",
+    "should_trigger": false
+  },
+  {
+    "query": "where did I leave off? catch me up on the project status",
+    "should_trigger": false
+  },
+  {
+    "query": "hows the project going overall, show me a dashboard of progress across all phases",
+    "should_trigger": false
+  },
+  {
+    "query": "review and plan the task list at ./job-queue/feature-search/tasks.md before we start building",
+    "should_trigger": false
+  },
+  {
+    "query": "execute the plan at ./job-queue/feature-onboarding/tasks.md — fresh start, we havent run any of it yet",
+    "should_trigger": false
+  },
+  {
+    "query": "quick save my progress — mark the login task as done in the memory bank",
+    "should_trigger": false
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {"query": "Can you review the spec you just generated for the notifications feature? I want to make sure nothing is missing before we build.", "should_trigger": true},
+  {"query": "validate the FRD and FRS in job-queue/feature-user-auth/docs before we start development", "should_trigger": true},
+  {"query": "is this spec ready to hand off for development? check /job-queue/feature-billing", "should_trigger": true},
+  {"query": "critique the generated specification for the export feature, the gherkin scenarios felt vague to me", "should_trigger": true},
+  {"query": "I left feedback on FRS.md - iterate on the spec based on my comments and re-validate it", "should_trigger": true},
+  {"query": "run a quality check on the TR.md and task-list.md the spec-writer produced, are the tasks actually atomic?", "should_trigger": true},
+  {"query": "the spec plan finished, reveiw it and tell me if theres any gaps or vague requirements", "should_trigger": true},
+  {"query": "double check that the gherkin scenarios in GS.md are actually testable before we approve the spec", "should_trigger": true},
+  {"query": "write a spec for the new onboarding flow, it needs SSO and invite emails", "should_trigger": false},
+  {"query": "review this PR before I merge it, branch feature/csv-export", "should_trigger": false},
+  {"query": "review these tasks in task-list.md and plan out which agents should run in parallel", "should_trigger": false},
+  {"query": "are the docs in cline-docs/ up to date with the codebase?", "should_trigger": false},
+  {"query": "whats the status of the billing feature work, how many phases are done?", "should_trigger": false},
+  {"query": "run a security review of the pending changes on this branch", "should_trigger": false},
+  {"query": "help me plan a spec for a new reporting feature, do some research on charting libs first", "should_trigger": false},
+  {"query": "assess the architecture quality of the api service in apps/api", "should_trigger": false}
+]

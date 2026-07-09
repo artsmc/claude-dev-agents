@@ -1,0 +1,17 @@
+[
+  {"query": "draw the architecture for our low-code app on miro — web app :3500, api gateway :4000, mastra engine :3000, with postgres and redis behind them", "should_trigger": true},
+  {"query": "can you create an ERD on the miro board from prisma/schema.prisma? user, workflow, and execution tables plus their relations", "should_trigger": true},
+  {"query": "sequence diagram for the oauth login flow between the frontend, auth service, and token store — put it on my miro board", "should_trigger": true},
+  {"query": "map out the deploy pipeline as a flowchart on miro", "should_trigger": true},
+  {"query": "visualize this architecture on my miro board", "should_trigger": true},
+  {"query": "diagram the retry/backoff decision logic for the job queue on the board", "should_trigger": true},
+  {"query": "make a uml class diagram on miro for the services in libs/core — interfaces on top, implementations below", "should_trigger": true},
+  {"query": "put this db schema on miro as an entity relationship digram", "should_trigger": true},
+  {"query": "draw this on Miro: user -> web app -> api -> postgres, plus redis for background jobs", "should_trigger": true},
+  {"query": "create an infographic on miro for the Q2 results — stat tiles, a comparison table, and a small process diagram", "should_trigger": false},
+  {"query": "make an executive summary one-pager on my miro board for the leadership review", "should_trigger": false},
+  {"query": "build a dashboard on miro showing sprint velocity, burndown, and a metrics table", "should_trigger": false},
+  {"query": "put together a visual report on the board combining diagrams, text blocks, and tables", "should_trigger": false},
+  {"query": "add a mermaid sequence diagram of the auth flow to the README", "should_trigger": false},
+  {"query": "chart our weekly signups as a bar graph in an HTML artifact", "should_trigger": false}
+]
